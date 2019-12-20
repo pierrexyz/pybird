@@ -549,6 +549,17 @@ class Bird(object):
                 shotnoise = self.Ploopl[l,n,0]
                 self.Ploopl[l,n] -= shotnoise
 
+    def formatTaylor(self, co=common):
+        allk = np.concatenate([co.k, co.k]).reshape(-1,1)
+        Plin = np.flip(np.einsum('n,lnk->lnk', np.array([1., 2.*self.f, self.f**2]), self.P11l), axis=1) 
+        Plin = np.concatenate( np.einsum('lnk->lkn', Plin) , axis=0)
+        Plin = np.hstack(( allk, Plin )) 
+        Ploop1 = np.concatenate( np.einsum('lnk->lkn', self.Ploopl) , axis=0)
+        Ploop2 = np.einsum('n,lnk->lnk', np.array([2., 2., 2., 2.*self.f, 2.*self.f, 2.*self.f]), self.Pctl)
+        Ploop2 = np.concatenate( np.einsum('lnk->lkn', Ploop2) , axis=0)
+        Ploop = np.hstack((allk, Ploop1, Ploop2))
+        return Plin, Ploop
+
 def CoefWindow(N, window=1):
     n = np.arange(-N//2,N//2+1)
     if window is 1: n_cut = N//2
@@ -599,11 +610,11 @@ class FFTLog(object):
         
         if extrap is 'extrap':
             if xin[0] > self.x[0]:
-                print ('low extrapolation')
+                #print ('low extrapolation')
                 nslow = (log(f[1])-log(f[0])) / (log(xin[1])-log(xin[0]))
                 Aslow = f[0] / xin[0]**nslow
             if xin[-1] < self.x[-1]:
-                print ('high extrapolation')
+                #print ('high extrapolation')
                 nshigh = (log(f[-1])-log(f[-2])) / (log(xin[-1])-log(xin[-2]))
                 Ashigh = f[-1] / xin[-1]**nshigh
                 
