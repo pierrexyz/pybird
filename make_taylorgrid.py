@@ -13,7 +13,7 @@ import time
 
 time.sleep(4)
 
-basedir = './'
+basedir = '../homegroup/'
 OUTPATH = os.path.join(basedir, "output")
 outpk = os.path.join(basedir, "Pk")
 
@@ -50,6 +50,8 @@ for i, theta in enumerate(arrayred):
     bird.setPsCfl()
     resum.Ps(bird, full=False)
     bird.subtractShotNoise()
+    fvec = [1, 2 * bird.f, bird.f**2]
+    fvec2 = [ 2, 2, 2, 2 * bird.f, 2 * bird.f, 2 * bird.f]
     ### the 1-loop resummed power spectrum is stored in:
     # bird.P11l = np.empty(shape=(co.Nl, co.N11, co.Nk))
     # bird.Ploopl = np.empty(shape=(co.Nl, co.Nloop, co.Nk))
@@ -60,12 +62,14 @@ for i, theta in enumerate(arrayred):
     # Nk : number of k points
     ### the k points are:
     k = pybird.common.k
-    print(np.shape(np.swapaxes(bird.P11l, 0, 2)))
-    print(np.shape(np.tile(k.reshape((50,1,1)), (1,3,2))))
-    Plin = np.concatenate((np.tile(k.reshape((50,1,1)), (1,3,2)), np.swapaxes(bird.P11l, 0, 2)), axis=1)
+    # Note that in Plinear we have an opposite convention
+    Plin = np.einsum('b,lbx->lbx', fvec, bird.P11l)
+    Plin = np.flip(Plin, 1)
+    Plin = np.concatenate((np.tile(k.reshape((50,1,1)), (1,3,2)), np.swapaxes(Plin, 0, 2)), axis=1)
     Plin = np.vstack((Plin[..., 0], Plin[..., 1]))
     Ploop1 = np.swapaxes(bird.Ploopl, 0, 2)
-    Ploop2 = np.swapaxes(bird.Pctl, 0, 2)
+    Ploop2 = np.einsum('b,lbx->lbx', fvec2, bird.Pctl)
+    Ploop2 = np.swapaxes(Ploop2, 0, 2)
     Ploopl0 = np.hstack((k.reshape((len(k), 1)), Ploop1[..., 0], Ploop2[..., 0]))
     Ploopl1 = np.hstack((k.reshape((len(k), 1)), Ploop1[..., 1], Ploop2[..., 1]))
     Ploop = np.vstack((Ploopl0, Ploopl1))
