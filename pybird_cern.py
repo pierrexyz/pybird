@@ -6,7 +6,7 @@ from numpy import pi, sin, log, exp
 from numpy.fft import rfft
 #from pyfftw.builders import rfft
 from scipy.interpolate import interp1d
-from scipy.special import gamma, legendre, j1
+from scipy.special import gamma, legendre
 from scipy.integrate import quad
 #import matplotlib.pyplot as plt
 
@@ -22,28 +22,6 @@ def Hubble(Om, z):
 def DA(Om, z): ### make it analytic (?)
     r = quad(lambda x: 1. / Hubble(Om, x), 0, z)[0]
     return r / (1 + z)
-def W2D(x):
-    return (2. * j1(x)) / x
-def Hllp(l, lp, x):
-    if l == 2 and lp == 0: return x ** 2 - 1.
-    if l == 4 and lp == 0: return 1.75 * x**4 - 2.5 * x**2 + 0.75
-    if l == 4 and lp == 2: return x**4 - x**2
-    if l == 6 and lp == 0: return 4.125 * x**6 - 7.875 * x**4 + 4.375 * x**2 - 0.625
-    if l == 6 and lp == 2: return 2.75 * x**6 - 4.5 * x**4 + 7./4. * x**2  # PZ: why 7/4
-    if l == 6 and lp == 4: return x**6 - x**4
-    else: return x * 0.
-def fllp_IR(l, lp, k, q, Dfc):
-    # IR q < k
-    # q is an array, k is a scalar
-    if l == lp: return (q / k) * W2D(q * Dfc) * (q / k)**l
-    else: return (q / k) * W2D(q * Dfc) * (2. * l + 1.) / 2. * Hllp(max(l, lp), min(l, lp), q / k)
-
-
-def fllp_UV(l, lp, k, q, Dfc):
-    # UV q > k
-    # q is an array, k is a scalar
-    if l == lp: return W2D(q * Dfc) * (k / q)**l
-    else: return W2D(q * Dfc) * (2. * l + 1.) / 2. * Hllp(max(l, lp), min(l, lp), k / q)
 
 mu = {
     0: { 0: 1., 2: 0., 4: 0. },
@@ -447,17 +425,15 @@ class Common(object):
 common = Common()
 
 class Bird(object):
-    def __init__(self, kin, Plin, f, DA=None, H=None, z=None, which='full', co=common):
+    def __init__(self, kin, Plin, Omega_m, z, which='full', co=common):
 
         self.co = co
 
         self.which = which
 
-        #self.Om = Omega_mo
+        self.Om = Omega_m
         self.z = z
-        self.f = f #fN(Omega_m, z)
-        self.DA = DA
-        self.H = H
+        self.f = fN(Omega_m, z)
 
         self.kin = kin
         self.Pin = Plin
@@ -911,6 +887,7 @@ class Resum(object):
         if self.co.optiresum is True: self.LambdaIR = LambdaIR
         else: self.LambdaIR = .2
 
+        
         self.NIR = 32-4
         
         # can put those to empty
@@ -1077,34 +1054,24 @@ class Resum(object):
             bird.setfullPs()
 
 class Projection(object):
-    def __init__(self, kout, Om_AP, z_AP, nbinsmu=200, Qll=None, k_or=None, kp_or=None, binning=False, fibcol=False, co=common):
+    def __init__(self, kout, Om_AP, z_AP, nbinsmu=200, Qll=None, k_or=None, kp_or=None, co=common):
 
         self.co = co
         self.kout = kout
 
         self.Om = Om_AP
         self.z = z_AP
-
-        self.DA = DA(self.Om, self.z)
-        self.H = Hubble(self.Om, self.z)
-
         self.muacc = np.linspace(0., 1., nbinsmu)
-        # if Qll is None and not binning: kAP = self.kout
-        # else: kAP = self.co.k
-        self.kgrid, self.mugrid = np.meshgrid(self.co.k, self.muacc, indexing='ij')
+        if Qll is None: kAP = kout
+        else: kAP = self.co.k
+        self.kgrid, self.mugrid = np.meshgrid(kAP, self.muacc, indexing='ij')
         self.arrayLegendremugrid = np.array([(2*0+1)/2. * legendre(0)(self.mugrid), (2*2+1)/2. * legendre(2)(self.mugrid),])
 
-        if Qll is not None: self.loadWindow(self.co.k, Qll, k_or, kp_or)
-        if binning: self.loadBinning(self.kout)
-
-    # def get_AP_param(self, bird):
-    #     qperp = DA(bird.Om, bird.z) / DA(self.Om, self.z)
-    #     qpar = Hubble(self.Om, self.z) / Hubble(bird.Om, bird.z)
-    #     return qperp, qpar
+        if Qll is not None: self.loadWindow(Qll, k_or, kp_or)
 
     def get_AP_param(self, bird):
-        qperp = bird.DA / self.DA
-        qpar = self.H / bird.H
+        qperp = DA(bird.Om, bird.z) / DA(self.Om, self.z)
+        qpar = Hubble(self.Om, self.z) / Hubble(bird.Om, bird.z)
         return qperp, qpar
 
     def integrAP(self, Pk, kp, arrayLegendremup, many=False):
@@ -1117,9 +1084,8 @@ class Projection(object):
             Integrandmu = np.einsum('km,lkm->lkm', Pkmu, self.arrayLegendremugrid)
         return 2*np.trapz(Integrandmu, x=self.mugrid, axis=-1)
     
-    def AP(self, bird=None, q=None):
-        if q is None: qperp, qpar = self.get_AP_param(bird)
-        else: qperp, qpar = q
+    def AP(self, bird):
+        qperp, qpar = self.get_AP_param(bird)
         F = qpar / qperp
         kp = self.kgrid / qperp * (1 + self.mugrid**2 * (F**-2 - 1))**0.5
         mup = self.mugrid / F * (1 + self.mugrid**2 * (F**-2 - 1))**-0.5
@@ -1139,7 +1105,7 @@ class Projection(object):
         elif bird.which is 'full':
             bird.fullPs = 1. / (qperp**2 * qpar) * self.integrAP(bird.fullPs, kp, arrayLegendremup, many=False)
 
-    def loadWindow(self, kout, Qll, setk_or, setkp_or, withmask=True, windowk=0.05):
+    def loadWindow(self, Qll, setk_or, setkp_or, withmask=True, windowk=0.05):
         """
         Pre-load the window function to apply to the power spectrum by convolution in Fourier space
         Qll is an array of shape l,l',k',k where so that P_l(k) = \int dk' \sum_l' Q_{l l'}(k',k) P_l'(k')
@@ -1174,7 +1140,7 @@ class Projection(object):
         # Only keep value of setkp_or in the relevant range
         #maskred = ((setkp_or>setkout.min()-0.1*windowk)&(setkp_or<setkout.max()+windowk))
         maskred = ((setkp_or>self.kout.min())&(setkp_or<self.kout.max()+windowk))
-        self.Qlldk = interp1d(setk_or, Qlldk[:self.co.Nl,:self.co.Nl,maskred,:], axis=-1, kind='cubic', bounds_error=False, fill_value='extrapolate')(self.co.k)
+        self.Qlldk = interp1d(setk_or, Qlldk[:self.co.Nl,:self.co.Nl,maskred,:], axis=-1, kind='cubic')(self.kout)
         self.kQ = setkp_or[maskred]
 
     def integrWindow(self, P, many=False):
@@ -1197,95 +1163,3 @@ class Projection(object):
         
         elif bird.which is 'full':
             bird.fullPs = self.integrWindow(bird.fullPs, many=False)
-
-    def loadBinning(self, setkout):
-        delta_k = np.round(setkout[-1] - setkout[-2], 2)
-        kcentral = (setkout[-1] - delta_k * np.arange(len(setkout)))[::-1]
-        binmin = kcentral - delta_k / 2
-        binmax = kcentral + delta_k / 2
-        self.binvol = np.array([quad(lambda k: k**2, kbinmin, kbinmax)[0]
-                            for (kbinmin, kbinmax) in zip(binmin, binmax)])
-
-        self.points = [np.linspace(kbinmin, kbinmax, 100) for (kbinmin, kbinmax) in zip(binmin, binmax)]
-
-    def integrBinning(self, P):
-        Pkint = interp1d(self.co.k, P, axis=-1, kind='cubic', bounds_error=False, fill_value='extrapolate')
-        res = np.array([np.trapz(Pkint(pts) * pts**2, x = pts) for pts in self.points])
-        return np.moveaxis(res, 0, -1) / self.binvol
-
-    def kbinning(self, bird):
-        if bird.which is 'all':
-            bird.P11l = self.integrBinning(bird.P11l)
-            bird.Pctl = self.integrBinning(bird.Pctl)
-            bird.Ploopl = self.integrBinning(bird.Ploopl)
-
-    def dPuncorr(self, kout, fs=0.6, Dfc=0.43 / 0.6777):
-        """
-        Compute the uncorrelated contribution of fiber collisions
-
-        kPS : a cbird wavenumber output, typically a (39,) np array
-        fs : fraction of the survey affected by fiber collisions
-        Dfc : angular distance of the fiber channel Dfc(z = 0.55) = 0.43Mpc
-        """
-        dPunc = np.zeros((3, len(kout)))
-        for l in [0, 2, 4]: dPunc[int(l / 2)] = - fs * np.pi * Dfc**2. * (2. * np.pi / kout) * (2. * l + 1.) / 2. * special.legendre(l)(0) * (1. - (kout * Dfc)**2 / 8.)
-        return dPunc
-
-
-    def dPcorr(self, kout, kPS, PS, many=False, ktrust=0.25, fs=0.6, Dfc=0.43 / 0.6777):
-        """
-        Compute the correlated contribution of fiber collisions
-
-        kPS : a cbird wavenumber output, typically a (39,) np array
-        PS : a cbird power spectrum output, typically a (3, 39) np array
-        ktrust : a UV cutoff
-        fs : fraction of the survey affected by fiber collisions
-        Dfc : angular distance of the fiber channel Dfc(z = 0.55) = 0.43Mpc
-        """
-        q_ref = np.geomspace(min(kPS), ktrust, num=1024)
-        # create log bin
-        dq_ref = q_ref[1:] - q_ref[:-1]
-        dq_ref = np.concatenate([[0], dq_ref])
-
-        PS_interp = interp1d(kPS, PS, axis=-1, bounds_error=False, fill_value='extrapolate')(q_ref)
-
-        if many:
-            dPcorr = np.zeros(shape=(PS.shape[0], PS.shape[1], len(kout)))
-            for j in range(PS.shape[1]):
-                for l in range(self.co.Nl):
-                    for lp in range(self.co.Nl):
-                        for i, k in enumerate(kout):
-                            if lp <= l:
-                                maskIR = (q_ref < k)
-                                dPcorr[l, j, i] += - 0.5 * fs * Dfc**2 * np.einsum('q,q,q,q->', q_ref[maskIR],
-                                                                                             dq_ref[maskIR], PS_interp[lp, j, maskIR], fllp_IR(2*l, 2*lp, k, q_ref[maskIR], Dfc))
-                            if lp >= l:
-                                maskUV = ((q_ref > k) & (q_ref < ktrust))
-                                dPcorr[l, j, i] += - 0.5 * fs * Dfc**2 * np.einsum('q,q,q,q->', q_ref[maskUV],
-                                                                                             dq_ref[maskUV], PS_interp[lp, j, maskUV], fllp_UV(2*l, 2*lp, k, q_ref[maskUV], Dfc))
-        else:
-            dPcorr = np.zeros(shape=(PS.shape[0], len(kout)))
-            for l in range(self.co.Nl):
-                for lp in range(self.co.Nl):
-                    for i, k in enumerate(kout):
-                        if lp <= l:
-                            maskIR = (q_ref < k)
-                            dPcorr[l, i] += - 0.5 * fs * Dfc**2 * np.einsum('q,q,q,q->', q_ref[maskIR],
-                                                                                         dq_ref[maskIR], PS_interp[lp, maskIR], fllp_IR(2*l, 2*lp, k, q_ref[maskIR], Dfc))
-                        if lp >= l:
-                            maskUV = ((q_ref > k) & (q_ref < ktrust))
-                            dPcorr[l, i] += - 0.5 * fs * Dfc**2 * np.einsum('q,q,q,q->', q_ref[maskUV],
-                                                                                         dq_ref[maskUV], PS_interp[lp, maskUV], fllp_UV(2*l, 2*lp, k, q_ref[maskUV], Dfc))
-        return dPcorr
-
-    def fibcolWindow(self, bird):
-        if bird.which is 'all':
-            bird.P11l += self.dPcorr(self.co.k, self.co.k, bird.P11l, many=True)
-            bird.Pctl += self.dPcorr(self.co.k, self.co.k, bird.Pctl, many=True)
-            bird.Ploopl += self.dPcorr(self.co.k, self.co.k, bird.Ploopl, many=True)
-
-    def kdata(self, bird):
-        if bird.which is 'all':
-            bird.P11l = interp1d(self.co.k, bird.P11l, axis=-1, kind='cubic', bounds_error=False)(self.kout)
-            bird.Pctl = interp1d(self.co.k, bird.Pctl, axis=-1, kind='cubic', bounds_error=False)(self.kout)
-            bird.Ploopl = interp1d(self.co.k, bird.Ploopl, axis=-1, kind='cubic', bounds_error=False)(self.kout)
