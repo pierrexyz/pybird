@@ -1289,3 +1289,5 @@ class Projection(object):
             bird.P11l = interp1d(self.co.k, bird.P11l, axis=-1, kind='cubic', bounds_error=False)(self.kout)
             bird.Pctl = interp1d(self.co.k, bird.Pctl, axis=-1, kind='cubic', bounds_error=False)(self.kout)
             bird.Ploopl = interp1d(self.co.k, bird.Ploopl, axis=-1, kind='cubic', bounds_error=False)(self.kout)
+        if bird.which is 'full':
+            bird.fullPs = interp1d(self.co.k, bird.fullPs, axis=-1, kind='cubic', bounds_error=False)(self.kout)
