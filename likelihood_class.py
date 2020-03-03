@@ -1250,7 +1250,7 @@ class Likelihood_mock_cmb(Likelihood):
         except:
             self.ExcludeTTTEEE = False
 
-	#added by Siavash Yasini
+    #added by Siavash Yasini
         try:
             self.OnlyTT
             if self.OnlyTT and self.ExcludeTTTEEE:
@@ -1588,7 +1588,7 @@ class Likelihood_mock_cmb(Likelihood):
                     [cl['te'][l], cl['ee'][l]+self.noise_P[l], 0],
                     [cltd, 0, cldd+self.Nldd[l]]])
 
-	    # case with TT only (Added by Siavash Yasini)
+        # case with TT only (Added by Siavash Yasini)
             elif self.OnlyTT:
                 Cov_obs = np.array([[self.Cl_fid[0, l]]])
 
@@ -2699,7 +2699,9 @@ class Likelihood_eft(Likelihood):
 
         try: 
             if self.use_prior and self.priors is not None: 
+                self.priors = np.array(self.priors)
                 if self.model == 1: 
+
                     b3, cct, cr1, ce2, sn = self.priors
                     print ('EFT priors: b3: %s, cct: %s, cr1(+cr2): %s, ce2: %s, shotnoise: %s' % (b3, cct, cr1, ce2, sn) )
                 elif self.model == 2: 
@@ -2708,12 +2710,13 @@ class Likelihood_eft(Likelihood):
             else: 
                 print ('EFT priors: none')
                 self.use_prior = True
-                if self.model == 1: self.priors = np.array([100., 100., 100., 10., 400.])
-                elif self.model == 2: self.priors = np.array([100., 100., 100., 10.])
+                if self.model == 1: self.priors = np.array([ 10., 10., 16., 10., 2.])
+                elif self.model == 2: self.priors = np.array([ 10., 10., 16., 10. ])
+                elif self.model == 3: self.priors = np.array([ 10., 10., 16., 10., 10. ])
         except:
             self.use_prior = True
             if self.model == 1: 
-                self.priors = np.array([ 2., 2., 8., 2., 400. ])
+                self.priors = np.array([ 2., 2., 8., 2., 2. ])
                 b3, cct, cr1, ce2, sn = self.priors
                 print ('EFT priors: b3: %s, cct: %s, cr1(+cr2): %s, ce2: %s, shotnoise: %s (default)' % (b3, cct, cr1, ce2, sn) )
             elif self.model == 2: 
@@ -2819,7 +2822,7 @@ class Likelihood_bird(Likelihood_eft):
 
     def loglkl(self, cosmo, data):
 
-        bval = [data.mcmc_parameters[k]['current'] for k in self.use_nuisance]
+        bval = [data.mcmc_parameters[k]['current'] * data.mcmc_parameters[k]['scale'] for k in self.use_nuisance]
 
         b1 = bval[0]
         b2 = (bval[1] + bval[3]) / np.sqrt(2.)
@@ -2854,7 +2857,7 @@ class Likelihood_bird(Likelihood_eft):
                 self.bird.Pb3 = self.bird.Ploopl[:,3] + b1 * self.bird.Ploopl[:,7]
 
             if self.birdlkl is 'fastfull':
-                self.bird.fullPs[0] += bval[7] + bval[8] / self.nd / self.km**2 * self.k**2
+                self.bird.fullPs[0] += bval[7] / self.nd + bval[8] / self.nd / self.km**2 * self.k**2
                 self.bird.fullPs[1] += bval[9] / self.nd / self.km**2 * self.k**2
 
         ### DEPRECIATED
@@ -2906,13 +2909,16 @@ class Likelihood_bird(Likelihood_eft):
             chi2 = np.dot(modelX - self.ydata, np.dot(self.invcov, modelX - self.ydata))
         
         if self.use_prior:
-            prior = - 0.5 * (
-                               (bval[2] / self.priors[0])**2                         # b3
+            prior = - 0.5 * (  
+                               (bval[1] / 10.)**2                                    # c2
+                             + (bval[3] / 10.)**2                                    # c4
+                             + (bval[2] / self.priors[0])**2                         # b3
                              + (bval[4] / self.knl**2 / self.priors[1])**2           # cct
                              + (bval[5] / self.km**2 / self.priors[2])**2            # cr1(+cr2)
-                             + (bval[9] / self.nd / self.km**2 / self.priors[3])**2  # ce2
+                             + (bval[9] / self.nd / self.km**2 / self.priors[3])**2  # ce,l2
                              )
-            if self.model == 1: prior += -0.5 * ( (bval[7] / self.priors[4])**2 )  
+            if self.model == 1: prior += -0.5 * ( (bval[7] / self.nd / self.priors[4])**2 )              # ce0
+            if self.model == 3: prior += -0.5 * ( (bval[8] / self.nd / self.km**2 / self.priors[4])**2 ) # ce,l0
 
         if self.use_BBNprior: 
             prior += -0.5 * ((data.cosmo_arguments['omega_b'] - self.omega_b_BBNcenter) / self.omega_b_BBNsigma)**2
@@ -2930,12 +2936,15 @@ class Likelihood_bird(Likelihood_eft):
                         (2*f*Pct[:,0+3]+2*b1*Pct[:,0]) / self.knl**2, # *cct
                         (2*f*Pct[:,1+3]+2*b1*Pct[:,1]) / self.km**2 , # *cr1
                         #(2*f*Pct[:,2+3]+2*b1*Pct[:,2]) / self.km**2 , # *cr2
-                        kl2**2 / self.nd / self.km**2                 # *ce2
+                        kl2**2 / self.nd / self.km**2                 # *ce,l2
                     ])
 
         if model == 1:  
             Onel0 = np.array([ np.array([np.ones(self.Nk), np.zeros(self.Nk)]) ])# shot-noise mono
-            Pi = np.concatenate((Pi, Onel0))
+            Pi = np.concatenate((Pi, Onel0 / self.nd ))
+        elif model == 3:
+            kl0 = np.array([ np.array([self.k, np.zeros(self.Nk)]) ])# k^2 mono
+            Pi = np.concatenate((Pi, kl0**2 / self.nd / self.km**2))
 
         Pi = Pi.reshape( (Pi.shape[0], -1) )
 
