@@ -1,6 +1,4 @@
 import os
-#from time import time
-#from timeit import timeit, Timer
 import numpy as np
 from numpy import pi, sin, log, exp
 from numpy.fft import rfft
@@ -8,23 +6,29 @@ from numpy.fft import rfft
 from scipy.interpolate import interp1d
 from scipy.special import gamma, legendre, j1
 from scipy.integrate import quad
-#import matplotlib.pyplot as plt
 
 def cH(Om,a):
+    """ LCDM growth rate auxiliary function """
     return np.sqrt(Om/a+a**2*(1-Om))
 def DgN(Om,a):
+    """ LCDM growth rate auxiliary function """
     return 5./2*Om*cH(Om,a)/a*quad(lambda x:cH(Om,x)**-3,0,a)[0]
 def fN(Om,z):
+    """ LCDM growth rate """
     a = 1./(1.+z)
     return (Om*(5*a - 3*DgN(Om,a)))/(2.*(a**3*(1 - Om) + Om)*DgN(Om,a))
 def Hubble(Om, z):
+    """ LCDM AP parameter auxiliary function """
     return ((Om) * (1 + z)**3. + (1 - Om))**0.5
-def DA(Om, z): ### make it analytic (?)
+def DA(Om, z):
+    """ LCDM AP parameter auxiliary function """
     r = quad(lambda x: 1. / Hubble(Om, x), 0, z)[0]
     return r / (1 + z)
 def W2D(x):
+    """ Fiber collision effective window method auxiliary function  """
     return (2. * j1(x)) / x
 def Hllp(l, lp, x):
+    """ Fiber collision effective window method auxiliary function  """
     if l == 2 and lp == 0: return x ** 2 - 1.
     if l == 4 and lp == 0: return 1.75 * x**4 - 2.5 * x**2 + 0.75
     if l == 4 and lp == 2: return x**4 - x**2
@@ -33,18 +37,19 @@ def Hllp(l, lp, x):
     if l == 6 and lp == 4: return x**6 - x**4
     else: return x * 0.
 def fllp_IR(l, lp, k, q, Dfc):
+    """ Fiber collision effective window method auxiliary function  """
     # IR q < k
     # q is an array, k is a scalar
     if l == lp: return (q / k) * W2D(q * Dfc) * (q / k)**l
     else: return (q / k) * W2D(q * Dfc) * (2. * l + 1.) / 2. * Hllp(max(l, lp), min(l, lp), q / k)
-
-
 def fllp_UV(l, lp, k, q, Dfc):
+    """ Fiber collision effective window method auxiliary function  """
     # UV q > k
     # q is an array, k is a scalar
     if l == lp: return W2D(q * Dfc) * (k / q)**l
     else: return W2D(q * Dfc) * (2. * l + 1.) / 2. * Hllp(max(l, lp), min(l, lp), k / q)
 
+# powers of mu to Legendre polynomials
 mu = {
     0: { 0: 1., 2: 0., 4: 0. },
     2: { 0: 1./3., 2: 2./3., 4: 0. },
@@ -52,7 +57,8 @@ mu = {
     6: { 0: 1./7., 2: 10./21., 4: 24./77. },
     8: { 0: 1./9., 2: 40./99., 4: 48./148. }
 }
-
+    
+# specific part of the 13-loop matrices
 M13b = {
     0: lambda n1: 1.125,
     1: lambda n1: -(1/(1 + n1)),
@@ -67,8 +73,10 @@ M13b = {
 }
 
 def M13a(n1):
-    return np.tan(n1*np.pi)/(14.*(-3 + n1)*(-2 + n1)*(-1 + n1)*n1*np.pi)
+    """ Common part of the 13-loop matrices """
+    return np.tan(n1*pi)/(14.*(-3 + n1)*(-2 + n1)*(-1 + n1)*n1*pi)
 
+# specific part of the 22-loop matrices
 M22b = {
     0: lambda n1, n2: (6 + n1**4*(4 - 24*n2) - 7*n2 + 8*n1**5*n2 - 13*n2**2 + 4*n2**3 + 4*n2**4 + n1**2*(-13 + 38*n2 + 12*n2**2 - 8*n2**3) + 2*n1**3*(2 - 5*n2 - 4*n2**2 + 8*n2**3) + n1*(-7 - 6*n2 + 38*n2**2 - 10*n2**3 - 24*n2**4 + 8*n2**5))/(4.*n1*(1 + n1)*(-1 + 2*n1)*n2*(1 + n2)*(-1 + 2*n2)),
     1: lambda n1, n2: (-18 + n1**2*(1 - 11*n2) - 12*n2 + n2**2 + 10*n2**3 + 2*n1**3*(5 + 7*n2) + n1*(-12 - 38*n2 - 11*n2**2 + 14*n2**3))/(7.*n1*(1 + n1)*n2*(1 + n2)),
@@ -101,12 +109,15 @@ M22b = {
 }
 
 def M22a(n1, n2):
-    return (gamma(1.5 - n1)*gamma(1.5 - n2)*gamma(-1.5 + n1 + n2))/(8.*np.pi**1.5*gamma(n1)*gamma(3 - n1 - n2)*gamma(n2))
+    """ Common part of the 22-loop matrices """
+    return (gamma(1.5 - n1)*gamma(1.5 - n2)*gamma(-1.5 + n1 + n2))/(8.*pi**1.5*gamma(n1)*gamma(3 - n1 - n2)*gamma(n2))
 
-### matrix for spherical bessel transform from Power spectrum to Correlation function
 def MPC(l, pn):
-    return np.pi**-1.5 * 2.**(-2.*pn) * gamma(1.5+l/2.-pn) / gamma(l/2.+pn)
+    """ matrix for spherical bessel transform from power spectrum to correlation function """
+    return pi**-1.5 * 2.**(-2.*pn) * gamma(1.5+l/2.-pn) / gamma(l/2.+pn)
 
+# Resummation bulk coefficients Q^{ll'}_{||N-j}(n, \alpha) of the IR-resummation matrices.
+# Q(N-j)(l)(l')(n)(\alpha). see in Resum(object) method Ps(self, bird) for details.
 Q000 = {
     0: lambda f: (-3 - 2*f - f**2)/6.,
     1: lambda f: 0,
@@ -387,6 +398,7 @@ Q122 = {
     31: lambda f: (-33948915 - 277411134*f - 1683727617*f**2 - 6689846800*f**3 - 18989300169*f**4 - 40508641250*f**5 - 66363948581*f**6 - 83618177580*f**7 - 80270077195*f**8 - 57805024578*f**9 - 30550231215*f**10 - 11460369228*f**11 - 2883933360*f**12 - 436275840*f**13 - 29993964*f**14)/7.50895681536e12,
 }
 
+# Q(N-j)(l)(l')
 Qa = {
     0: {
         0: { 0: Q000, 2: Q002 },
@@ -398,13 +410,20 @@ Qa = {
     },
 }
 
+# precomputed k/q-arrays, in [h/Mpc]/[Mpc/h]
 kbird = np.array([ 0.001, 0.005, 0.0075, 0.01, 0.0125, 0.015, 0.0175, 0.02, 0.025, 0.03, 0.035, 0.04, 0.045, 0.05, 0.055, 0.06, 0.065, 0.07, 0.075, 0.08, 0.085, 0.09, 0.095, 0.1, 0.105, 0.11, 0.115, 0.12, 0.125, 0.13, 0.135, 0.14, 0.145, 0.15, 0.155, 0.16, 0.17, 0.18, 0.19, 0.2, 0.21, 0.22, 0.23, 0.24, 0.25, 0.26, 0.27, 0.28, 0.29, 0.3 ])
-qopti = np.array([ 5.000e+01,5.245e+01,5.490e+01,5.735e+01,5.980e+01,6.224e+01,6.469e+01,6.714e+01,6.959e+01,7.204e+01,7.449e+01,7.694e+01,7.939e+01,8.184e+01,8.429e+01,8.673e+01,8.918e+01,9.163e+01,9.408e+01,9.653e+01,9.898e+01,1.014e+02,1.039e+02,1.063e+02,1.088e+02,1.112e+02,1.137e+02,1.161e+02,1.186e+02,1.210e+02,1.235e+02,1.259e+02,1.284e+02,1.308e+02,1.333e+02,1.357e+02,1.382e+02,1.406e+02,1.431e+02,1.455e+02,1.480e+02,1.504e+02,1.529e+02,1.553e+02,1.578e+02,1.602e+02,1.627e+02,1.651e+02,1.676e+02,1.700e+02 ])
-qEH = np.array([  1.000e+00,1.124e+00,1.264e+00,1.421e+00,1.597e+00,1.796e+00,2.019e+00,2.270e+00,2.551e+00,2.868e+00,3.225e+00,3.625e+00,4.075e+00,4.582e+00,5.151e+00,5.790e+00,6.510e+00,7.318e+00,8.227e+00,9.249e+00,1.040e+01,1.169e+01,1.314e+01,1.477e+01,1.661e+01,1.867e+01,2.099e+01,2.360e+01,2.653e+01,2.982e+01,3.353e+01,3.769e+01,4.238e+01,4.764e+01,5.356e+01,6.000e+01,6.021e+01,6.526e+01,6.769e+01,7.053e+01,7.579e+01,7.609e+01,8.105e+01,8.555e+01,8.632e+01,9.158e+01,9.617e+01,9.684e+01,1.021e+02,1.074e+02,1.081e+02,1.126e+02,1.179e+02,1.215e+02,1.232e+02,1.284e+02,1.337e+02,1.366e+02,1.389e+02,1.442e+02,1.495e+02,1.536e+02,1.547e+02,1.600e+02,1.727e+02,1.941e+02,2.183e+02,2.454e+02,2.759e+02,3.101e+02,3.486e+02,3.919e+02,4.406e+02,4.954e+02,5.569e+02,6.261e+02,7.038e+02,7.912e+02,8.895e+02,1.000e+03])
+sbird = np.array([  1.000e+00,1.124e+00,1.264e+00,1.421e+00,1.597e+00,1.796e+00,2.019e+00,2.270e+00,2.551e+00,2.868e+00,3.225e+00,3.625e+00,4.075e+00,4.582e+00,5.151e+00,5.790e+00,6.510e+00,7.318e+00,8.227e+00,9.249e+00,1.040e+01,1.169e+01,1.314e+01,1.477e+01,1.661e+01,1.867e+01,2.099e+01,2.360e+01,2.653e+01,2.982e+01,3.353e+01,3.769e+01,4.238e+01,4.764e+01,5.356e+01,6.000e+01,6.021e+01,6.526e+01,6.769e+01,7.053e+01,7.579e+01,7.609e+01,8.105e+01,8.555e+01,8.632e+01,9.158e+01,9.617e+01,9.684e+01,1.021e+02,1.074e+02,1.081e+02,1.126e+02,1.179e+02,1.215e+02,1.232e+02,1.284e+02,1.337e+02,1.366e+02,1.389e+02,1.442e+02,1.495e+02,1.536e+02,1.547e+02,1.600e+02,1.727e+02,1.941e+02,2.183e+02,2.454e+02,2.759e+02,3.101e+02,3.486e+02,3.919e+02,4.406e+02,4.954e+02,5.569e+02,6.261e+02,7.038e+02,7.912e+02,8.895e+02,1.000e+03])
 
 class Common(object):
-    def __init__(self, Nl=2, kmin=0.001, kmax=0.3, optiresum=False):
+    """
+    A class to share data among different objects
 
+    Attributes
+    ----------
+    Nl : int
+        The maximum multipole to calculate (default 2)
+    """
+    def __init__(self, Nl=2, kmin=0.001, kmax=0.3, optiresum=False):
         self.optiresum = optiresum
         
         self.Nl = Nl
@@ -416,7 +435,7 @@ class Common(object):
         self.k = kbird#np.arange(0.001, 0.3, 0.001)#kbird #np.arange(kmin, kmax, 0.01)
         self.Nk = self.k.shape[0]
         if self.optiresum is True: self.s = np.arange(70., 200., 2.5)
-        else: self.s = qEH
+        else: self.s = sbird
         self.Ns = self.s.shape[0]
         self.kr = self.k[0.02<=self.k]
         self.Nkr = self.kr.shape[0]
@@ -447,17 +466,91 @@ class Common(object):
 common = Common()
 
 class Bird(object):
+    """
+    Main class which contains the power spectrum and correlation function, given a cosmology and a set of EFT parameters.
+    Bird: Biased tracers in redshift space
+
+    Attributes
+    ----------
+    co : class
+        An object of type Common() used to share data
+    which : string
+        Options to choose:
+        - 'full': to compute with a given cosmology and a given set of EFT parameters. This is the fastest evaluation.
+        - 'all': to compute with a given cosmology only. Bird(object) will store all terms factorized from the EFT parameters.
+    f : float
+        Growth rate (for redshift space distortion)
+    DA : float
+        Angular distance (for AP effect)
+    H : float
+        Hubble parameter (for AP effect)
+    z : float
+        Redshift (for AP effect)
+    kin : array
+        k-array on which the input linear power spectrum is evaluated
+    Pin : array
+        Input linear power spectrum
+    Plin : scipy.interpolate.interp1d
+        Interpolated function of the linear power spectrum
+    P11 : array
+        Linear power spectrum evaluated on co.k (the internal k-array on which PyBird evaluates the power spectrum)
+    P22 : array
+        Array to store the power spectrum 22-loop terms
+    P13 : array
+        Array to store the power spectrum 13-loop terms
+    C11 : array
+        Array to store the correlation function multipole linear terms
+    C22 : array
+        Array to store the correlation function multipole 22-loop terms
+    C13 : array
+        Array to store the correlation function multipole 13-loop terms
+    Cct : array
+        Array to store the correlation function multipole counter terms
+    Ps : array
+        Array to store the power spectrum multipole full linear part and full loop part (the loop including the counterterms)
+    Cf : array
+        Array to store the correlation function multipole full linear part and full loop part (the loop including the counterterms)
+    fullPs : array
+        Array to store the full power spectrum multipole (linear + loop)
+    b11 : array
+        EFT parameters for the linear terms per multipole
+    b13 : 
+        EFT parameters for the 13-loop terms per multipole
+    b22 : 
+        EFT parameters for the 22-loop terms per multipole
+    bct : 
+        EFT parameters for the counter terms per multipole
+
+    Methods
+    -------
+    setBias(bs)
+        For option: which='full'. Given an array of EFT parameters, set them among linear, loops and counter terms, and among multipoles
+    setPs(bs)
+        For option: which='full'. Given an array of EFT parameters, multiplies them accordingly to the power spectrum multipole terms and adds the resulting terms together per loop order
+    setCf(bs)
+        For option: which='full'. Given an array of EFT parameters, multiply them accordingly to the correlation function multipole terms
+    setPsCf(bs)
+        For option: which='full'. Given an array of EFT parameters, multiply them accordingly to the correlation function multipole terms
+    setfullPs()
+        For option: which='full'. Adds together the linear and the loop parts to get the full power spectrum multipoles
+    setPsCfl()
+        For option: which='all'. Regroups terms that share the same EFT parameter(s)
+    reducePsCfl()
+        For option: which='all'. Regroups terms that share the same EFT parameter(s)
+    setreducePslb(bs)
+        For option: which='all'. Given an array of EFT parameters, multiply them accordingly to the power spectrum multipole regrouped terms and adds the resulting terms together per loop order.
+    subtractShotNoise(self):
+        For option: which='all'. Subtract the constant stochastic term from the (22-)loop
+    """
     def __init__(self, kin, Plin, f, DA=None, H=None, z=None, which='full', co=common):
-
         self.co = co
-
+        
         self.which = which
 
-        #self.Om = Omega_mo
-        self.z = z
         self.f = f #fN(Omega_m, z)
         self.DA = DA
         self.H = H
+        self.z = z
 
         self.kin = kin
         self.Pin = Plin
@@ -495,6 +588,13 @@ class Bird(object):
         self.fullPs = np.empty(shape=(self.co.Nl, self.co.Nk))
     
     def setBias(self, bs):
+        """ For option: which='full'. Given an array of EFT parameters, set them among linear, loops and counter terms, and among multipoles
+
+        Parameters
+        ----------
+        bs : array
+            An array of 7 EFT parameters: b_1, b_2, b_3, b_4, c_{ct}/k_{nl}^2, c_{r,1}/k_{m}^2, c_{r,2}/k_{m}^2
+        """
         b1, b2, b3, b4, b5, b6, b7 = bs
         f = self.f
         for i in range(self.co.Nl):
@@ -505,6 +605,13 @@ class Bird(object):
             self.bct[i] = 2.*b1*(b5*mu[0][l]+b6*mu[2][l]+b7*mu[4][l]) + 2.*f*(b5*mu[2][l]+b6*mu[4][l]+b7*mu[6][l])
             
     def setPs(self, bs):
+        """ For option: which='full'. Given an array of EFT parameters, multiplies them accordingly to the power spectrum multipole terms and adds the resulting terms together per loop order
+
+        Parameters
+        ----------
+        bs : array
+            An array of 7 EFT parameters: b_1, b_2, b_3, b_4, c_{ct}/k_{nl}^2, c_{r,1}/k_{m}^2, c_{r,2}/k_{m}^2
+        """
         self.setBias(bs)
         self.Ps[0] = np.einsum('l,x->lx', self.b11, self.P11)
         self.Ps[1] = np.einsum('lb,bx->lx', self.b22, self.P22)
@@ -512,11 +619,25 @@ class Bird(object):
         self.Ps[1] += np.einsum('lb,bx->lx', self.b13, self.P13) + np.einsum('l,x,x->lx', self.bct, self.co.k**2, self.P11)
     
     def setCf(self, bs):
+        """ For option: which='full'. Given an array of EFT parameters, multiply them accordingly to the correlation function multipole terms
+
+        Parameters
+        ----------
+        bs : array
+            An array of 7 EFT parameters: b_1, b_2, b_3, b_4, c_{ct}/k_{nl}^2, c_{r,1}/k_{m}^2, c_{r,2}/k_{m}^2
+        """
         self.setBias(bs)
         self.Cf[0] = np.einsum('l,lx->lx', self.b11, self.C11)
         self.Cf[1] = np.einsum('lb,lbx->lx', self.b22, self.C22) + np.einsum('lb,lbx->lx', self.b13, self.C13) + np.einsum('l,lx->lx', self.bct, self.Cct)
 
     def setPsCf(self, bs):
+        """ For option: which='full'. Given an array of EFT parameters, multiply them accordingly to the power spectrum and correlation function multipole terms
+
+        Parameters
+        ----------
+        bs : array
+            An array of 7 EFT parameters: b_1, b_2, b_3, b_4, c_{ct}/k_{nl}^2, c_{r,1}/k_{m}^2, c_{r,2}/k_{m}^2
+        """
         self.setBias(bs)
         self.Ps[0] = np.einsum('l,x->lx', self.b11, self.P11)
         self.Ps[1] = np.einsum('lb,bx->lx', self.b22, self.P22)
@@ -526,9 +647,11 @@ class Bird(object):
         self.Cf[1] = np.einsum('lb,lbx->lx', self.b22, self.C22) + np.einsum('lb,lbx->lx', self.b13, self.C13) + np.einsum('l,lx->lx', self.bct, self.Cct)
     
     def setfullPs(self):
+        """ For option: which='full'. Adds together the linear and the loop parts to get the full power spectrum multipoles """
         self.fullPs = np.sum(self.Ps, axis=0)
     
     def setPsCfl(self):
+        """ For option: which='full'. Creates multipoles for each term weighted accordingly """
         self.P11l = np.einsum('x,ln->lnx', self.P11, self.co.l11)
         self.Pctl = np.einsum('x,x,ln->lnx', self.co.k**2, self.P11, self.co.lct)
         self.P22l = np.einsum('nx,ln->lnx', self.P22, self.co.l22)
@@ -556,6 +679,7 @@ class Bird(object):
     #     self.setfullPs()
         
     def reducePsCfl(self):
+        """ For option: which='all'. Regroups terms that share the same EFT parameter(s) """
         f1 = self.f
         
         self.Ploopl[:,0] = f1**2*self.P22l[:,20] + f1**3*self.P22l[:,23] + f1**3*self.P22l[:,24] + f1**4*self.P22l[:,25] + f1**4*self.P22l[:,26] + f1**4*self.P22l[:,27] + f1**2*self.P13l[:,7] + f1**3*self.P13l[:,8] + f1**3*self.P13l[:,9] # *1
@@ -585,6 +709,13 @@ class Bird(object):
         self.Cloopl[:,11] = self.C22[:,5] # *b4*b4
         
     def setreducePslb(self, bs):
+        """ For option: which='all'. Given an array of EFT parameters, multiply them accordingly to the power spectrum multipole regrouped terms and adds the resulting terms together per loop order.
+
+        Parameters
+        ----------
+        bs : array
+            An array of 7 EFT parameters: b_1, b_2, b_3, b_4, c_{ct}/k_{nl}^2, c_{r,1}/k_{m}^2, c_{r,2}/k_{m}^2
+        """
         b1, b2, b3, b4, b5, b6, b7 = bs
         f = self.f
         
@@ -600,12 +731,14 @@ class Bird(object):
         self.fullPs = Ps0 + Ps1
         
     def subtractShotNoise(self):
+        """ For option: which='all'. Subtract the constant stochastic term from the (22-)loop """
         for l in range(self.co.Nl): 
             for n in range(self.co.Nloop):
                 shotnoise = self.Ploopl[l,n,0]
                 self.Ploopl[l,n] -= shotnoise
 
     def formatTaylor(self):
+        """ An auxiliary to pipe PyBird with TBird: puts Bird(object) power spectrum multipole terms into the right shape for TBird """
         allk = np.concatenate([self.co.k, self.co.k]).reshape(-1,1)
         Plin = np.flip(np.einsum('n,lnk->lnk', np.array([1., 2.*self.f, self.f**2]), self.P11l), axis=1) 
         Plin = np.concatenate( np.einsum('lnk->lkn', Plin) , axis=0)
@@ -617,7 +750,13 @@ class Bird(object):
         return Plin, Ploop
 
     def setmargPsCfl(self, bs):
+        """ For option: which='marg'. Given an array of EFT parameters, multiply them accordingly to the power spectrum multipole terms and adds the resulting terms together per loop-order and differentiating parts with an EFT parameter appearing only linearly in the power spectrum from the others: {b_3}, {c_{i}} in one side, {b_1, b_2, b_4} on the other.
 
+        Parameters
+        ----------
+        bs : array
+            An array of 7 EFT parameters: b_1, b_2, b_3, b_4, c_{ct}/k_{nl}^2, c_{r,1}/k_{m}^2, c_{r,2}/k_{m}^2
+        """
         b1, b2, _, b4, _, _, _ = bs
         f = self.f
 
@@ -654,6 +793,7 @@ class Bird(object):
         self.Pctl = np.einsum('x,x,ln->lnx', self.co.k**2, self.P11, self.co.lct)
 
     def setmargPslb(self, bs):
+        """ For option: which='marg'. Adds together all pieces to get the full power spectrum multipoles """
         b1, _, b3, _, b5, b6, b7 = bs
         f = self.f
         bct = np.array([ 2.*b1*b5, 2.*b1*b6, 2.*b1*b7, 2.*f*b5, 2.*f*b6, 2.*f*b7 ])
@@ -661,6 +801,7 @@ class Bird(object):
 
 
 def CoefWindow(N, window=1):
+    """ FFTLog auxiliary function: window sending the FFT coefficients to 0 at the edges. From fast-pt """
     n = np.arange(-N//2,N//2+1)
     if window is 1: n_cut = N//2
     else: n_cut = int(window*N//2.)
@@ -681,24 +822,52 @@ def CoefWindow(N, window=1):
     return W
 
 class FFTLog(object):
+    """
+    A class implementing the FFTLog algorithm.
+    
+    Attributes
+    ----------
+    Nmax : int, optional
+        maximum number of points used to discretize the function
+    xmin : float, optional
+        minimum of the function to transform
+    xmax : float, optional
+        maximum of the function to transform
+    bias : float, optional
+        power by which we modify the function as x**bias * f
+    
+    Methods
+    -------
+    setx()
+        Calculates the discrete x points for the transform
+    
+    setPow()
+        Calculates the power in front of the function
+    
+    Coef()
+        Calculates the single coefficients
+
+    sumCoefxPow(xin, f, x, window=1)
+        Sums over the Coef * Pow reconstructing the input function
+    """
     def __init__(self, **kwargs):
         self.Nmax = kwargs['Nmax']
         self.xmin = kwargs['xmin']
         self.xmax = kwargs['xmax']
         self.bias = kwargs['bias']
-        self.dx = np.log(self.xmax/self.xmin) / (self.Nmax-1.)
+        self.dx = log(self.xmax/self.xmin) / (self.Nmax-1.)
         self.setx()
         self.setPow()
     
     def setx(self):
         self.x = np.empty(self.Nmax)
         for i in range(self.Nmax): 
-            self.x[i] = self.xmin * np.exp(i*self.dx)
+            self.x[i] = self.xmin * exp(i*self.dx)
     
     def setPow(self):
         self.Pow = np.empty(self.Nmax+1, dtype = complex)
         for i in range(self.Nmax+1): 
-            self.Pow[i] = self.bias + 1j * 2.*np.pi / (self.Nmax*self.dx) * (i - self.Nmax/2.)
+            self.Pow[i] = self.bias + 1j * 2.*pi / (self.Nmax*self.dx) * (i - self.Nmax/2.)
     
     def Coef(self, xin, f, extrap='extrap', window=1):
         
@@ -719,15 +888,15 @@ class FFTLog(object):
                 Ashigh = f[-1] / xin[-1]**nshigh
                 
             for i in range(self.Nmax): 
-                if xin[0] > self.x[i]: fx[i] = Aslow * self.x[i]**nslow * np.exp(-self.bias*i*self.dx)
-                elif xin[-1] < self.x[i]: fx[i] = Ashigh * self.x[i]**nshigh * np.exp(-self.bias*i*self.dx)
-                else: fx[i] = interpfunc(self.x[i]) * np.exp(-self.bias*i*self.dx)
+                if xin[0] > self.x[i]: fx[i] = Aslow * self.x[i]**nslow * exp(-self.bias*i*self.dx)
+                elif xin[-1] < self.x[i]: fx[i] = Ashigh * self.x[i]**nshigh * exp(-self.bias*i*self.dx)
+                else: fx[i] = interpfunc(self.x[i]) * exp(-self.bias*i*self.dx)
         
         elif extrap is'padding':
             for i in range(self.Nmax): 
                 if xin[0] > self.x[i]: fx[i] = 0.
                 elif xin[-1] < self.x[i]: fx[i] = 0.
-                else: fx[i] = interpfunc(self.x[i]) * np.exp(-self.bias*i*self.dx)
+                else: fx[i] = interpfunc(self.x[i]) * exp(-self.bias*i*self.dx)
                 
         tmp = rfft(fx) ### numpy
         #tmp = rfft(fx, planner_effort='FFTW_ESTIMATE')() ### pyfftw
@@ -742,7 +911,6 @@ class FFTLog(object):
             Coef[self.Nmax] /= 2.
         
         return Coef
-        #return self.x, 
     
     def sumCoefxPow(self, xin, f, x, window=1):    
         Coef = self.Coef(xin, f, window=window)
@@ -842,10 +1010,10 @@ class NonLinear(object):
                 self.Mcfct[l,u] = MPC(2*l, n1)
     
     def setkPow(self):
-        self.kPow = np.exp(np.einsum('n,k->nk', self.fft.Pow, np.log(self.co.k)))
+        self.kPow = exp(np.einsum('n,k->nk', self.fft.Pow, log(self.co.k)))
     
     def setsPow(self):
-        self.sPow = np.exp(np.einsum('n,s->ns', -self.fft.Pow-3., np.log(self.co.s)))
+        self.sPow = exp(np.einsum('n,s->ns', -self.fft.Pow-3., log(self.co.s)))
     
     def CoefkPow(self, Coef):
         return np.einsum('n,nk->nk', Coef, self.kPow )
@@ -951,10 +1119,10 @@ class Resum(object):
         ]
 
     def setXsPow(self):
-        self.XsPow = np.exp(np.einsum('n,s->ns', -self.Xfft.Pow-3., np.log(self.co.sr)))
+        self.XsPow = exp(np.einsum('n,s->ns', -self.Xfft.Pow-3., log(self.co.sr)))
     
     def setkPow(self):
-        self.kPow = np.exp(np.einsum('n,s->ns', -self.fft.Pow-3., np.log(self.co.kr)))
+        self.kPow = exp(np.einsum('n,s->ns', -self.fft.Pow-3., log(self.co.kr)))
     
     def setXM(self):
         self.XM = np.empty(shape=(2, self.Xfft.Pow.shape[0]), dtype='complex')
@@ -963,7 +1131,7 @@ class Resum(object):
         
     def IRFilters(self, bird, soffset=1., LambdaIR=None, RescaleIR=1., window=None):
         if LambdaIR is None: LambdaIR = self.LambdaIR
-        Coef = self.Xfft.Coef(bird.kin, bird.Pin * np.exp(-bird.kin**2/LambdaIR**2)/bird.kin**2, window=window)
+        Coef = self.Xfft.Coef(bird.kin, bird.Pin * exp(-bird.kin**2/LambdaIR**2)/bird.kin**2, window=window)
         CoefsPow = np.einsum('n,ns->ns', Coef, self.XsPow )
         X02 = np.real( np.einsum('ns,ln->ls', CoefsPow, self.XM) )
         X0offset = np.real( np.einsum('n,n->', np.einsum('n,n->n', Coef, soffset**(-self.Xfft.Pow-3.)), self.XM[0]) )
@@ -1228,7 +1396,7 @@ class Projection(object):
         Dfc : angular distance of the fiber channel Dfc(z = 0.55) = 0.43Mpc
         """
         dPunc = np.zeros((3, len(kout)))
-        for l in [0, 2, 4]: dPunc[int(l / 2)] = - fs * np.pi * Dfc**2. * (2. * np.pi / kout) * (2. * l + 1.) / 2. * special.legendre(l)(0) * (1. - (kout * Dfc)**2 / 8.)
+        for l in [0, 2, 4]: dPunc[int(l / 2)] = - fs * pi * Dfc**2. * (2. * pi / kout) * (2. * l + 1.) / 2. * special.legendre(l)(0) * (1. - (kout * Dfc)**2 / 8.)
         return dPunc
 
 
