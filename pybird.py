@@ -472,19 +472,19 @@ class Bird(object):
 
     Attributes
     ----------
-    co : class
+    co : class, optional
         An object of type Common() used to share data
-    which : string
-        Options to choose:
+    which : string, optional
+        Options to choose (default: 'full'):
         - 'full': to compute with a given cosmology and a given set of EFT parameters. This is the fastest evaluation.
         - 'all': to compute with a given cosmology only. Bird(object) will store all terms factorized from the EFT parameters.
     f : float
         Growth rate (for redshift space distortion)
-    DA : float
+    DA : float, optional
         Angular distance (for AP effect)
-    H : float
+    H : float, optional
         Hubble parameter (for AP effect)
-    z : float
+    z : float, optional
         Redshift (for AP effect)
     kin : array
         k-array on which the input linear power spectrum is evaluated
@@ -492,55 +492,56 @@ class Bird(object):
         Input linear power spectrum
     Plin : scipy.interpolate.interp1d
         Interpolated function of the linear power spectrum
-    P11 : array
+    P11 : ndarray
         Linear power spectrum evaluated on co.k (the internal k-array on which PyBird evaluates the power spectrum)
-    P22 : array
-        Array to store the power spectrum 22-loop terms
-    P13 : array
-        Array to store the power spectrum 13-loop terms
-    C11 : array
-        Array to store the correlation function multipole linear terms
-    C22 : array
-        Array to store the correlation function multipole 22-loop terms
-    C13 : array
-        Array to store the correlation function multipole 13-loop terms
-    Cct : array
-        Array to store the correlation function multipole counter terms
-    Ps : array
-        Array to store the power spectrum multipole full linear part and full loop part (the loop including the counterterms)
-    Cf : array
-        Array to store the correlation function multipole full linear part and full loop part (the loop including the counterterms)
-    fullPs : array
-        Array to store the full power spectrum multipole (linear + loop)
-    b11 : array
+    P22 : ndarray
+        To store the power spectrum 22-loop terms
+    P13 : ndarray
+        To store the power spectrum 13-loop terms
+    C11 : ndarray
+        To store the correlation function multipole linear terms
+    C22 : ndarray
+        To store the correlation function multipole 22-loop terms
+    C13 : ndarray
+        To store the correlation function multipole 13-loop terms
+    Cct : ndarray
+        To store the correlation function multipole counter terms
+    Ps : ndarray
+        To store the power spectrum multipole full linear part and full loop part (the loop including the counterterms)
+    Cf : ndarray
+        To store the correlation function multipole full linear part and full loop part (the loop including the counterterms)
+    fullPs : ndarray
+        To store the full power spectrum multipole (linear + loop)
+    b11 : ndarray
         EFT parameters for the linear terms per multipole
-    b13 : 
+    b13 : ndarray
         EFT parameters for the 13-loop terms per multipole
-    b22 : 
+    b22 : ndarray
         EFT parameters for the 22-loop terms per multipole
-    bct : 
+    bct : ndarray
         EFT parameters for the counter terms per multipole
-
-    Methods
-    -------
-    setBias(bs)
-        For option: which='full'. Given an array of EFT parameters, set them among linear, loops and counter terms, and among multipoles
-    setPs(bs)
-        For option: which='full'. Given an array of EFT parameters, multiplies them accordingly to the power spectrum multipole terms and adds the resulting terms together per loop order
-    setCf(bs)
-        For option: which='full'. Given an array of EFT parameters, multiply them accordingly to the correlation function multipole terms
-    setPsCf(bs)
-        For option: which='full'. Given an array of EFT parameters, multiply them accordingly to the correlation function multipole terms
-    setfullPs()
-        For option: which='full'. Adds together the linear and the loop parts to get the full power spectrum multipoles
-    setPsCfl()
-        For option: which='all'. Regroups terms that share the same EFT parameter(s)
-    reducePsCfl()
-        For option: which='all'. Regroups terms that share the same EFT parameter(s)
-    setreducePslb(bs)
-        For option: which='all'. Given an array of EFT parameters, multiply them accordingly to the power spectrum multipole regrouped terms and adds the resulting terms together per loop order.
-    subtractShotNoise(self):
-        For option: which='all'. Subtract the constant stochastic term from the (22-)loop
+    
+    # It seems we don't need to put the following for the documentation as it is already below???
+    # Methods
+    # -------
+    # setBias(bs)
+    #     For option: which='full'. Given an array of EFT parameters, set them among linear, loops and counter terms, and among multipoles
+    # setPs(bs)
+    #     For option: which='full'. Given an array of EFT parameters, multiplies them accordingly to the power spectrum multipole terms and adds the resulting terms together per loop order
+    # setCf(bs)
+    #     For option: which='full'. Given an array of EFT parameters, multiply them accordingly to the correlation function multipole terms
+    # setPsCf(bs)
+    #     For option: which='full'. Given an array of EFT parameters, multiply them accordingly to the correlation function multipole terms
+    # setfullPs()
+    #     For option: which='full'. Adds together the linear and the loop parts to get the full power spectrum multipoles
+    # setPsCfl()
+    #     For option: which='all'. Regroups terms that share the same EFT parameter(s)
+    # reducePsCfl()
+    #     For option: which='all'. Regroups terms that share the same EFT parameter(s)
+    # setreducePslb(bs)
+    #     For option: which='all'. Given an array of EFT parameters, multiply them accordingly to the power spectrum multipole regrouped terms and adds the resulting terms together per loop order.
+    # subtractShotNoise(self):
+    #     For option: which='all'. Subtract the constant stochastic term from the (22-)loop
     """
     def __init__(self, kin, Plin, f, DA=None, H=None, z=None, which='full', co=common):
         self.co = co
@@ -920,6 +921,41 @@ class FFTLog(object):
         return fFFT
 
 class NonLinear(object):
+    """
+    given a Bird() object, computes the one-loop power spectrum and one-loop correlation function. 
+    The correlation function is useful to perform the IR-resummation of the power spectrum.
+    The loop and spherical Bessel transform matrices are either loaded either precomputed and stored at the instanciation of the class. 
+
+    Attributes
+    ----------
+    co : class
+        An object of type Common() used to share data
+    fftsettings: dict
+    fft : class
+        An object of type FFTLog() to perform the FFTLog
+    M22 : ndarray
+        22-loop power spectrum matrices
+    M13 : ndarray 
+        13-loop power spectrum matrices
+    Mcf11 : ndarray
+        Spherical Bessel transform matrices of the linear power spectrum to correlation function
+    Ml : ndarray
+        Spherical Bessel transform matrices of the loop power spectrum to correlation function multipole. Auxiliary matrices used for the loop correlation function matrices.
+    Mcf22 : ndarray
+        22-loop correlation function multipole matrices
+    Mcf13 : ndarray
+        13-loop correlation function multipole matrices
+    kPow : ndarray
+        k's to the powers on which to perform the FFTLog to evaluate the loop power spectrum
+    sPow : ndarray
+        s's to the powers on which to perform the FFTLog to evaluate the loop correlation function
+    optipathP22 : NumPy einsum_path
+        Optimization settings for NumPy einsum when performing matrix multiplications to compute the 22-loop power spectrum. For speedup purpose in repetitive evaluations.
+    optipathC13 : NumPy einsum_path
+        Optimization settings for NumPy einsum when performing matrix multiplications to compute the 13-loop correlation function. For speedup purpose in repetitive evaluations.
+    optipathC22 : NumPy einsum_path
+        Optimization settings for NumPy einsum when performing matrix multiplications to compute the 22-loop correlation function. For speedup purpose in repetitive evaluations. 
+    """
     def __init__(self, load=True, save=True, path='./', NFFT=256, co=common):
 
         self.co = co
@@ -965,6 +1001,7 @@ class NonLinear(object):
         self.optipathC22 = np.einsum_path('ns,ms,blnm->bls', self.sPow, self.sPow, self.Mcf13, optimize='optimal')[0]
         
     def setM22(self):
+        """ Compute the 22-loop power spectrum matrices. Called at the instantiation of the class if the matrices are not loaded. """
         self.M22 = np.empty(shape=(self.co.N22, self.fft.Pow.shape[0], self.fft.Pow.shape[0]), dtype='complex')
         # common piece of M22
         Ma = np.empty(shape=(self.fft.Pow.shape[0], self.fft.Pow.shape[0]), dtype='complex')
@@ -980,17 +1017,20 @@ class NonLinear(object):
             self.M22[i] = Ma*Mb
     
     def setM13(self):
+        """ Compute the 13-loop power spectrum matrices. Called at the instantiation of the class if the matrices are not loaded. """
         self.M13 = np.empty(shape=(self.co.N13, self.fft.Pow.shape[0]), dtype='complex')
         Ma = M13a(-0.5*self.fft.Pow)
         for i in range(self.co.N13): self.M13[i] = Ma*M13b[i](-0.5*self.fft.Pow)
     
     def setMcf11(self):
+        """ Compute the 11-loop correlation function matrices. Called at the instantiation of the class if the matrices are not loaded. """
         self.Mcf11 = np.empty(shape=(self.co.Nl, self.fft.Pow.shape[0]), dtype='complex')
         for l in range(self.co.Nl):
             for u, n1 in enumerate(-0.5*self.fft.Pow):
                 self.Mcf11[l,u] = MPC(2*l, n1)
         
     def setMl(self):
+        """ Compute the power spectrum to correlation function spherical Bessel transform matrices. Called at the instantiation of the class if the matrices are not loaded. """
         self.Ml = np.empty(shape=(self.co.Nl, self.fft.Pow.shape[0], self.fft.Pow.shape[0]), dtype='complex')
         for l in range(self.co.Nl):
             for u, n1 in enumerate(-0.5*self.fft.Pow):
@@ -998,59 +1038,91 @@ class NonLinear(object):
                     self.Ml[l,u,v] = MPC(2*l, n1+n2-1.5)
     
     def setMcf22(self):
+        """ Compute the 22-loop correlation function matrices. Called at the instantiation of the class if the matrices are not loaded. """
         self.Mcf22 = np.einsum('lnm,bnm->blnm', self.Ml, self.M22)
     
     def setMcf13(self):
+        """ Compute the 13-loop correlation function matrices. Called at the instantiation of the class if the matrices are not loaded. """
         self.Mcf13 = np.einsum('lnm,bn->blnm', self.Ml, self.M13)
     
     def setMcfct(self):
+        """ Compute the counterterm correlation function matrices. Called at the instantiation of the class if the matrices are not loaded. """
         self.Mcfct = np.empty(shape=(self.co.Nl, self.fft.Pow.shape[0]), dtype='complex')
         for l in range(self.co.Nl):
             for u, n1 in enumerate(-0.5*self.fft.Pow-1.):
                 self.Mcfct[l,u] = MPC(2*l, n1)
     
     def setkPow(self):
+        """ Compute the k's to the powers of the FFTLog to evaluate the loop power spectrum. Called at the instantiation of the class. """
         self.kPow = exp(np.einsum('n,k->nk', self.fft.Pow, log(self.co.k)))
     
     def setsPow(self):
+        """ Compute the s's to the powers of the FFTLog to evaluate the loop correlation function. Called at the instantiation of the class. """
         self.sPow = exp(np.einsum('n,s->ns', -self.fft.Pow-3., log(self.co.s)))
     
     def CoefkPow(self, Coef):
+        """ Multiply the coefficients with the k's to the powers of the FFTLog to evaluate the loop power spectrum. """
         return np.einsum('n,nk->nk', Coef, self.kPow )
     
     def CoefsPow(self, Coef):
+        """ Multiply the coefficients with the s's to the powers of the FFTLog to evaluate the correlation function. """
         return np.einsum('n,ns->ns', Coef, self.sPow )
     
     def makeP22(self, CoefkPow, bird):
+        """ Perform the 22-loop power spectrum matrix multiplications """
         bird.P22 = self.co.k**3 * np.real( np.einsum('nk,mk,bnm->bk', CoefkPow, CoefkPow, self.M22, optimize=self.optipathP22 ) )
     
     def makeP13(self, CoefkPow, bird):
+        """ Perform the 13-loop power spectrum matrix multiplications """
         bird.P13 = self.co.k**3 * bird.P11 * np.real( np.einsum('nk,bn->bk', CoefkPow, self.M13) )
         
     def makeC11(self, CoefsPow, bird):
+        """ Perform the 11-loop correlation function matrix multiplications """
         bird.C11 = np.real( np.einsum('ns,ln->ls', CoefsPow, self.Mcf11) )
     
     def makeCct(self, CoefsPow, bird):
+        """ Perform the counterterm correlation function matrix multiplications """
         bird.Cct = self.co.s**-2 * np.real( np.einsum('ns,ln->ls', CoefsPow, self.Mcfct) )
         
     def makeC22(self, CoefsPow, bird):
+        """ Perform the 22-loop correlation function matrix multiplications """
         bird.C22 = np.real( np.einsum('ns,ms,blnm->lbs', CoefsPow, CoefsPow, self.Mcf22, optimize=self.optipathC22 ) )
     
     def makeC13(self, CoefsPow, bird):
+        """ Perform the 13-loop correlation function matrix multiplications """
         bird.C13 = np.real( np.einsum('ns,ms,blnm->lbs', CoefsPow, CoefsPow, self.Mcf13, optimize=self.optipathC13 ) )
         
     def Coef(self, bird, window=None):
-#         if bird.kin[0] > self.fftsettings['xmin']: print ('Please provide a linear power spectrum with kmin < %s'%self.fftsettings['xmin'])
-#         if bird.kin[-1] < self.fftsettings['xmax']: print ('Please provide a linear power spectrum with kmax > %s'%self.fftsettings['xmax'])
+        """ Perform the FFTLog (i.e. calculate the coefficients of the FFTLog) of the input linear power spectrum in the given a Bird().
+        
+        Parameters
+        ----------
+        bird : class
+            an object of type Bird()
+        """
         return self.fft.Coef(bird.kin, bird.Pin, window=window)
     
     def Ps(self, bird, window=None):
+        """ Compute the loop power spectrum given a Bird(). Perform the FFTLog and the matrix multiplications.
+        
+        Parameters
+        ----------
+        bird : class
+            an object of type Bird()
+        """
         coef = self.Coef(bird, window=window)
         coefkPow = self.CoefkPow(coef)
         self.makeP22(coefkPow, bird)
         self.makeP13(coefkPow, bird)
         
     def Cf(self, bird, window=None):
+        """ Compute the loop correlation function given a Bird(). Perform the FFTLog and the matrix multiplications.
+        
+        Parameters
+        ----------
+        bird : class
+            an object of type Bird()
+        """
         if self.co.optiresum is False: window = .6
         coef = self.Coef(bird, window=window)
         coefsPow = self.CoefsPow(coef)
@@ -1060,6 +1132,13 @@ class NonLinear(object):
         self.makeC13(coefsPow, bird)
     
     def PsCf(self, bird, window=None):
+        """ Compute the loop power spectrum and correlation function given a Bird(). Perform the FFTLog and the matrix multiplications.
+        
+        Parameters
+        ----------
+        bird : class
+            an object of type Bird()
+        """
         if self.co.optiresum is False: window = .6
         coef = self.Coef(bird, window=window)
         coefkPow = self.CoefkPow(coef)
@@ -1072,6 +1151,46 @@ class NonLinear(object):
         self.makeC13(coefsPow, bird)
 
 class Resum(object):
+    """
+    given a Bird() object, performs the IR-resummation of the power spectrum.
+    
+
+    Attributes
+    ----------
+    co : class
+        An object of type Common() used to share data
+    LambdaIR : float, optional
+    
+    NIR : float
+
+    k2p: ndarray
+
+    alllpr : ndarray
+
+    Q : ndarray
+    IRcorr : ndarray
+    IR11 : ndarray
+    IRct : ndarray
+    IRloop : ndarray
+    IRresum : ndarray
+    IR11resum : ndarray
+    IRctresum : ndarray
+    IRloopresum : ndarray
+    IRb3 : ndarray
+    IRb3resum : ndarray
+
+    fftsettings : 
+    fft :
+    M :
+    kPow :
+    Xfftsettings :
+    Xfft :
+    XM : 
+    XsPow : 
+
+
+    
+    """
     def __init__(self, LambdaIR=1., NFFT=192, co=common):
 
         self.co = co
@@ -1080,6 +1199,14 @@ class Resum(object):
         else: self.LambdaIR = .2
 
         self.NIR = 32-4
+        
+        k2pi = np.array([self.co.kr**2, self.co.kr**4, self.co.kr**6, self.co.kr**8, self.co.kr**10, self.co.kr**12, self.co.kr**14, self.co.kr**16])
+        self.k2p = np.concatenate((k2pi, k2pi))
+        
+        self.alllpr = [
+            [0,1], [0,1], [0,1], [0,1], [0,1], [0,1], [0,1], [0,1], 
+            [0,1], [0,1], [0,1], [0,1], [0,1], [0,1], #[0,1], [0,1], 
+        ]
         
         # can put those to empty
         self.Q = np.zeros(shape=(2, self.co.Nl, self.co.Nl, self.NIR))
@@ -1109,14 +1236,6 @@ class Resum(object):
         self.Xfft = FFTLog(**self.Xfftsettings)
         self.setXM()
         self.setXsPow()
-        
-        k2pi = np.array([self.co.kr**2, self.co.kr**4, self.co.kr**6, self.co.kr**8, self.co.kr**10, self.co.kr**12, self.co.kr**14, self.co.kr**16])
-        self.k2p = np.concatenate((k2pi, k2pi))
-        
-        self.alllpr = [
-            [0,1], [0,1], [0,1], [0,1], [0,1], [0,1], [0,1], [0,1], 
-            [0,1], [0,1], [0,1], [0,1], [0,1], [0,1], #[0,1], [0,1], 
-        ]
 
     def setXsPow(self):
         self.XsPow = exp(np.einsum('n,s->ns', -self.Xfft.Pow-3., log(self.co.sr)))
