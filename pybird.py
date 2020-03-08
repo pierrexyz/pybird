@@ -1152,23 +1152,28 @@ class NonLinear(object):
 
 class Resum(object):
     """
-    given a Bird() object, performs the IR-resummation of the power spectrum.
+    given a Bird() object, performs the IR-resummation of the power spectrum. 
+    There are two options:
+    1. `Full' resummation: the FFTLog's are performed on the full integrands from s = .1 to s = 10000. in (Mpc/h)
+    2. `Opti' resummation: the FFTLog's are performed only on the BAO peak that is extracted by removing the smooth part of the correlation function. What is left is then padded with zeros and the FFTLog's run from s = .1 to s = 1000. in (Mpc/h).
     
 
     Attributes
     ----------
     co : class
         An object of type Common() used to share data
-    LambdaIR : float, optional
-    
+    LambdaIR : float
+        Integral cutoff for X and Y IR-filters. (default LambdaIR=.2 for 'full', LambdaIR= 1. for 'opti'. Note that either value can do for either resummation.)
     NIR : float
-
+        Number of IR-correction terms in the sums over n and alpha, where n is the order of the Taylor expansion in powers of k^2 of the exponential of the bulk displacements, and for each n, alpha = { 0, 2 } are the orders of spherical Bessel functions. The ordering of the IR-corrections is given by (n,alpha), where alpha is running faster, e.g. (1, 0), (1, 2), (2, 0), (2, 2), (3, 0), (3, 2), ...
     k2p: ndarray
-
+        powers of k^2
     alllpr : ndarray
-
+        alpha = { 0, 2 } orders of spherical Bessel functions, for each n
     Q : ndarray
+        Resummation bulk coefficients Q^{ll'}_{||N-j}(n, \alpha, f) of the IR-resummation matrices. f is the growth rate.
     IRcorr : ndarray
+        
     IR11 : ndarray
     IRct : ndarray
     IRloop : ndarray
@@ -1179,14 +1184,14 @@ class Resum(object):
     IRb3 : ndarray
     IRb3resum : ndarray
 
-    fftsettings : 
-    fft :
-    M :
-    kPow :
-    Xfftsettings :
-    Xfft :
-    XM : 
-    XsPow : 
+    fftsettings : dict
+    fft : class
+    M : ndarray
+    kPow : ndarray
+    Xfftsettings : dict
+    Xfft : class
+    XM : ndarray
+    XsPow : ndarray
 
 
     
