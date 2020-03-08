@@ -1154,8 +1154,8 @@ class Resum(object):
     """
     given a Bird() object, performs the IR-resummation of the power spectrum. 
     There are two options:
-    1. `Full' resummation: the FFTLog's are performed on the full integrands from s = .1 to s = 10000. in (Mpc/h)
-    2. `Opti' resummation: the FFTLog's are performed only on the BAO peak that is extracted by removing the smooth part of the correlation function. What is left is then padded with zeros and the FFTLog's run from s = .1 to s = 1000. in (Mpc/h).
+    1.  fullresum: the FFTLog's are performed on the full integrands from s = .1 to s = 10000. in (Mpc/h) (default)
+    2. 'optiresum: the FFTLog's are performed only on the BAO peak that is extracted by removing the smooth part of the correlation function. What is left is then padded with zeros and the FFTLog's run from s = .1 to s = 1000. in (Mpc/h).
     
 
     Attributes
@@ -1163,7 +1163,7 @@ class Resum(object):
     co : class
         An object of type Common() used to share data
     LambdaIR : float
-        Integral cutoff for X and Y IR-filters. (default LambdaIR=.2 for 'full', LambdaIR= 1. for 'opti'. Note that either value can do for either resummation.)
+        Integral cutoff for IR-filters X and Y (fullresum: LambdaIR=.2 (default), optiresum: LambdaIR= 1 ; either value can do for either resummation)
     NIR : float
         Number of IR-correction terms in the sums over n and alpha, where n is the order of the Taylor expansion in powers of k^2 of the exponential of the bulk displacements, and for each n, alpha = { 0, 2 } are the orders of spherical Bessel functions. The ordering of the IR-corrections is given by (n,alpha), where alpha is running faster, e.g. (1, 0), (1, 2), (2, 0), (2, 2), (3, 0), (3, 2), ...
     k2p: ndarray
@@ -1171,30 +1171,39 @@ class Resum(object):
     alllpr : ndarray
         alpha = { 0, 2 } orders of spherical Bessel functions, for each n
     Q : ndarray
-        Resummation bulk coefficients Q^{ll'}_{||N-j}(n, \alpha, f) of the IR-resummation matrices. f is the growth rate.
+        IR-resummation bulk coefficients Q^{ll'}_{||N-j}(n, \alpha, f) of the IR-resummation matrices. f is the growth rate. Computed in method Ps().
     IRcorr : ndarray
-        
+        Q-independent pieces in the IR-correction sums over n and alpha of the power spectrum, for bird.which = 'full'. Computed in method Ps().
     IR11 : ndarray
+        Q-independent in the IR-correction sums over n and alpha of the power spectrum linear part, for bird.which = 'all'. Computed in method Ps().
     IRct : ndarray
+        Q-independent pieces in the IR-correction sums over n and alpha of the power spectrum counterterm, for bird.which = 'all'. Computed in method Ps().
     IRloop : ndarray
+        Q-independent loop pieces in the IR-correction sums over n and alpha of the power spectrum loop part, for bird.which = 'all'. Computed in method Ps().
     IRresum : ndarray
+        IR-corrections to the power spectrum, for bird.which = 'full'. Computed in method Ps().
     IR11resum : ndarray
+        IR-corrections to the power spectrum linear parts, for bird.which = 'all'. Computed in method Ps().
     IRctresum : ndarray
+        IR-corrections to the power spectrum counterterms, for bird.which = 'all'. Computed in method Ps().
     IRloopresum : ndarray
-    IRb3 : ndarray
-    IRb3resum : ndarray
-
+        IR-corrections to the power spetrum loop parts, for bird.which = 'all'. Computed in method Ps().
     fftsettings : dict
+        Number of points and boundaries of the FFTLog's for the computing the IR-corrections
     fft : class
+        An object of type FFTLog() to evaluate the IR-corrections
     M : ndarray
+        spherical Bessel transform matrices to evaluate the IR-corrections
     kPow : ndarray
+        k's to the powers on which to perform the FFTLog to evaluate the IR-corrections.
     Xfftsettings : dict
+        Number of points and boundaries of the FFTLog's for evaluating the IR-filters X and Y
     Xfft : class
+        An object of type FFTLog() to evaluate the IR-filters X and Y
     XM : ndarray
+        spherical Bessel transform matrices to evaluate the IR-filters X and Y
     XsPow : ndarray
-
-
-    
+        s's to the powers on which to perform the FFTLog to evaluate the IR-filters X and Y    
     """
     def __init__(self, LambdaIR=1., NFFT=192, co=common):
 
@@ -1243,17 +1252,21 @@ class Resum(object):
         self.setXsPow()
 
     def setXsPow(self):
+        """ Multiply the coefficients with the s's to the powers of the FFTLog to evaluate the IR-filters X and Y. """
         self.XsPow = exp(np.einsum('n,s->ns', -self.Xfft.Pow-3., log(self.co.sr)))
     
     def setkPow(self):
+        """ Multiply the coefficients with the k's to the powers of the FFTLog to evaluate the IR-corrections. """
         self.kPow = exp(np.einsum('n,s->ns', -self.fft.Pow-3., log(self.co.kr)))
     
     def setXM(self):
+        """ Compute the matrices to evaluate the IR-filters X and Y. Called at instantiation. """
         self.XM = np.empty(shape=(2, self.Xfft.Pow.shape[0]), dtype='complex')
         for l in range(2):
             self.XM[l] = MPC(2*l, -0.5*self.Xfft.Pow)
         
     def IRFilters(self, bird, soffset=1., LambdaIR=None, RescaleIR=1., window=None):
+        """ Compute the IR-filters X and Y. """
         if LambdaIR is None: LambdaIR = self.LambdaIR
         Coef = self.Xfft.Coef(bird.kin, bird.Pin * exp(-bird.kin**2/LambdaIR**2)/bird.kin**2, window=window)
         CoefsPow = np.einsum('n,ns->ns', Coef, self.XsPow )
@@ -1265,16 +1278,19 @@ class Resum(object):
         return X, Y
         
     def setM(self):
+        """ Compute the matrices to evaluate the IR-corrections. Called at instantiation. """
         self.M = np.empty(shape=(self.co.Nl, self.fft.Pow.shape[0]), dtype='complex')
         for l in range(self.co.Nl):
             self.M[l] = 8.*pi**3*MPC(2*l, -0.5*self.fft.Pow)
         
     def IRCorrection(self, XpYpC, k2p, lpr=None, window=None):
+        """ Compute the IR-corrections of order n given [XY]^n and k^{2n} """
         Coef = self.fft.Coef(self.co.sr, XpYpC, extrap='padding', window=window)
         CoefkPow = np.einsum('n,nk->nk', Coef, self.kPow)
         return k2p * np.real( np.einsum('nk,ln->lk', CoefkPow, self.M) )
     
     def makeQ(self, f):
+        """ Compute the bulk coefficients Q^{ll'}_{||N-j}(n, \alpha, f) """
         for a in range(2):
             for l in range(self.co.Nl):
                 for lpr in range(self.co.Nl):
@@ -1282,6 +1298,9 @@ class Resum(object):
                         self.Q[a][l][lpr][u] = Qa[1-a][2*l][2*lpr][u](f)
 
     def extractBAO(self, cf):
+        """ Given a correlation function cf, 
+            - if fullresum, return cf 
+            - if optiresum, extract the BAO peak """
         if self.co.optiresum is True:
             cfnobao = np.concatenate([cf[...,:self.co.idlow], cf[...,self.co.idhigh:]], axis = -1)
             nobao = interp1d(self.co.snobao, self.co.snobao**2 * cfnobao, kind='linear', axis=-1)(self.co.sbao) * self.co.sbao**-2
@@ -1290,6 +1309,7 @@ class Resum(object):
         else: return cf
     
     def Ps(self, bird, window=None):
+        """ This is the main method of the class. Compute the IR-corrections. """
         self.makeQ(bird.f)
 
         X, Y = self.IRFilters(bird)
