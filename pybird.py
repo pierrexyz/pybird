@@ -4,7 +4,7 @@ from numpy import pi, sin, log, exp
 from numpy.fft import rfft
 #from pyfftw.builders import rfft
 from scipy.interpolate import interp1d
-from scipy.special import gamma, legendre, j1
+from scipy.special import gamma, legendre, j1, spherical_jn
 from scipy.integrate import quad
 
 def cH(Om,a):
