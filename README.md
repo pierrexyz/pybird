@@ -1,4 +1,6 @@
 # PyBird: Python code for Biased tracers in redshift space
+* Written by Pierre Zhang <[pierrexyz@protonmail.com](pierrexyz@protonmail.com)>
+* License: MIT
 
 ## General info
 PyBird is a code written in Python 3, designed for evaluating the multipoles of the power spectrum of biased tracers in redshift space.
