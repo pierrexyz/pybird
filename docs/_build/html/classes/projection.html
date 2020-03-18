@@ -1,0 +1,219 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Projection &#8212; PyBird 0.1 documentation</title>
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <script type="text/javascript" src="../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="prev" title="Resum" href="resum.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="projection">
+<h1>Projection<a class="headerlink" href="#projection" title="Permalink to this headline">¶</a></h1>
+<dl class="class">
+<dt id="pybird.Projection">
+<em class="property">class </em><code class="descclassname">pybird.</code><code class="descname">Projection</code><span class="sig-paren">(</span><em>kout</em>, <em>Om_AP</em>, <em>z_AP</em>, <em>nbinsmu=200</em>, <em>Qll=None</em>, <em>k_or=None</em>, <em>kp_or=None</em>, <em>binning=False</em>, <em>fibcol=False</em>, <em>co=&lt;pybird.Common object&gt;</em><span class="sig-paren">)</span><a class="headerlink" href="#pybird.Projection" title="Permalink to this definition">¶</a></dt>
+<dd><p>A class to apply projection effects:
+- Alcock-Pascynski (AP) effect
+- Window functions (survey masks)
+- k-binning or interpolation over the data k-array
+- Fiber collision corrections</p>
+<dl class="method">
+<dt id="pybird.Projection.AP">
+<code class="descname">AP</code><span class="sig-paren">(</span><em>bird=None</em>, <em>q=None</em><span class="sig-paren">)</span><a class="headerlink" href="#pybird.Projection.AP" title="Permalink to this definition">¶</a></dt>
+<dd><p>Apply the AP effect to the bird power spectrum
+Credit: Jerome Gleyzes</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="pybird.Projection.Window">
+<code class="descname">Window</code><span class="sig-paren">(</span><em>bird</em><span class="sig-paren">)</span><a class="headerlink" href="#pybird.Projection.Window" title="Permalink to this definition">¶</a></dt>
+<dd><p>Apply the survey window function to the bird power spectrum</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="pybird.Projection.dPcorr">
+<code class="descname">dPcorr</code><span class="sig-paren">(</span><em>kout</em>, <em>kPS</em>, <em>PS</em>, <em>many=False</em>, <em>ktrust=0.25</em>, <em>fs=0.6</em>, <em>Dfc=0.6344990408735429</em><span class="sig-paren">)</span><a class="headerlink" href="#pybird.Projection.dPcorr" title="Permalink to this definition">¶</a></dt>
+<dd><p>Compute the correlated contribution of fiber collisions</p>
+<p>kPS : a cbird wavenumber output, typically a (39,) np array
+PS : a cbird power spectrum output, typically a (3, 39) np array
+ktrust : a UV cutoff
+fs : fraction of the survey affected by fiber collisions
+Dfc : angular distance of the fiber channel Dfc(z = 0.55) = 0.43Mpc</p>
+<p>Credit: Thomas Colas</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="pybird.Projection.dPuncorr">
+<code class="descname">dPuncorr</code><span class="sig-paren">(</span><em>kout</em>, <em>fs=0.6</em>, <em>Dfc=0.6344990408735429</em><span class="sig-paren">)</span><a class="headerlink" href="#pybird.Projection.dPuncorr" title="Permalink to this definition">¶</a></dt>
+<dd><p>Compute the uncorrelated contribution of fiber collisions</p>
+<p>kPS : a cbird wavenumber output, typically a (39,) np array
+fs : fraction of the survey affected by fiber collisions
+Dfc : angular distance of the fiber channel Dfc(z = 0.55) = 0.43Mpc</p>
+<p>Credit: Thomas Colas</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="pybird.Projection.fibcolWindow">
+<code class="descname">fibcolWindow</code><span class="sig-paren">(</span><em>bird</em><span class="sig-paren">)</span><a class="headerlink" href="#pybird.Projection.fibcolWindow" title="Permalink to this definition">¶</a></dt>
+<dd><p>Apply window effective method correction to fiber collisions to the bird power spectrum</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="pybird.Projection.get_AP_param">
+<code class="descname">get_AP_param</code><span class="sig-paren">(</span><em>bird</em><span class="sig-paren">)</span><a class="headerlink" href="#pybird.Projection.get_AP_param" title="Permalink to this definition">¶</a></dt>
+<dd><p>Compute the AP parameters</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="pybird.Projection.integrAP">
+<code class="descname">integrAP</code><span class="sig-paren">(</span><em>Pk</em>, <em>kp</em>, <em>arrayLegendremup</em>, <em>many=False</em><span class="sig-paren">)</span><a class="headerlink" href="#pybird.Projection.integrAP" title="Permalink to this definition">¶</a></dt>
+<dd><p>AP integration
+Credit: Jerome Gleyzes</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="pybird.Projection.integrBinning">
+<code class="descname">integrBinning</code><span class="sig-paren">(</span><em>P</em><span class="sig-paren">)</span><a class="headerlink" href="#pybird.Projection.integrBinning" title="Permalink to this definition">¶</a></dt>
+<dd><p>Integrate over each bin of the data k’s</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="pybird.Projection.integrWindow">
+<code class="descname">integrWindow</code><span class="sig-paren">(</span><em>P</em>, <em>many=False</em><span class="sig-paren">)</span><a class="headerlink" href="#pybird.Projection.integrWindow" title="Permalink to this definition">¶</a></dt>
+<dd><p>Convolve the window functions to a power spectrum P</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="pybird.Projection.kbinning">
+<code class="descname">kbinning</code><span class="sig-paren">(</span><em>bird</em><span class="sig-paren">)</span><a class="headerlink" href="#pybird.Projection.kbinning" title="Permalink to this definition">¶</a></dt>
+<dd><p>Apply binning in k-space for linear-spaced data k-array</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="pybird.Projection.kdata">
+<code class="descname">kdata</code><span class="sig-paren">(</span><em>bird</em><span class="sig-paren">)</span><a class="headerlink" href="#pybird.Projection.kdata" title="Permalink to this definition">¶</a></dt>
+<dd><p>Interpolate the bird power spectrum on the data k-array</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="pybird.Projection.loadBinning">
+<code class="descname">loadBinning</code><span class="sig-paren">(</span><em>setkout</em><span class="sig-paren">)</span><a class="headerlink" href="#pybird.Projection.loadBinning" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create the bins of the data k’s</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="pybird.Projection.loadWindow">
+<code class="descname">loadWindow</code><span class="sig-paren">(</span><em>kout</em>, <em>Qll</em>, <em>setk_or</em>, <em>setkp_or</em>, <em>withmask=True</em>, <em>windowk=0.05</em><span class="sig-paren">)</span><a class="headerlink" href="#pybird.Projection.loadWindow" title="Permalink to this definition">¶</a></dt>
+<dd><p>Pre-load the window function to apply to the power spectrum by convolution in Fourier space
+Qll is an array of shape l,l’,k’,k where so that $$P_l(k) = int dk’ sum_l’ Q_{l l’}(k’,k) P_l’(k’)$$
+The original k on which Qll is evaluated is given by setk_or and k’ by setkp_or.</p>
+<p>withmask: whether to only do the convolution over a small range around k
+windowk: the size of said range</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">PyBird</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">Class documentation</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="common.html">Common</a></li>
+<li class="toctree-l1"><a class="reference internal" href="bird.html">Bird</a></li>
+<li class="toctree-l1"><a class="reference internal" href="fftlog.html">FFTLog</a></li>
+<li class="toctree-l1"><a class="reference internal" href="nonlinear.html">NonLinear</a></li>
+<li class="toctree-l1"><a class="reference internal" href="resum.html">Resum</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Projection</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="resum.html" title="previous chapter">Resum</a></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2020, Pierre Zhang and Guido D'Amico.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.8.5</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="../_sources/classes/projection.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

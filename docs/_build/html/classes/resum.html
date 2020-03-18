@@ -1,0 +1,490 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Resum &#8212; PyBird 0.1 documentation</title>
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <script type="text/javascript" src="../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Projection" href="projection.html" />
+    <link rel="prev" title="NonLinear" href="nonlinear.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="resum">
+<h1>Resum<a class="headerlink" href="#resum" title="Permalink to this headline">¶</a></h1>
+<dl class="class">
+<dt id="pybird.Resum">
+<em class="property">class </em><code class="descclassname">pybird.</code><code class="descname">Resum</code><span class="sig-paren">(</span><em>LambdaIR=1.0</em>, <em>NFFT=192</em>, <em>co=&lt;pybird.Common object&gt;</em><span class="sig-paren">)</span><a class="headerlink" href="#pybird.Resum" title="Permalink to this definition">¶</a></dt>
+<dd><p>given a Bird() object, performs the IR-resummation of the power spectrum.
+There are two options:
+1.  fullresum: the FFTLog’s are performed on the full integrands from s = .1 to s = 10000. in (Mpc/h) (default)
+2. ‘optiresum: the FFTLog’s are performed only on the BAO peak that is extracted by removing the smooth part of the correlation function. What is left is then padded with zeros and the FFTLog’s run from s = .1 to s = 1000. in (Mpc/h).</p>
+<dl class="attribute">
+<dt id="pybird.Resum.co">
+<code class="descname">co</code><a class="headerlink" href="#pybird.Resum.co" title="Permalink to this definition">¶</a></dt>
+<dd><p>An object of type Common() used to share data</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">class</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="pybird.Resum.LambdaIR">
+<code class="descname">LambdaIR</code><a class="headerlink" href="#pybird.Resum.LambdaIR" title="Permalink to this definition">¶</a></dt>
+<dd><p>Integral cutoff for IR-filters X and Y (fullresum: LambdaIR=.2 (default), optiresum: LambdaIR= 1 ; either value can do for either resummation)</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">float</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="pybird.Resum.NIR">
+<code class="descname">NIR</code><a class="headerlink" href="#pybird.Resum.NIR" title="Permalink to this definition">¶</a></dt>
+<dd><p>Number of IR-correction terms in the sums over n and alpha, where n is the order of the Taylor expansion in powers of k^2 of the exponential of the bulk displacements, and for each n, alpha = { 0, 2 } are the orders of spherical Bessel functions. The ordering of the IR-corrections is given by (n,alpha), where alpha is running faster, e.g. (1, 0), (1, 2), (2, 0), (2, 2), (3, 0), (3, 2), …</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">float</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="pybird.Resum.k2p">
+<code class="descname">k2p</code><a class="headerlink" href="#pybird.Resum.k2p" title="Permalink to this definition">¶</a></dt>
+<dd><p>powers of k^2</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">ndarray</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="pybird.Resum.alllpr">
+<code class="descname">alllpr</code><a class="headerlink" href="#pybird.Resum.alllpr" title="Permalink to this definition">¶</a></dt>
+<dd><p>alpha = { 0, 2 } orders of spherical Bessel functions, for each n</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">ndarray</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="pybird.Resum.Q">
+<code class="descname">Q</code><a class="headerlink" href="#pybird.Resum.Q" title="Permalink to this definition">¶</a></dt>
+<dd><p>IR-resummation bulk coefficients Q^{ll’}_{||N-j}(n, lpha, f) of the IR-resummation matrices. f is the growth rate. Computed in method Ps().</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">ndarray</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="pybird.Resum.IRcorr">
+<code class="descname">IRcorr</code><a class="headerlink" href="#pybird.Resum.IRcorr" title="Permalink to this definition">¶</a></dt>
+<dd><p>Q-independent pieces in the IR-correction sums over n and alpha of the power spectrum, for bird.which = ‘full’. Computed in method Ps().</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">ndarray</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="pybird.Resum.IR11">
+<code class="descname">IR11</code><a class="headerlink" href="#pybird.Resum.IR11" title="Permalink to this definition">¶</a></dt>
+<dd><p>Q-independent in the IR-correction sums over n and alpha of the power spectrum linear part, for bird.which = ‘all’. Computed in method Ps().</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">ndarray</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="pybird.Resum.IRct">
+<code class="descname">IRct</code><a class="headerlink" href="#pybird.Resum.IRct" title="Permalink to this definition">¶</a></dt>
+<dd><p>Q-independent pieces in the IR-correction sums over n and alpha of the power spectrum counterterm, for bird.which = ‘all’. Computed in method Ps().</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">ndarray</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="pybird.Resum.IRloop">
+<code class="descname">IRloop</code><a class="headerlink" href="#pybird.Resum.IRloop" title="Permalink to this definition">¶</a></dt>
+<dd><p>Q-independent loop pieces in the IR-correction sums over n and alpha of the power spectrum loop part, for bird.which = ‘all’. Computed in method Ps().</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">ndarray</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="pybird.Resum.IRresum">
+<code class="descname">IRresum</code><a class="headerlink" href="#pybird.Resum.IRresum" title="Permalink to this definition">¶</a></dt>
+<dd><p>IR-corrections to the power spectrum, for bird.which = ‘full’. Computed in method Ps().</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">ndarray</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="pybird.Resum.IR11resum">
+<code class="descname">IR11resum</code><a class="headerlink" href="#pybird.Resum.IR11resum" title="Permalink to this definition">¶</a></dt>
+<dd><p>IR-corrections to the power spectrum linear parts, for bird.which = ‘all’. Computed in method Ps().</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">ndarray</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="pybird.Resum.IRctresum">
+<code class="descname">IRctresum</code><a class="headerlink" href="#pybird.Resum.IRctresum" title="Permalink to this definition">¶</a></dt>
+<dd><p>IR-corrections to the power spectrum counterterms, for bird.which = ‘all’. Computed in method Ps().</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">ndarray</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="pybird.Resum.IRloopresum">
+<code class="descname">IRloopresum</code><a class="headerlink" href="#pybird.Resum.IRloopresum" title="Permalink to this definition">¶</a></dt>
+<dd><p>IR-corrections to the power spetrum loop parts, for bird.which = ‘all’. Computed in method Ps().</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">ndarray</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="pybird.Resum.fftsettings">
+<code class="descname">fftsettings</code><a class="headerlink" href="#pybird.Resum.fftsettings" title="Permalink to this definition">¶</a></dt>
+<dd><p>Number of points and boundaries of the FFTLog’s for the computing the IR-corrections</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">dict</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="pybird.Resum.fft">
+<code class="descname">fft</code><a class="headerlink" href="#pybird.Resum.fft" title="Permalink to this definition">¶</a></dt>
+<dd><p>An object of type FFTLog() to evaluate the IR-corrections</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">class</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="pybird.Resum.M">
+<code class="descname">M</code><a class="headerlink" href="#pybird.Resum.M" title="Permalink to this definition">¶</a></dt>
+<dd><p>spherical Bessel transform matrices to evaluate the IR-corrections</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">ndarray</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="pybird.Resum.kPow">
+<code class="descname">kPow</code><a class="headerlink" href="#pybird.Resum.kPow" title="Permalink to this definition">¶</a></dt>
+<dd><p>k’s to the powers on which to perform the FFTLog to evaluate the IR-corrections.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">ndarray</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="pybird.Resum.Xfftsettings">
+<code class="descname">Xfftsettings</code><a class="headerlink" href="#pybird.Resum.Xfftsettings" title="Permalink to this definition">¶</a></dt>
+<dd><p>Number of points and boundaries of the FFTLog’s for evaluating the IR-filters X and Y</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">dict</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="pybird.Resum.Xfft">
+<code class="descname">Xfft</code><a class="headerlink" href="#pybird.Resum.Xfft" title="Permalink to this definition">¶</a></dt>
+<dd><p>An object of type FFTLog() to evaluate the IR-filters X and Y</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">class</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="pybird.Resum.XM">
+<code class="descname">XM</code><a class="headerlink" href="#pybird.Resum.XM" title="Permalink to this definition">¶</a></dt>
+<dd><p>spherical Bessel transform matrices to evaluate the IR-filters X and Y</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">ndarray</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="pybird.Resum.XsPow">
+<code class="descname">XsPow</code><a class="headerlink" href="#pybird.Resum.XsPow" title="Permalink to this definition">¶</a></dt>
+<dd><p>s’s to the powers on which to perform the FFTLog to evaluate the IR-filters X and Y</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">ndarray</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="pybird.Resum.IRCorrection">
+<code class="descname">IRCorrection</code><span class="sig-paren">(</span><em>XpYpC</em>, <em>k2p</em>, <em>lpr=None</em>, <em>window=None</em><span class="sig-paren">)</span><a class="headerlink" href="#pybird.Resum.IRCorrection" title="Permalink to this definition">¶</a></dt>
+<dd><p>Compute the IR-corrections of order n given [XY]^n and k^{2n}</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="pybird.Resum.IRFilters">
+<code class="descname">IRFilters</code><span class="sig-paren">(</span><em>bird</em>, <em>soffset=1.0</em>, <em>LambdaIR=None</em>, <em>RescaleIR=1.0</em>, <em>window=None</em><span class="sig-paren">)</span><a class="headerlink" href="#pybird.Resum.IRFilters" title="Permalink to this definition">¶</a></dt>
+<dd><p>Compute the IR-filters X and Y.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="pybird.Resum.Ps">
+<code class="descname">Ps</code><span class="sig-paren">(</span><em>bird</em>, <em>window=None</em><span class="sig-paren">)</span><a class="headerlink" href="#pybird.Resum.Ps" title="Permalink to this definition">¶</a></dt>
+<dd><p>This is the main method of the class. Compute the IR-corrections.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="pybird.Resum.extractBAO">
+<code class="descname">extractBAO</code><span class="sig-paren">(</span><em>cf</em><span class="sig-paren">)</span><a class="headerlink" href="#pybird.Resum.extractBAO" title="Permalink to this definition">¶</a></dt>
+<dd><p>Given a correlation function cf,
+- if fullresum, return cf
+- if optiresum, extract the BAO peak</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="pybird.Resum.makeQ">
+<code class="descname">makeQ</code><span class="sig-paren">(</span><em>f</em><span class="sig-paren">)</span><a class="headerlink" href="#pybird.Resum.makeQ" title="Permalink to this definition">¶</a></dt>
+<dd><p>Compute the bulk coefficients Q^{ll’}_{||N-j}(n, lpha, f)</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="pybird.Resum.setM">
+<code class="descname">setM</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pybird.Resum.setM" title="Permalink to this definition">¶</a></dt>
+<dd><p>Compute the matrices to evaluate the IR-corrections. Called at instantiation.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="pybird.Resum.setXM">
+<code class="descname">setXM</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pybird.Resum.setXM" title="Permalink to this definition">¶</a></dt>
+<dd><p>Compute the matrices to evaluate the IR-filters X and Y. Called at instantiation.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="pybird.Resum.setXsPow">
+<code class="descname">setXsPow</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pybird.Resum.setXsPow" title="Permalink to this definition">¶</a></dt>
+<dd><p>Multiply the coefficients with the s’s to the powers of the FFTLog to evaluate the IR-filters X and Y.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="pybird.Resum.setkPow">
+<code class="descname">setkPow</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pybird.Resum.setkPow" title="Permalink to this definition">¶</a></dt>
+<dd><p>Multiply the coefficients with the k’s to the powers of the FFTLog to evaluate the IR-corrections.</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">PyBird</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">Class documentation</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="common.html">Common</a></li>
+<li class="toctree-l1"><a class="reference internal" href="bird.html">Bird</a></li>
+<li class="toctree-l1"><a class="reference internal" href="fftlog.html">FFTLog</a></li>
+<li class="toctree-l1"><a class="reference internal" href="nonlinear.html">NonLinear</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Resum</a></li>
+<li class="toctree-l1"><a class="reference internal" href="projection.html">Projection</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="nonlinear.html" title="previous chapter">NonLinear</a></li>
+      <li>Next: <a href="projection.html" title="next chapter">Projection</a></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2020, Pierre Zhang and Guido D'Amico.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.8.5</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="../_sources/classes/resum.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

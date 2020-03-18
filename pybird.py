@@ -1538,7 +1538,7 @@ class Projection(object):
         Qll is an array of shape l,l',k',k where so that $$P_l(k) = \int dk' \sum_l' Q_{l l'}(k',k) P_l'(k')$$
         The original k on which Qll is evaluated is given by setk_or and k' by setkp_or.
 
-        Inputs:
+        Inputs
         ------
         withmask: whether to only do the convolution over a small range around k
         windowk: the size of said range
@@ -1562,9 +1562,9 @@ class Projection(object):
         self.kQ = setkp_or[maskred]
 
     def integrWindow(self, P, many=False):
-    """
-    Convolve the window functions to a power spectrum P
-    """
+        """
+        Convolve the window functions to a power spectrum P
+        """
         Pk = interp1d(self.co.k, P, axis=-1, kind='cubic', bounds_error=False, fill_value='extrapolate')(self.kQ)
         # (multipole l, multipole ' p, k, k' m) , (multipole ', power pectra s, k' m)
         #print (self.Qlldk.shape, Pk.shape)
@@ -1574,9 +1574,9 @@ class Projection(object):
             return np.einsum('lpkm,pk->lm', self.Qlldk, Pk)
 
     def Window(self, bird):
-    """
-    Apply the survey window function to the bird power spectrum 
-    """
+        """
+        Apply the survey window function to the bird power spectrum 
+        """
         if bird.which is 'marg':
             bird.fullPs = self.integrWindow(bird.fullPs, many=False)
             bird.Pb3 = self.integrWindow(bird.Pb3, many=False)
@@ -1664,9 +1664,9 @@ class Projection(object):
             bird.Ploopl += self.dPcorr(self.co.k, self.co.k, bird.Ploopl, many=True)
 
     def loadBinning(self, setkout):
-    """
-    Create the bins of the data k's
-    """
+        """
+        Create the bins of the data k's
+        """
         delta_k = np.round(setkout[-1] - setkout[-2], 2)
         kcentral = (setkout[-1] - delta_k * np.arange(len(setkout)))[::-1]
         binmin = kcentral - delta_k / 2
@@ -1677,17 +1677,17 @@ class Projection(object):
         self.points = [np.linspace(kbinmin, kbinmax, 100) for (kbinmin, kbinmax) in zip(binmin, binmax)]
 
     def integrBinning(self, P):
-    """
-    Integrate over each bin of the data k's
-    """
+        """
+        Integrate over each bin of the data k's
+        """
         Pkint = interp1d(self.co.k, P, axis=-1, kind='cubic', bounds_error=False, fill_value='extrapolate')
         res = np.array([np.trapz(Pkint(pts) * pts**2, x=pts) for pts in self.points])
         return np.moveaxis(res, 0, -1) / self.binvol
 
     def kbinning(self, bird):
-    """
-    Apply binning in k-space for linear-spaced data k-array
-    """
+        """
+        Apply binning in k-space for linear-spaced data k-array
+        """
         if bird.which is 'all':
             bird.P11l = self.integrBinning(bird.P11l)
             bird.Pctl = self.integrBinning(bird.Pctl)
