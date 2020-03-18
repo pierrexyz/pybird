@@ -1452,6 +1452,13 @@ class Resum(object):
 
 class Projection(object):
     def __init__(self, kout, Om_AP, z_AP, nbinsmu=200, Qll=None, k_or=None, kp_or=None, binning=False, fibcol=False, co=common):
+        """
+        A class to apply projection effects:
+        - Alcock-Pascynski (AP) effect
+        - Window functions (survey masks)
+        - k-binning or interpolation over the data k-array
+        - Fiber collision corrections
+        """
 
         self.co = co
         self.kout = kout
@@ -1475,11 +1482,18 @@ class Projection(object):
             self.loadBinning(self.kout)
 
     def get_AP_param(self, bird):
+        """
+        Compute the AP parameters
+        """
         qperp = bird.DA / self.DA
         qpar = self.H / bird.H
         return qperp, qpar
 
     def integrAP(self, Pk, kp, arrayLegendremup, many=False):
+        """
+        AP integration
+        Credit: Jerome Gleyzes
+        """
         Pkint = interp1d(self.co.k, Pk, axis=-1, kind='cubic', bounds_error=False, fill_value='extrapolate')
         if many:
             Pkmu = np.einsum('lpkm,lkm->pkm', Pkint(kp), arrayLegendremup)
@@ -1490,6 +1504,10 @@ class Projection(object):
         return 2 * np.trapz(Integrandmu, x=self.mugrid, axis=-1)
 
     def AP(self, bird=None, q=None):
+        """
+        Apply the AP effect to the bird power spectrum
+        Credit: Jerome Gleyzes
+        """
         if q is None:
             qperp, qpar = self.get_AP_param(bird)
         else:
@@ -1523,7 +1541,6 @@ class Projection(object):
         ------
         withmask: whether to only do the convolution over a small range around k
         windowk: the size of said range
-
         """
         # Apply masking centered around the value of k
         if withmask:
@@ -1544,6 +1561,9 @@ class Projection(object):
         self.kQ = setkp_or[maskred]
 
     def integrWindow(self, P, many=False):
+    """
+    Convolve the window functions to a power spectrum P
+    """
         Pk = interp1d(self.co.k, P, axis=-1, kind='cubic', bounds_error=False, fill_value='extrapolate')(self.kQ)
         # (multipole l, multipole ' p, k, k' m) , (multipole ', power pectra s, k' m)
         #print (self.Qlldk.shape, Pk.shape)
@@ -1553,6 +1573,9 @@ class Projection(object):
             return np.einsum('lpkm,pk->lm', self.Qlldk, Pk)
 
     def Window(self, bird):
+    """
+    Apply the survey window function to the bird power spectrum 
+    """
         if bird.which is 'marg':
             bird.fullPs = self.integrWindow(bird.fullPs, many=False)
             bird.Pb3 = self.integrWindow(bird.Pb3, many=False)
@@ -1566,27 +1589,6 @@ class Projection(object):
         elif bird.which is 'full':
             bird.fullPs = self.integrWindow(bird.fullPs, many=False)
 
-    def loadBinning(self, setkout):
-        delta_k = np.round(setkout[-1] - setkout[-2], 2)
-        kcentral = (setkout[-1] - delta_k * np.arange(len(setkout)))[::-1]
-        binmin = kcentral - delta_k / 2
-        binmax = kcentral + delta_k / 2
-        self.binvol = np.array([quad(lambda k: k**2, kbinmin, kbinmax)[0]
-                                for (kbinmin, kbinmax) in zip(binmin, binmax)])
-
-        self.points = [np.linspace(kbinmin, kbinmax, 100) for (kbinmin, kbinmax) in zip(binmin, binmax)]
-
-    def integrBinning(self, P):
-        Pkint = interp1d(self.co.k, P, axis=-1, kind='cubic', bounds_error=False, fill_value='extrapolate')
-        res = np.array([np.trapz(Pkint(pts) * pts**2, x=pts) for pts in self.points])
-        return np.moveaxis(res, 0, -1) / self.binvol
-
-    def kbinning(self, bird):
-        if bird.which is 'all':
-            bird.P11l = self.integrBinning(bird.P11l)
-            bird.Pctl = self.integrBinning(bird.Pctl)
-            bird.Ploopl = self.integrBinning(bird.Ploopl)
-
     def dPuncorr(self, kout, fs=0.6, Dfc=0.43 / 0.6777):
         """
         Compute the uncorrelated contribution of fiber collisions
@@ -1594,6 +1596,8 @@ class Projection(object):
         kPS : a cbird wavenumber output, typically a (39,) np array
         fs : fraction of the survey affected by fiber collisions
         Dfc : angular distance of the fiber channel Dfc(z = 0.55) = 0.43Mpc
+
+        Credit: Thomas Colas
         """
         dPunc = np.zeros((3, len(kout)))
         for l in [0, 2, 4]:
@@ -1610,6 +1614,8 @@ class Projection(object):
         ktrust : a UV cutoff
         fs : fraction of the survey affected by fiber collisions
         Dfc : angular distance of the fiber channel Dfc(z = 0.55) = 0.43Mpc
+
+        Credit: Thomas Colas
         """
         q_ref = np.geomspace(min(kPS), ktrust, num=1024)
         # create log bin
@@ -1648,12 +1654,48 @@ class Projection(object):
         return dPcorr
 
     def fibcolWindow(self, bird):
+        """
+        Apply window effective method correction to fiber collisions to the bird power spectrum
+        """
         if bird.which is 'all':
             bird.P11l += self.dPcorr(self.co.k, self.co.k, bird.P11l, many=True)
             bird.Pctl += self.dPcorr(self.co.k, self.co.k, bird.Pctl, many=True)
             bird.Ploopl += self.dPcorr(self.co.k, self.co.k, bird.Ploopl, many=True)
 
+    def loadBinning(self, setkout):
+    """
+    Create the bins of the data k's
+    """
+        delta_k = np.round(setkout[-1] - setkout[-2], 2)
+        kcentral = (setkout[-1] - delta_k * np.arange(len(setkout)))[::-1]
+        binmin = kcentral - delta_k / 2
+        binmax = kcentral + delta_k / 2
+        self.binvol = np.array([quad(lambda k: k**2, kbinmin, kbinmax)[0]
+                                for (kbinmin, kbinmax) in zip(binmin, binmax)])
+
+        self.points = [np.linspace(kbinmin, kbinmax, 100) for (kbinmin, kbinmax) in zip(binmin, binmax)]
+
+    def integrBinning(self, P):
+    """
+    Integrate over each bin of the data k's
+    """
+        Pkint = interp1d(self.co.k, P, axis=-1, kind='cubic', bounds_error=False, fill_value='extrapolate')
+        res = np.array([np.trapz(Pkint(pts) * pts**2, x=pts) for pts in self.points])
+        return np.moveaxis(res, 0, -1) / self.binvol
+
+    def kbinning(self, bird):
+    """
+    Apply binning in k-space for linear-spaced data k-array
+    """
+        if bird.which is 'all':
+            bird.P11l = self.integrBinning(bird.P11l)
+            bird.Pctl = self.integrBinning(bird.Pctl)
+            bird.Ploopl = self.integrBinning(bird.Ploopl)
+
     def kdata(self, bird):
+        """
+        Interpolate the bird power spectrum on the data k-array
+        """
         if bird.which is 'all':
             bird.P11l = interp1d(self.co.k, bird.P11l, axis=-1, kind='cubic', bounds_error=False)(self.kout)
             bird.Pctl = interp1d(self.co.k, bird.Pctl, axis=-1, kind='cubic', bounds_error=False)(self.kout)
