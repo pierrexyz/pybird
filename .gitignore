@@ -1,3 +1,6 @@
+# Files to ignore
+*.npz
+
 # General
 .DS_Store
 .AppleDouble
