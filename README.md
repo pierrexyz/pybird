@@ -1,5 +1,8 @@
+[![](https://img.shields.io/badge/arXiv-2003xxxxx.%20-red.svg)](https://arxiv.org/abs/2003.xxxxx)
+[![](http://img.shields.io/badge/license-MIT-blue.svg?style=flat)](https://github.com/pierrexyz/pybird/blob/master/LICENSE)
+
 # PyBird: Python code for Biased tracers in redshift space
-* Written by Pierre Zhang <[pierrexyz@protonmail.com](pierrexyz@protonmail.com)>
+* Written by [Pierre Zhang](mailto:pierrexyz@protonmail.com) and [Guido D'Amico](mailto:damico.guido@gmail.com)
 * License: MIT
 
 ## General info
@@ -37,7 +40,3 @@ You can also find in this repositery:
 ## Citation
 When using PyBird in a publication, please acknowledge the code by citing the following paper: 
 * [arXiv:2003.XXXXX](https://arxiv.org): "Limits on wCDM from the EFTofLSS with the PyBird code, Guido d’Amico", Leonardo Senatore, Pierre Zhang
-
-## Contact
-* Author: Pierre Zhang <[pierrexyz@protonmail.com](pierrexyz@protonmail.com)>
-* Contributors: Guido d'Amico <[damico.guido@gmail.com](damico.guido@gmail.com)>
