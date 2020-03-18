@@ -1451,14 +1451,15 @@ class Resum(object):
 
 
 class Projection(object):
+    """
+    A class to apply projection effects:
+    - Alcock-Pascynski (AP) effect
+    - Window functions (survey masks)
+    - k-binning or interpolation over the data k-array
+    - Fiber collision corrections
+    """
     def __init__(self, kout, Om_AP, z_AP, nbinsmu=200, Qll=None, k_or=None, kp_or=None, binning=False, fibcol=False, co=common):
-        """
-        A class to apply projection effects:
-        - Alcock-Pascynski (AP) effect
-        - Window functions (survey masks)
-        - k-binning or interpolation over the data k-array
-        - Fiber collision corrections
-        """
+
 
         self.co = co
         self.kout = kout
