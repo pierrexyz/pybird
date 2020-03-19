@@ -1532,6 +1532,69 @@ class Projection(object):
         elif bird.which is 'full':
             bird.fullPs = 1. / (qperp**2 * qpar) * self.integrAP(bird.fullPs, kp, arrayLegendremup, many=False)
 
+    def setWindow(self, load=True, save=True, path= './', window_fourier_name='pynest', window_configspace_file=None, Nl=3):
+        
+        self.p = np.arange(5e-3, 0.3, 1e-3)
+        
+        window_fourier_file = os.path.join(path, '%s.npy')%window_fourier_name
+        
+        if load is True:
+            try:
+                self.Wal = np.load(window_fourier_file)
+            except:
+                print ('Can\'t load mask: %s \n instead,' % window_fourier_file )
+                load = False
+            
+        if load is False:
+            print ('Computing new mask.')
+            if window_configspace_file is None:
+                print ('Error: please specify a configuration-space mask file.')
+                compute = False
+            else:    
+                try:
+                    #swindow_config_space = np.loadtxt('dev_window_BOSS_CMASS_z057.dat')
+                    swindow_config_space = np.loadtxt(window_configspace_file)
+                    compute = True
+                except:
+                    print ('Error: can\'t load mask file: %s.'%window_configspace_file)
+                    compute = False
+        
+            if compute is True:
+                Calp = np.array([ 
+                    [ [1., 0., 0.],
+                      [0., 1/5., 0.],
+                      [0., 0., 1/9.] ],
+                    [ [0., 1., 0.],
+                      [1., 2/7., 2/7.],
+                      [0., 2/7., 100/693.] ],
+                    [ [0., 0., 1.],
+                      [0., 18/35., 20/77.],
+                      [1., 20/77., 162/1001.] ],
+                    ])
+
+                sw = swindow_config_space[:,0]
+                Qp = np.moveaxis(swindow_config_space[:,1:].reshape(-1,3), 0, -1 )[:Nl]
+
+                Qal = np.einsum('alp,ps->als', Calp, Qp)
+
+                self.fftsettings = dict(Nmax=4096, xmin=sw[0], xmax=sw[-1]*100., bias=-0.6)
+                self.fft = FFTLog(**self.fftsettings)
+                self.pPow = exp(np.einsum('n,s->ns', -self.fft.Pow-3., log(self.p)))
+                self.M = np.empty(shape=(Nl, self.fft.Pow.shape[0]), dtype='complex')
+                for l in range(Nl): self.M[l] = 4*pi * MPC(2*l, -0.5*self.fft.Pow)
+
+                self.Coef = np.empty(shape=(self.co.Nl, Nl, self.co.Nk, self.fft.Pow.shape[0]), dtype='complex')
+                for a in range(self.co.Nl):
+                    for l in range(Nl):
+                        for i,k in enumerate(self.co.k):
+                            self.Coef[a,l,i] = (-1j)**(2*a) * 1j**(2*l) * self.fft.Coef(sw, Qal[a,l]*spherical_jn(2*a, k*sw), extrap = 'padding')
+
+                self.Wal = self.p**2 * np.real( np.einsum('alkn,np,ln->alkp', self.Coef, self.pPow, self.M) )
+
+                if save is True: 
+                    print ('Saving mask: %s'%window_fourier_file)
+                    np.save(window_fourier_file, self.Wal)
+
     def loadWindow(self, kout, Qll, setk_or, setkp_or, withmask=True, windowk=0.05):
         """
         Pre-load the window function to apply to the power spectrum by convolution in Fourier space
