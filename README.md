@@ -19,7 +19,7 @@ The design is modular and concise, such that parts of the code can be easily ada
 
 PyBird can be used in different ways.
 The code can evaluate the power spectrum either given one set of EFT parameters, or independently of the EFT parameters.
-If the former option is faster, the latter is useful for subsampling or partial marginalization over the EFT parameters, or to Taylor expand around a fiducial cosmology for efficient parameter exploration, see e.g. [arXiv:1909.07951](https://arxiv.org/abs/1909.07951). PyBird runs in less than a second on a laptop.
+If the former option is faster, the latter is useful for subsampling or partial marginalization over the EFT parameters, or to Taylor expand around a fiducial cosmology for efficient parameter exploration, see e.g. [arXiv:1909.07951](https://arxiv.org/abs/1909.07951). PyBird runs in less than a second on a laptop. 
 
 ## Dependencies
 PyBird depends on the numerical libraries [NumPy](https://numpy.org/) and [SciPy](http://scipy.org/).
@@ -28,6 +28,15 @@ PyBird depends on the numerical libraries [NumPy](https://numpy.org/) and [SciPy
 Read the docs at [https://pybird.readthedocs.io](https://pybird.readthedocs.io).
 
 [Here](https://github.com/pierrexyz/pybird/blob/master/run_pybird.ipynb) you can find a simple Jupyter notebook to get started.
+
+## Getting Started
+If you are a [MontePython 3] user, the code can be installed 'with less than a cup of coffee'.
+* Download the repo
+* Put pybird.py in : your_montepython/montepython/
+* Link the files from the folder montepython_tree/ to your_montepython/
+* Try to run the likelihood of BOSS DR12 CMASS NGC with the param file: montepython_tree/input/eft_highzNGC.param
+That's it, you are all set!
+
 
 ## Architecture
 PyBird consists of the following classes:
