@@ -35,6 +35,7 @@ If you are a [MontePython 3] user, the code can be installed 'with less than a c
 * Put pybird.py in : your_montepython/montepython/
 * Link the files from the folder montepython_tree/ to your_montepython/
 * Try to run the likelihood of BOSS DR12 CMASS NGC with the param file: montepython_tree/input/eft_highzNGC.param
+
 That's it, you are all set!
 
 
