@@ -50,6 +50,7 @@ When using PyBird in a publication, please acknowledge the code by citing the fo
 
 The BibTeX entry for it is:
 
+```
 @article{DAmico:2020kxu,
       author         = "D'Amico, Guido and Senatore, Leonardo and Zhang, Pierre",
       title          = "{Limits on $w$CDM from the EFTofLSS with the PyBird
@@ -60,3 +61,4 @@ The BibTeX entry for it is:
       primaryClass   = "astro-ph.CO",
       SLACcitation   = "%%CITATION = ARXIV:2003.07956;%%"
 }
+```
