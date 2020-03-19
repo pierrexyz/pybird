@@ -40,7 +40,7 @@ PyBird consists of the following classes:
 ## Extras
 You can also find in this repositery:
 * run_pybird.ipynb: a Jupyter notebook containing examples to start with
-* likelihood_class.py, eft_* : an explicit integration in the MCMC sampler [MontePython 3](https://github.com/brinckmann/montepython_public)
+* montepython_tree : an explicit integration in the MCMC sampler [MontePython 3](https://github.com/brinckmann/montepython_public)
 * cbird.nb : a Mathematica notebook on which PyBird algebra is based
 * tbird : Taylor approximation around a fiducial cosmology of the bird power spectrum. See [arXiv:1909.07951](https://arxiv.org/abs/1909.07951). Some documentation can be found in [cbird](https://github.com/pierrexyz/cbird/) (not supported anymore)
 
