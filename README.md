@@ -26,6 +26,7 @@ PyBird depends on the numerical libraries [NumPy](https://numpy.org/) and [SciPy
 
 ## Documentation
 Read the docs at [https://pybird.readthedocs.io](https://pybird.readthedocs.io).
+
 [Here](https://github.com/pierrexyz/pybird/blob/master/run_pybird.ipynb) you can find a simple Jupyter notebook to get started.
 
 ## Architecture
