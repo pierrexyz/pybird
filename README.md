@@ -1,4 +1,4 @@
-[![](https://img.shields.io/badge/arXiv-2003xxxxx.%20-red.svg)](https://arxiv.org/abs/2003.xxxxx)
+[![](https://img.shields.io/badge/arXiv-200307956.%20-red.svg)](https://arxiv.org/abs/2003.xxxxx)
 [![](http://img.shields.io/badge/license-MIT-blue.svg?style=flat)](https://github.com/pierrexyz/pybird/blob/master/LICENSE)
 
 # PyBird: Python code for Biased tracers in redshift space
@@ -9,7 +9,7 @@
 PyBird is a code written in Python 3, designed for evaluating the multipoles of the power spectrum of biased tracers in redshift space.
 In general, PyBird can evaluate the power spectrum of matter or biased tracers in real or redshift space.
 The equations on which PyBird is based can be found in [arXiv:1610.09321](https://arxiv.org/abs/1610.09321) or [arXiv:1909.05271](https://arxiv.org/abs/1909.05271). 
-The main technology used by the code is the [FFTLog](https://jila.colorado.edu/~ajsh/FFTLog/index.html), used to evaluate the one-loop power spectrum and the IR resummation, see Sec.~4.1 in [arXiv:2003.XXXXX](https://arxiv.org) for details. 
+The main technology used by the code is the [FFTLog](https://jila.colorado.edu/~ajsh/FFTLog/index.html), used to evaluate the one-loop power spectrum and the IR resummation, see Sec.~4.1 in [arXiv:2003.07956](https://arxiv.org/abs/2003.07956) for details. 
 
 PyBird is designed for a fast evaluation of the power spectra, and can be easily inserted in a data analysis pipeline.
 In fact, it is a standalone tool whose input is the linear matter power spectrum which can be obtained from any Boltzmann code, such as [CAMB](https://camb.info/) or [CLASS](http://class-code.net/).
@@ -40,4 +40,4 @@ You can also find in this repositery:
 
 ## Citation
 When using PyBird in a publication, please acknowledge the code by citing the following paper: 
-* [arXiv:2003.XXXXX](https://arxiv.org): "Limits on wCDM from the EFTofLSS with the PyBird code", Guido d’Amico, Leonardo Senatore, Pierre Zhang
+* [arXiv:2003.07956](https://arxiv.org/abs/2003.07956): "Limits on wCDM from the EFTofLSS with the PyBird code", Guido d’Amico, Leonardo Senatore, Pierre Zhang
