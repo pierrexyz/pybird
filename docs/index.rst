@@ -33,6 +33,7 @@ PyBird depends on the numerical libraries `NumPy <https://numpy.org/>`_ and `Sci
 Getting Started
 ---------------
 If you are a `MontePython 3 <https://github.com/brinckmann/montepython_public>`_ user, the code can be installed 'with less than a cup of coffee'.
+
 * Download the repo pybird/
 * Put pybird/pybird.py in: your_montepython/montepython/
 * Link the files from the folder pybird/montepython_tree/ to your_montepython/
@@ -46,6 +47,7 @@ Alternatively, if you'd like to have a glimpse at the code, `here <https://githu
 Architecture
 ------------
 PyBird consists of the following classes:
+
 * Bird: Main class which contains the power spectrum and correlation function, given a cosmology and a set of EFT parameters.
 * Nonlinear: given a Bird() object, computes the one-loop power spectrum and one-loop correlation function.
 * Resum: given a Bird() object, performs the IR-resummation of the power spectrum.
