@@ -33,7 +33,7 @@ If you are a [MontePython 3] user, the code can be installed 'with less than a c
 
 That's it, you are all set!
 
-Alternatively, if you'd like to have a glimpse at the code, [Here](https://github.com/pierrexyz/pybird/blob/master/run_pybird.ipynb) you can find a simple Jupyter notebook to start with.
+Alternatively, if you'd like to have a glimpse at the code, [here](https://github.com/pierrexyz/pybird/blob/master/run_pybird.ipynb) you can find a simple Jupyter notebook to start with.
 
 ## Documentation
 Read the docs at [https://pybird.readthedocs.io](https://pybird.readthedocs.io).
@@ -55,7 +55,7 @@ You can also find in this repositery:
 
 ## Citation
 When using PyBird in a publication, please acknowledge the code by citing the following paper: 
-* [arXiv:2003.07956](https://arxiv.org/abs/2003.07956): "Limits on wCDM from the EFTofLSS with the PyBird code", Guido d’Amico, Leonardo Senatore, Pierre Zhang
+* [arXiv:2003.07956](https://arxiv.org/abs/2003.07956): "Limits on wCDM from the EFTofLSS with the PyBird code" by Guido D’Amico, Leonardo Senatore, Pierre Zhang
 
 The BibTeX entry for it is:
 
