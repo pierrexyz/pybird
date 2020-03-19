@@ -1250,7 +1250,7 @@ class Likelihood_mock_cmb(Likelihood):
         except:
             self.ExcludeTTTEEE = False
 
-    #added by Siavash Yasini
+	#added by Siavash Yasini
         try:
             self.OnlyTT
             if self.OnlyTT and self.ExcludeTTTEEE:
@@ -1588,7 +1588,7 @@ class Likelihood_mock_cmb(Likelihood):
                     [cl['te'][l], cl['ee'][l]+self.noise_P[l], 0],
                     [cltd, 0, cldd+self.Nldd[l]]])
 
-        # case with TT only (Added by Siavash Yasini)
+	    # case with TT only (Added by Siavash Yasini)
             elif self.OnlyTT:
                 Cov_obs = np.array([[self.Cl_fid[0, l]]])
 
@@ -2723,6 +2723,10 @@ class Likelihood_eft(Likelihood):
                 self.priors = np.array([ 2., 2., 8., 2. ])
                 b3, cct, cr1, ce2 = self.priors
                 print ('EFT priors: b3: %s, cct: %s, cr1(+cr2): %s, ce2: %s (default)' % (b3, cct, cr1, ce2) )
+            elif self.model == 3: 
+                self.priors = np.array([ 10., 4., 8., 4., 2. ])
+                b3, cct, cr1, ce2, ce1 = self.priors
+                print ('EFT priors: b3: %s, cct: %s, cr1(+cr2): %s, ce2: %s, ce1: %s (default)' % (b3, cct, cr1, ce2, ce1) )
         
         self.priormat = np.diagflat(1./self.priors**2)
 
@@ -2911,7 +2915,7 @@ class Likelihood_bird(Likelihood_eft):
         if self.use_prior:
             prior = - 0.5 * (  
                                (bval[1] / 10.)**2                                    # c2
-                             + (bval[3] / 10.)**2                                    # c4
+                             + (bval[3] / 2.)**2                                    # c4
                              + (bval[2] / self.priors[0])**2                         # b3
                              + (bval[4] / self.knl**2 / self.priors[1])**2           # cct
                              + (bval[5] / self.km**2 / self.priors[2])**2            # cr1(+cr2)
