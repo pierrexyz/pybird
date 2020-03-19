@@ -24,11 +24,6 @@ If the former option is faster, the latter is useful for subsampling or partial 
 ## Dependencies
 PyBird depends on the numerical libraries [NumPy](https://numpy.org/) and [SciPy](http://scipy.org/).
 
-## Documentation
-Read the docs at [https://pybird.readthedocs.io](https://pybird.readthedocs.io).
-
-[Here](https://github.com/pierrexyz/pybird/blob/master/run_pybird.ipynb) you can find a simple Jupyter notebook to get started.
-
 ## Getting Started
 If you are a [MontePython 3] user, the code can be installed 'with less than a cup of coffee'.
 * Download the repo pybird/
@@ -38,6 +33,10 @@ If you are a [MontePython 3] user, the code can be installed 'with less than a c
 
 That's it, you are all set!
 
+Alternatively, if you'd like to have a glimpse at the code, [Here](https://github.com/pierrexyz/pybird/blob/master/run_pybird.ipynb) you can find a simple Jupyter notebook to start with.
+
+## Documentation
+Read the docs at [https://pybird.readthedocs.io](https://pybird.readthedocs.io).
 
 ## Architecture
 PyBird consists of the following classes:
