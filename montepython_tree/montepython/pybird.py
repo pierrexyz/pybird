@@ -1541,7 +1541,6 @@ class Projection(object):
         """
         Pre-load the window function to apply to the power spectrum by convolution in Fourier space
         Wal is an array of shape l,l',k',k where so that $P_a(k) = \int dk' \sum_l W_{a l}(k,k') P_l(k')$
-        If it cannot find the file, it will compute a new one from a provided mask in configuration space.
 
         Inputs
         ------
@@ -1559,11 +1558,11 @@ class Projection(object):
                 print ('Loaded mask: %s'%window_fourier_file)
                 save = False
             except:
-                print ('Can\'t load mask: %s \n instead,' % window_fourier_file )
+                print ('Can\'t load Fourier convolution mask: %s \n instead,' % window_fourier_file )
                 load = False
             
         if load is False:
-            print ('Computing new mask.')
+            print ('Computing new mask from input configuration-space mask.')
             if self.window_configspace_file is None:
                 print ('Error: please specify a configuration-space mask file.')
                 compute = False

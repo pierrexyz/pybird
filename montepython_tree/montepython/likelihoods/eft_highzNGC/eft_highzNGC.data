@@ -1,0 +1,36 @@
+# location of data files
+eft_highzNGC.data_directory = data.path['data']
+
+eft_highzNGC.model = 1
+
+# define kmin and kmax
+eft_highzNGC.kmin = 0.01
+eft_highzNGC.kmax = 0.23
+
+eft_highzNGC.z = 0.57
+
+# can provide either a covmat or inverse covmat
+eft_highzNGC.use_covmat = True
+eft_highzNGC.covmat_file = 'pybird/Covariance/Cov_highzNGC.dat'
+
+eft_highzNGC.data_file = 'pybird/DataSims/ps1D_highzNGC.dat'
+
+eft_highzNGC.use_nuisance = ['b1_hN', 'c2_hN', 'b3', 'c4', 'b5', 'b6', 'b7', 'b8', 'b9', 'b10']
+
+eft_highzNGC.use_window = True
+eft_highzNGC.path_to_window = 'pybird/Window/'
+eft_highzNGC.window_fourier_name = 'pynest_BOSS_CMASS_NGC_z057'
+eft_highzNGC.window_configspace_file = 'window_BOSS_CMASS_NGC_z057.dat'
+
+eft_highzNGC.nd = 4.5e-4
+eft_highzNGC.Om_AP = 0.310
+eft_highzNGC.zAP = 0.57
+
+eft_highzNGC.km = 0.7
+eft_highzNGC.knl = 0.7
+
+eft_highzNGC.fibcol_window = True
+
+# Additional parameters
+#eft_highzNGC.omega_b_BBNcenter = 0.02235
+#eft_highzNGC.omega_b_BBNsigma = 0.0005
