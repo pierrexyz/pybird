@@ -8,7 +8,7 @@
 ## General info
 PyBird is a code written in Python 3, designed for evaluating the multipoles of the power spectrum of biased tracers in redshift space.
 In general, PyBird can evaluate the power spectrum of matter or biased tracers in real or redshift space.
-The equations on which PyBird is based can be found in [arXiv:1610.09321.](https://arxiv.org/abs/1610.09321) or [arXiv:1909.05271](https://arxiv.org/abs/1909.05271). 
+The equations on which PyBird is based can be found in [arXiv:1610.09321](https://arxiv.org/abs/1610.09321) or [arXiv:1909.05271](https://arxiv.org/abs/1909.05271). 
 The main technology used by the code is the [FFTLog](https://jila.colorado.edu/~ajsh/FFTLog/index.html), used to evaluate the one-loop power spectrum and the IR resummation, see Sec.~4.1 in [arXiv:2003.XXXXX](https://arxiv.org) for details. 
 
 PyBird is designed for a fast evaluation of the power spectra, and can be easily inserted in a data analysis pipeline.
@@ -36,7 +36,8 @@ You can also find in this repositery:
 * run_pybird.ipynb: a Jupyter notebook containing examples to start with
 * likelihood_class.py, eft_* : an explicit integration in the MCMC sampler [MontePython 3](https://github.com/brinckmann/montepython_public)
 * cbird.nb : a Mathematica notebook on which PyBird algebra is based
+* tbird : Taylor approximation around a fiducial cosmology of the bird power spectrum. See [arXiv:1909.07951](https://arxiv.org/abs/1909.07951). Some documentation can be found in [cbird](https://github.com/pierrexyz/cbird/) (not supported anymore)
 
 ## Citation
 When using PyBird in a publication, please acknowledge the code by citing the following paper: 
-* [arXiv:2003.XXXXX](https://arxiv.org): "Limits on wCDM from the EFTofLSS with the PyBird code, Guido d’Amico", Leonardo Senatore, Pierre Zhang
+* [arXiv:2003.XXXXX](https://arxiv.org): "Limits on wCDM from the EFTofLSS with the PyBird code", Guido d’Amico, Leonardo Senatore, Pierre Zhang
