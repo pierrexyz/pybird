@@ -31,10 +31,10 @@ Read the docs at [https://pybird.readthedocs.io](https://pybird.readthedocs.io).
 
 ## Getting Started
 If you are a [MontePython 3] user, the code can be installed 'with less than a cup of coffee'.
-* Download the repo
-* Put pybird.py in : your_montepython/montepython/
-* Link the files from the folder montepython_tree/ to your_montepython/
-* Try to run the likelihood of BOSS DR12 CMASS NGC with the param file: montepython_tree/input/eft_highzNGC.param
+* Download the repo pybird/
+* Put pybird/pybird.py in : your_montepython/montepython/
+* Link the files from the folder pybird/montepython_tree/ to your_montepython/
+* Try to run the likelihood of BOSS DR12 CMASS NGC with the param file provided in pybird/montepython_tree/input/eft_highzNGC.param
 
 That's it, you are all set!
 
