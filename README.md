@@ -1,5 +1,6 @@
 [![](https://img.shields.io/badge/arXiv-2003.07956%20-red.svg)](https://arxiv.org/abs/2003.07956)
 [![](http://img.shields.io/badge/license-MIT-blue.svg?style=flat)](https://github.com/pierrexyz/pybird/blob/master/LICENSE)
+[![](https://readthedocs.org/projects/pybird/badge/?version=latest)](https://pybird.readthedocs.io/en/latest/?badge=latest)
 
 # PyBird: Python code for Biased tracers in redshift space
 * Written by [Pierre Zhang](mailto:pierrexyz@protonmail.com) and [Guido D'Amico](mailto:damico.guido@gmail.com)
@@ -23,6 +24,10 @@ If the former option is faster, the latter is useful for subsampling or partial 
 ## Dependencies
 PyBird depends on the numerical libraries [NumPy](https://numpy.org/) and [SciPy](http://scipy.org/).
 
+## Documentation
+Read the docs at [https://pybird.readthedocs.io](https://pybird.readthedocs.io).
+[Here](https://github.com/pierrexyz/pybird/blob/master/run_pybird.ipynb) you can find a simple Jupyter notebook to get started.
+
 ## Architecture
 PyBird consists of the following classes:
 * Bird: Main class which contains the power spectrum and correlation function, given a cosmology and a set of EFT parameters.
@@ -41,3 +46,16 @@ You can also find in this repositery:
 ## Citation
 When using PyBird in a publication, please acknowledge the code by citing the following paper: 
 * [arXiv:2003.07956](https://arxiv.org/abs/2003.07956): "Limits on wCDM from the EFTofLSS with the PyBird code", Guido d’Amico, Leonardo Senatore, Pierre Zhang
+
+The BibTeX entry for it is:
+
+@article{DAmico:2020kxu,
+      author         = "D'Amico, Guido and Senatore, Leonardo and Zhang, Pierre",
+      title          = "{Limits on $w$CDM from the EFTofLSS with the PyBird
+                        code}",
+      year           = "2020",
+      eprint         = "2003.07956",
+      archivePrefix  = "arXiv",
+      primaryClass   = "astro-ph.CO",
+      SLACcitation   = "%%CITATION = ARXIV:2003.07956;%%"
+}
