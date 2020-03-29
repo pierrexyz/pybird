@@ -3,8 +3,9 @@ import os
 import numpy as np
 import scipy.constants as conts
 from cobaya.likelihood import Likelihood
+from cobaya.conventions import _input_params_prefix, _output_params_prefix
 try:
-    import pybird as pb
+    from . import pybird as pb
 except ImportError:
     raise Exception('Cannot find pybird library')
 
@@ -58,7 +59,7 @@ class Likelihood_eft(Likelihood):
         self.chi2data = np.dot(self.ydata, np.dot(self.invcov, self.ydata))
         self.invcovdata = np.dot(self.ydata, self.invcov)
 
-        self.kin = np.logspace(-5, 0, 200)
+        # self.kin = np.logspace(-5, 0, 200)
 
         try:
             # GDA Explain something here?
@@ -117,7 +118,7 @@ class Likelihood_eft(Likelihood):
         return kPS, PSdata
 
 
-class Likelihood_bird(Likelihood_eft):
+class challengeA(Likelihood_eft):
 
     def initialize(self):
 
@@ -206,9 +207,15 @@ class Likelihood_bird(Likelihood_eft):
         """
          returns a dictionary specifying quantities calculated by a theory code are needed
         """
-        needs = {'output': 'mPk', 'z_max_pk': self.z, 'P_k_max_h/Mpc': 1.,
-                 "Pk_interpolator": {"z": self.z, "nonlinear": False,
-                                     "vars_pairs": [["delta_tot", "delta_tot"]]}}
+        needs = {"H0": None,
+                "omegam": None,
+                "omega_b": None,
+                "Pk_grid": {
+                    "z": self.z, "k_max": 1.1, "nonlinear": False,
+                    "vars_pairs": [("delta_tot", "delta_tot")]},
+                "angular_diameter_distance": {"z": [0., self.z]},
+                "Hubble": {"z": [0., self.z], "units": '1/Mpc'}}
+                #"fsigma8": {"z": [0., self.z]}}
         return needs
 
     def logp(self, **params_values):
@@ -217,31 +224,40 @@ class Likelihood_bird(Likelihood_eft):
         and return a log-likelihood.
 
         """
-        b1 = params_values['b1_hN']
-        c2 = params_values['c2_hN']
-        b3 = params_values['b3_hN']
-        c4 = params_values['c4_hN']
-        b5 = params_values['b5_hN']
-        b6 = params_values['b6_hN']
-        b8 = params_values['b8_hN']
-        b9 = params_values['b9_hN']
-        b10 = params_values['b10_hN']
+        # Prepare the vector of sampled parameter values
+        # print("p dict: ", params_values)
+        # Fill the derived parameters
+        b1 = params_values['b1']
+        c2 = params_values['c2']
+        b3 = params_values['b3']
+        c4 = params_values['c4']
+        b5 = params_values['b5']
+        b6 = params_values['b6']
+        b8 = params_values['b8']
+        b9 = params_values['b9']
+        b10 = params_values['b10']
 
         b2 = (c2 + c4) / np.sqrt(2.)
         b4 = (c2 - c4) / np.sqrt(2.)
         bs = [b1, b2, b3, b4, b5 / self.knl**2, b6 / self.km**2, 0.]
 
         if self.birdlkl is 'fastmarg' or self.birdlkl is 'fastfull':
-            Pk_interpolators = self.theory.get_Pk_interpolator()
-            PKdelta = Pk_interpolators["delta_tot_delta_tot"]
-            hpar = self.theory.get_param('h')
-            plin = [PKdelta.P(self.z, ki * hpar) * hpar**3 for ki in self.kin]
-            # GDA check units
-            DA = self.theory.get_angular_diameter_distance(self.z) * self.theory.get_H(0.)
-            H = self.theory.get_H(self.z) / self.theory.get_H(0.)
-            f = self.theory.get_scale_independent_growth_factor_f(self.z)
-
-            self.bird = pb.Bird(self.kin, plin, f, DA, H, self.z, which='all', co=self.co)
+            # This is a tuple (k, z, PK), where k and z are arrays, and PK[i,j] is the value at z[i], k[j]
+            self.kin, dummy, plin = self.theory.get_Pk_grid(("delta_tot", "delta_tot"))
+            hpar = self.theory.get_param("H0") / 100.
+            #print(dummy) # This is weird, it is now an array, first entry is 1+z...
+            #print(plin.shape)
+            plin = plin[0] * hpar**3  # Change units to h^3/Mpc^3
+            Da = (self.theory.get_angular_diameter_distance(self.z) * self.theory.get_Hubble(0., units="1/Mpc"))[0]
+            H = (self.theory.get_Hubble(self.z) / self.theory.get_Hubble(0.))[0]
+            #f = self.theory.get_fsigma8(self.z)[0] / self.theory.get_sigma8(self.z)[0]
+            # Stupid approximation for f... Not really ideal
+            f = (self.theory.get_param("omegam") * (1+self.z)**3 / H**2)**(0.55)
+            #print("Did I get Da? ", Da)
+            #print("Did I get H? ", H)
+            # print("Did I get f? ", f)
+            # print("This is Plin: ", plin)
+            self.bird = pb.Bird(self.kin, plin, f, Da, H, self.z, which='all', co=self.co)
             self.nonlinear.PsCf(self.bird)
             self.bird.setPsCfl()
             self.resum.Ps(self.bird)
