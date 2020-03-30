@@ -2886,7 +2886,6 @@ class Likelihood_bird(Likelihood_eft):
         #     self.bird.fullPs[1] += bval[9] / self.nd / self.km**2 * self.kin**2
         #     self.projection.AP(self.bird)
         #     if self.use_window is True: self.projection.Window(self.bird)
-
         modelX = self.bird.fullPs.reshape(-1)
         
         if self.with_bao: # BAO
