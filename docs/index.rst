@@ -25,27 +25,28 @@ If the former option is faster, the latter is useful for subsampling or partial 
 PyBird runs in less than a second on a laptop.
 
 
+Dependencies
+------------
+PyBird depends on the numerical libraries `NumPy <https://numpy.org/>`_ and `SciPy <http://scipy.org/>`_.
+
+
 Installation
 ------------
 PyBird is pip-installable.
 Just clone the repo, and install it as a Python package in development mode so your changes will be immediately available:
 ::
-   git clone https://github.com/pierrexyz/pybird.git
-   pip install --editable pybird --upgrade
+
+  git clone https://github.com/pierrexyz/pybird.git
+  pip install --editable pybird --upgrade
 
 That's it, now you can simply ``import pybird`` from wherever in your projects.
-
-Dependencies
-------------
-PyBird depends on the numerical libraries `NumPy <https://numpy.org/>`_ and `SciPy <http://scipy.org/>`_.
 
 
 Getting Started
 ---------------
 If you are a `MontePython 3 <https://github.com/brinckmann/montepython_public>`_ user, the code can be installed 'with less than a cup of coffee'.
 
-* Download the repo pybird/
-* Put pybird/pybird.py in: your_montepython/montepython/
+* Download and install pybird as above
 * Link the files from the folder pybird/montepython_tree/ to your_montepython/
 * Try to run the likelihood of BOSS DR12 CMASS NGC with the param file provided in pybird/montepython_tree/input/eft_highzNGC.param
 
