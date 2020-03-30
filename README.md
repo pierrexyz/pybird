@@ -21,6 +21,9 @@ PyBird can be used in different ways.
 The code can evaluate the power spectrum either given one set of EFT parameters, or independently of the EFT parameters.
 If the former option is faster, the latter is useful for subsampling or partial marginalization over the EFT parameters, or to Taylor expand around a fiducial cosmology for efficient parameter exploration, see e.g. [arXiv:1909.07951](https://arxiv.org/abs/1909.07951). PyBird runs in less than a second on a laptop. 
 
+## Dependencies
+PyBird depends on the numerical libraries [NumPy](https://numpy.org/) and [SciPy](http://scipy.org/).
+
 ## Installation
 PyBird is pip-installable.
 Just clone the repo, and install it as a Python package in development mode so your changes will be immediately available:
@@ -30,13 +33,9 @@ pip install --editable pybird --upgrade
 ```
 That's it, now you can simply `import pybird` from wherever in your projects.
 
-## Dependencies
-PyBird depends on the numerical libraries [NumPy](https://numpy.org/) and [SciPy](http://scipy.org/).
-
 ## Getting Started
 If you are a [MontePython 3] user, the code can be installed 'with less than a cup of coffee'.
-* Download the repo pybird/
-* Put pybird/pybird.py in : your_montepython/montepython/
+* Download and install pybird as above
 * Link the files from the folder pybird/montepython_tree/ to your_montepython/
 * Try to run the likelihood of BOSS DR12 CMASS NGC with the param file provided in pybird/montepython_tree/input/eft_highzNGC.param
 
