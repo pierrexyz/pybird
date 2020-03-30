@@ -1,0 +1,65 @@
+path: '/Users/guido/github/cobaya/pybird'
+
+data_directory: '/Users/guido/github/cobaya/data'
+data_file: 'pybird/DataSims/ps1D_Challenge_A.dat'
+covmat_file: 'pybird/Covariance/CovChallengeA.dat'
+
+kmin: 0.01
+kmax0: 0.23
+kmax2: 0.23
+
+model: 2
+
+omega_b_BBNcenter: 0.02214
+omega_b_BBNsigma: 0.0005
+
+knl: 0.7
+km: 0.7
+z: 0.5617
+zAP: 0.5617
+Om_AP: 0.307115
+nd: 3.0e-4
+
+use_window: False
+path_to_window: 'pybird/Window/'
+window_fourier_name: 'pynest_BOSS_CMASS_NGC_z057'
+window_configspace_file: 'window_BOSS_CMASS_NGC_z057.dat'
+
+fibcol_window: False
+binning: False
+
+# Speed in evaluations/second (after theory inputs calculated).
+speed: 1
+
+params:
+  b1:
+    prior:
+      dist: uniform
+      min: 0.
+      max: 4.
+    ref:
+      dist: norm
+      loc: 2.
+      scale: 0.5
+    proposal: 2.
+    latex: b_{1, hN}
+  c2:
+    prior:
+      dist: uniform
+      min: -4.
+      max: 4.
+    ref:
+      dist: norm
+      loc: 1.5
+      scale: 0.5
+    proposal: 1.5
+    latex: c_{2, hN}
+  b3: 0
+  c4: 0
+  b5: 0
+  b6: 0
+  b7: 0
+  b8: 0
+  b9: 0
+  b10: 0
+
