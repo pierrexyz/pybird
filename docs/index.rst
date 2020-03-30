@@ -25,6 +25,16 @@ If the former option is faster, the latter is useful for subsampling or partial 
 PyBird runs in less than a second on a laptop.
 
 
+Installation
+------------
+PyBird is pip-installable.
+Just clone the repo, and install it as a Python package in development mode so your changes will be immediately available:
+::
+   git clone https://github.com/pierrexyz/pybird.git
+   pip install --editable pybird --upgrade
+
+That's it, now you can simply ``import pybird`` from wherever in your projects.
+
 Dependencies
 ------------
 PyBird depends on the numerical libraries `NumPy <https://numpy.org/>`_ and `SciPy <http://scipy.org/>`_.
@@ -57,8 +67,10 @@ PyBird consists of the following classes:
 
 Citation
 --------
-When using PyBird in a publication, please acknowledge the code by citing the following paper: 
-Limits on wCDM from the EFTofLSS with the PyBird code by Guido D’Amico, Leonardo Senatore, Pierre Zhang, `arXiv:2003.07956 <https://arxiv.org/abs/2003.07956>`_.
+When using PyBird in a publication, please acknowledge the code by citing the following paper:
+
+**Limits on wCDM from the EFTofLSS with the PyBird code** by *Guido D’Amico, Leonardo Senatore, Pierre Zhang*, `arXiv:2003.07956 <https://arxiv.org/abs/2003.07956>`_.
+
 The BibTeX entry for it is::
 
    @article{DAmico:2020kxu,

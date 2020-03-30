@@ -21,6 +21,15 @@ PyBird can be used in different ways.
 The code can evaluate the power spectrum either given one set of EFT parameters, or independently of the EFT parameters.
 If the former option is faster, the latter is useful for subsampling or partial marginalization over the EFT parameters, or to Taylor expand around a fiducial cosmology for efficient parameter exploration, see e.g. [arXiv:1909.07951](https://arxiv.org/abs/1909.07951). PyBird runs in less than a second on a laptop. 
 
+## Installation
+PyBird is pip-installable.
+Just clone the repo, and install it as a Python package in development mode so your changes will be immediately available:
+```
+git clone https://github.com/pierrexyz/pybird.git
+pip install --editable pybird --upgrade
+```
+That's it, now you can simply `import pybird` from wherever in your projects.
+
 ## Dependencies
 PyBird depends on the numerical libraries [NumPy](https://numpy.org/) and [SciPy](http://scipy.org/).
 
