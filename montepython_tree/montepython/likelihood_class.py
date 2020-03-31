@@ -2644,8 +2644,10 @@ class Likelihood_isw(Likelihood):
 ############################
 
 import scipy.constants as conts
-try: import pybird as pb
-except ImportError: raise Exception('Cannot find pybird library')
+try:
+    from pybird import pybird as pb
+except ImportError:
+    raise Exception('Cannot find pybird library')
 
 class Likelihood_eft(Likelihood):
 

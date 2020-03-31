@@ -31,7 +31,7 @@ Just clone the repo, and install it as a Python package in development mode so y
 git clone https://github.com/pierrexyz/pybird.git
 pip install --editable pybird --upgrade
 ```
-That's it, now you can simply `import pybird` from wherever in your projects.
+That's it, now you can simply `from pybird import pybird` from wherever in your projects.
 
 ## Getting Started
 If you are a [MontePython 3] user, the code can be installed 'with less than a cup of coffee'.
