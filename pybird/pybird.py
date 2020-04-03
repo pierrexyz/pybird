@@ -1458,10 +1458,11 @@ class Projection(object):
     - Window functions (survey masks)
     - k-binning or interpolation over the data k-array
     - Fiber collision corrections
+    - Wedges
     """
     def __init__(self, kout, Om_AP, z_AP, nbinsmu=200, 
         window_fourier_name=None, path_to_window=None, window_configspace_file=None, 
-        binning=False, fibcol=False, co=common):
+        binning=False, fibcol=False, wedge=False, Nwedges=3, co=common):
 
         self.co = co
         self.kout = kout
@@ -1485,6 +1486,10 @@ class Projection(object):
 
         if binning:
             self.loadBinning(self.kout)
+
+        # wedges
+        self.Nw = Nwedges
+        self.IL = self.IntegralLegendreArray(Nw=self.Nw, Nl=self.co.Nl)
 
     def get_AP_param(self, bird):
         """
@@ -1767,3 +1772,37 @@ class Projection(object):
             bird.Ploopl = interp1d(self.co.k, bird.Ploopl, axis=-1, kind='cubic', bounds_error=False)(self.kout)
         if bird.which is 'full':
             bird.fullPs = interp1d(self.co.k, bird.fullPs, axis=-1, kind='cubic', bounds_error=False)(self.kout)
+
+    def IntegralLegendre(self, l, a, b):
+        if l == 0: return 1.
+        if l == 2: return 0.5*(b**3-b-a**3+a)/(b-a)
+        if l == 4: return 0.25*(-3/2.*a+5*a**3-7/2.*a**5+3/2.*b-5*b**3+7/2.*b**5)/(b-a)
+
+    def IntegralLegendreArray(self, Nw=3, Nl=2):
+        deltamu = 1./float(Nw)
+        boundsmu = np.arange(0., 1., deltamu)
+        IntegrLegendreArray = np.empty(shape=(Nw, Nl))
+        for w, boundmu in enumerate(boundsmu):
+            for l in range(Nl):
+                IntegrLegendreArray[w,l] = self.IntegralLegendre(2*l, boundmu, boundmu+deltamu)
+        return IntegrLegendreArray
+
+    def integrWedges(self, P, many=False):
+        if many: w = np.einsum('lpk,wl->wpk', P, self.IL)
+        else: w = np.einsum('lk,wl->wk', P, self.IL)
+        return w
+
+    def Wedges(self, bird):
+        """
+        Produce wedges
+        """
+        if bird.which is 'all':
+            bird.P11l = self.integrWedges(bird.P11l, many=True)
+            bird.Pctl = self.integrWedges(bird.Pctl, many=True)
+            bird.Ploopl = self.integrWedges(bird.Ploopl, many=True)
+
+        elif bird.which is 'full':
+            bird.fullPs = self.integrWedges(bird.fullPs, many=False)
+
+    def Wedges_external(self, P):
+        return self.integrWedges(P, many=False)

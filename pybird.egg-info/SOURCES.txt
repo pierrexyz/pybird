@@ -1,0 +1,10 @@
+README.md
+setup.py
+pybird/__init__.py
+pybird/pybird.py
+pybird.egg-info/PKG-INFO
+pybird.egg-info/SOURCES.txt
+pybird.egg-info/dependency_links.txt
+pybird.egg-info/not-zip-safe
+pybird.egg-info/requires.txt
+pybird.egg-info/top_level.txt
