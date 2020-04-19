@@ -2652,22 +2652,73 @@ class Likelihood_eft(Likelihood):
     def __init__(self, path, data, command_line):
 
         Likelihood.__init__(self, path, data, command_line)
-        
+
+        # wedges
+        try: self.Nw
+        except: self.Nw = 0
+
+        # multipoles
+        try: self.Nl
+        except: self.Nl = 2
+
         # read values of k (in h/Mpc)
-        k3, PSdata = self.__load_data()
-        self.k = k3.reshape(3,-1)[0]
-        self.ps = PSdata.reshape(3, -1)
-        self.Nk = len(self.k)
-        try:
-            self.kmax0
-            self.kmax2
-        except:
-            self.kmax0 = self.kmax
-            self.kmax2 = self.kmax
-        kmask0 = np.argwhere((self.k <= self.kmax0) & (self.k >= self.kmin))[:,0]
-        kmask2 = np.argwhere((self.k <= self.kmax2) & (self.k >= self.kmin))[:,0] + len(self.k)
-        self.kmask = np.concatenate((kmask0, kmask2))
-        self.xdata = self.k[kmask0]
+        cov = None
+        try: kdata, PSdata = self.__load_data()
+        except: kdata, PSdata, cov = self.__load_gaussian_data() # with gaussian case: column 1: k[h/Mpc]  column 2-N+2: signal  column N+3-2N+2: error
+        
+        if self.Nw is not 0:
+            self.k = kdata.reshape(self.Nw,-1)[0]
+            self.ps = PSdata.reshape(self.Nw, -1)
+            self.Nk = len(self.k)
+
+            try:
+                self.kmax0
+                self.kmax1
+                self.kmax = max(self.kmax0, self.kmax1)
+            except:
+                self.kmax0 = self.kmax
+                self.kmax1 = self.kmax
+            dkmax = (self.kmax1-self.kmax0)/(self.Nw-1.)
+            kmask0 = np.argwhere((self.k <= self.kmax0) & (self.k >= self.kmin))[:,0]
+            self.kmask = kmask0
+            for i in range(self.Nw-1):
+                kmaski = np.argwhere((self.k <= self.kmax0 + (i+1)*dkmax) & (self.k >= self.kmin))[:,0] + (i+1)*self.Nk
+                self.kmask = np.concatenate((self.kmask, kmaski))
+        else:
+            self.k = kdata.reshape(3,-1)[0]
+            self.ps = PSdata.reshape(3, -1)
+            self.Nk = len(self.k)
+            kmask0 = np.argwhere((self.k <= self.kmax) & (self.k >= self.kmin))[:,0]
+            self.kmask = kmask0
+            for i in range(self.Nl-1):
+                kmaski = np.argwhere((self.k <= self.kmax) & (self.k >= self.kmin))[:,0] + (i+1)*self.Nk
+                self.kmask = np.concatenate((self.kmask, kmaski))
+            
+            # if self.Nw == 3:
+            #     try:
+            #         self.kmax0
+            #         self.kmax1
+            #         self.kmax2
+            #     except:
+            #         self.kmax0 = self.kmax
+            #         self.kmax1 = self.kmax
+            #         self.kmax2 = self.kmax
+            #     
+            #     kmask1 = np.argwhere((self.k <= self.kmax1) & (self.k >= self.kmin))[:,0] + len(self.k)
+            #     kmask2 = np.argwhere((self.k <= self.kmax2) & (self.k >= self.kmin))[:,0] + 2*len(self.k)
+            #     self.kmask = np.concatenate((kmask0, kmask1, kmask2))
+            # elif self.Nw == 2:
+            #     try:
+            #         self.kmax0
+            #         self.kmax2
+            #     except:
+            #         self.kmax0 = self.kmax
+            #         self.kmax2 = self.kmax
+            #     kmask0 = np.argwhere((self.k <= self.kmax0) & (self.k >= self.kmin))[:,0]
+            #     kmask2 = np.argwhere((self.k <= self.kmax2) & (self.k >= self.kmin))[:,0] + len(self.k)
+            #     self.kmask = np.concatenate((kmask0, kmask2))
+
+        # self.xdata = self.k[kmask0]
         self.ydata = PSdata[self.kmask]
 
         # BAO
@@ -2688,7 +2739,7 @@ class Likelihood_eft(Likelihood):
             print("You should declare a covariance matrix!")
 
         if self.use_covmat:
-            cov = np.loadtxt(os.path.join(self.data_directory, self.covmat_file))
+            if cov is None: cov = np.loadtxt(os.path.join(self.data_directory, self.covmat_file))
             covred = cov[self.kmask.reshape((len(self.kmask), 1)), self.kmask]
             self.invcov = np.linalg.inv(covred)
 
@@ -2697,36 +2748,75 @@ class Likelihood_eft(Likelihood):
 
         self.kin = np.logspace(-5, 0, 200)
 
-        try: 
-            if self.use_prior and self.priors is not None: 
-                self.priors = np.array(self.priors)
-                if self.model == 1: 
-
-                    b3, cct, cr1, ce2, sn = self.priors
-                    print ('EFT priors: b3: %s, cct: %s, cr1(+cr2): %s, ce2: %s, shotnoise: %s' % (b3, cct, cr1, ce2, sn) )
-                elif self.model == 2: 
-                    b3, cct, cr1, ce2 = self.priors
-                    print ('EFT priors: b3: %s, cct: %s, cr1(+cr2): %s, ce2: %s' % (b3, cct, cr1, ce2) )
-            else: 
-                print ('EFT priors: none')
+        if self.Nl is 2:
+            try: 
+                if self.use_prior and self.priors is not None: 
+                    self.priors = np.array(self.priors)
+                    if self.model == 1: 
+                        b3, cct, cr1, ce2, sn = self.priors
+                        print ('EFT priors: b3: %s, cct: %s, cr1(+cr2): %s, ce2: %s, shotnoise: %s' % (b3, cct, cr1, ce2, sn) )
+                    elif self.model == 2: 
+                        b3, cct, cr1, ce2 = self.priors
+                        print ('EFT priors: b3: %s, cct: %s, cr1(+cr2): %s, ce2: %s' % (b3, cct, cr1, ce2) )
+                else: 
+                    print ('EFT priors: none')
+                    self.use_prior = True
+                    if self.model == 1: self.priors = np.array([ 10., 10., 16., 10., 2.])
+                    elif self.model == 2: self.priors = np.array([ 10., 10., 16., 10. ])
+                    elif self.model == 3: self.priors = np.array([ 10., 10., 16., 10., 10. ])
+            except:
                 self.use_prior = True
-                if self.model == 1: self.priors = np.array([ 10., 10., 16., 10., 2.])
-                elif self.model == 2: self.priors = np.array([ 10., 10., 16., 10. ])
-                elif self.model == 3: self.priors = np.array([ 10., 10., 16., 10., 10. ])
-        except:
-            self.use_prior = True
-            if self.model == 1: 
-                self.priors = np.array([ 2., 2., 8., 2., 2. ])
-                b3, cct, cr1, ce2, sn = self.priors
-                print ('EFT priors: b3: %s, cct: %s, cr1(+cr2): %s, ce2: %s, shotnoise: %s (default)' % (b3, cct, cr1, ce2, sn) )
-            elif self.model == 2: 
-                self.priors = np.array([ 2., 2., 8., 2. ])
-                b3, cct, cr1, ce2 = self.priors
-                print ('EFT priors: b3: %s, cct: %s, cr1(+cr2): %s, ce2: %s (default)' % (b3, cct, cr1, ce2) )
-            elif self.model == 3: 
-                self.priors = np.array([ 10., 4., 8., 4., 2. ])
-                b3, cct, cr1, ce2, ce1 = self.priors
-                print ('EFT priors: b3: %s, cct: %s, cr1(+cr2): %s, ce2: %s, ce1: %s (default)' % (b3, cct, cr1, ce2, ce1) )
+                if self.model == 1: 
+                    self.priors = np.array([ 2., 2., 8., 2., 2. ])
+                    b3, cct, cr1, ce2, sn = self.priors
+                    print ('EFT priors: b3: %s, cct: %s, cr1(+cr2): %s, ce2: %s, shotnoise: %s (default)' % (b3, cct, cr1, ce2, sn) )
+                elif self.model == 2: 
+                    self.priors = np.array([ 2., 2., 8., 2. ])
+                    b3, cct, cr1, ce2 = self.priors
+                    print ('EFT priors: b3: %s, cct: %s, cr1(+cr2): %s, ce2: %s (default)' % (b3, cct, cr1, ce2) )
+                elif self.model == 3: 
+                    self.priors = np.array([ 2., 2., 8., 2., 2. ])#np.array([ 10., 4., 8., 4., 2. ])
+                    b3, cct, cr1, ce2, ce1 = self.priors
+                    print ('EFT priors: b3: %s, cct: %s, cr1(+cr2): %s, ce2: %s, ce1: %s (default)' % (b3, cct, cr1, ce2, ce1) )
+                elif self.model == 4: 
+                    self.priors = np.array([ 2., 2., 8., 2., 2., 2. ])
+                    b3, cct, cr1, ce2, ce1, sn = self.priors
+                    print ('EFT priors: b3: %s, cct: %s, cr1(+cr2): %s, ce2: %s, ce1: %s, shotnoise: %s (default)' % (b3, cct, cr1, ce2, ce1, sn) )
+        
+        elif self.Nl is 3:
+            try: 
+                if self.use_prior and self.priors is not None: 
+                    self.priors = np.array(self.priors)
+                    if self.model == 1: 
+                        b3, cct, cr1, cr2, ce2, sn = self.priors
+                        print ('EFT priors: b3: %s, cct: %s, cr1: %s, cr2: %s, ce2: %s, shotnoise: %s' % (b3, cct, cr1, cr2, ce2, sn) )
+                    elif self.model == 2: 
+                        b3, cct, cr1, cr2, ce2 = self.priors
+                        print ('EFT priors: b3: %s, cct: %s, cr1: %s, cr2: %s, ce2: %s' % (b3, cct, cr1, cr2, ce2) )
+                else: 
+                    print ('EFT priors: none')
+                    self.use_prior = True
+                    if self.model == 1: self.priors = np.array([ 10., 10., 10., 10., 10., 2.])
+                    elif self.model == 2: self.priors = np.array([ 10., 10., 10., 10., 10. ])
+                    elif self.model == 3: self.priors = np.array([ 10., 10., 10., 10., 10., 10. ])
+            except:
+                self.use_prior = True
+                if self.model == 1: 
+                    self.priors = np.array([ 2., 2., 4., 4., 2., 2. ])
+                    b3, cct, cr1, cr2, ce2, sn = self.priors
+                    print ('EFT priors: b3: %s, cct: %s, cr1: %s, cr2: %s, ce2: %s, shotnoise: %s (default)' % (b3, cct, cr1, cr2, ce2, sn) )
+                elif self.model == 2: 
+                    self.priors = np.array([ 2., 2., 4., 4., 2. ])
+                    b3, cct, cr1, ce2 = self.priors
+                    print ('EFT priors: b3: %s, cct: %s, cr1: %s, cr2: %s, ce2: %s (default)' % (b3, cct, cr1, cr2, ce2) )
+                elif self.model == 3: 
+                    self.priors = np.array([ 2., 2., 4., 4., 2., 2. ])#np.array([ 10., 4., 8., 4., 2. ])
+                    b3, cct, cr1, cr2, ce2, ce1 = self.priors
+                    print ('EFT priors: b3: %s, cct: %s, cr1: %s, cr2: %s, ce2: %s, ce1: %s (default)' % (b3, cct, cr1, cr2, ce2, ce1) )
+                elif self.model == 4: 
+                    self.priors = np.array([ 2., 2., 4., 4., 2., 2., 2. ])
+                    b3, cct, cr1, cr2, ce2, ce1, sn = self.priors
+                    print ('EFT priors: b3: %s, cct: %s, cr1: %s, cr2: %s, ce2: %s, ce1: %s, shotnoise: %s (default)' % (b3, cct, cr1, cr2, ce2, ce1, sn) )
         
         self.priormat = np.diagflat(1./self.priors**2)
 
@@ -2743,10 +2833,27 @@ class Likelihood_eft(Likelihood):
         """
         Helper function to read in the full data vector.
         """
-        print("Load data?")
+        #print("Load data?")
         fname = os.path.join(self.data_directory, self.data_file)
-        kPS, PSdata, _ = np.loadtxt(fname, unpack=True)
+        try: kPS, PSdata, _ = np.loadtxt(fname, unpack=True)
+        except: kPS, PSdata = np.loadtxt(fname, unpack=True)
         return kPS, PSdata
+
+    def __load_gaussian_data(self):
+        """
+        Helper function to read in the full data vector with gaussian error:
+        column 1: k[h/Mpc]  column 2-N+2: signal  column N+3-2N+2: error
+        """
+        if self.Nw is 0: Nd = self.Nl
+        else: Nd = self.Nl
+        raw = np.loadtxt(os.path.join(self.data_directory, self.data_file)).T
+        k = raw[0]
+        allk = np.concatenate([k for i in range(Nd)])
+        allPS = np.concatenate([raw[1+i] for i in range(Nd)])
+        diag = np.concatenate([raw[1+Nd+i] for i in range(Nd)])
+        cov = np.diagflat(diag**2)
+        #kPS = np.vstack([allkpt, allwpt]).T
+        return allk, allPS, cov
 
 class Likelihood_bird(Likelihood_eft):
 
@@ -2757,6 +2864,33 @@ class Likelihood_bird(Likelihood_eft):
         self.need_cosmo_arguments(data, {'output': 'mPk', 'z_max_pk': self.z, 'P_k_max_h/Mpc': 1.})
 
         print ("-- bird settings --")
+
+        self.use_wedge = False
+        try:
+            if self.Nw is 0: print ("multipoles: " % self.Nl)
+            else:
+                self.use_wedge = True
+                print("wedges: %s" % self.Nw)
+        except:
+            self.Nw = 0
+            print("multipoles: %s" % self.Nl)
+
+        # try:
+        #     if self.birdNl > self.Nl: print("%s multipoles analyzed but Bird evaluates %s multipoles: good for resummation!" % (self.birdNl, self.Nl))
+        #     elif self.birdNl == self.Nl: pass
+        #     else: self.birdNl = self.Nl # PyBird cannot evaluate less multipoles than the ones analyzed
+        # except:
+        #     self.birdNl = self.Nl
+
+        try: 
+            if self.zAP != self.z: 
+                print ('Effective redshift: %s, AP redshift: %s'%(self.z, self.zAP))  
+            else: 
+                self.zAP = self.z
+                print ('Effective redshift: %s'%(self.z))
+        except: 
+            self.zAP = self.z
+            print ('Effective redshift: %s'%(self.z))
 
         try:
             if self.birdlkl is 'full': print ('bird lkl: full')
@@ -2779,22 +2913,12 @@ class Likelihood_bird(Likelihood_eft):
             self.optiresum = False
             print ('resummation: full (default)')
 
-        try: 
-            if self.zAP != self.z: 
-                print ('Effective redshift: %s, AP redshift: %s'%(self.z, self.zAP))  
-            else: 
-                self.zAP = self.z
-                print ('Effective redshift: %s'%(self.z))
-        except: 
-            self.zAP = self.z
-            print ('Effective redshift: %s'%(self.z))
-
         try:
             self.path_to_window = os.path.join(self.data_directory, self.path_to_window)
             self.window_configspace_file = os.path.join(self.path_to_window, self.window_configspace_file)
             test = np.loadtxt(self.window_configspace_file)
-            self.use_window = True
-            print("Mask: on")
+            if self.use_window: print("Mask: on")
+            else: print("Mask: none")
         except:
             print("Mask: none")
             self.window_fourier_name = None
@@ -2804,7 +2928,9 @@ class Likelihood_bird(Likelihood_eft):
 
         try:
             if self.fibcol_window: print ("fiber collision window: on")
-            else: print ("fiber collision window: none")
+            else: 
+                self.fibcol_window = False
+                print ("fiber collision window: none")
         except:
             self.fibcol_window = False
             print("fiber collision window: none")
@@ -2816,12 +2942,12 @@ class Likelihood_bird(Likelihood_eft):
             self.binning = False
             print ("k-binning: none")
         
-        self.co = pb.Common(optiresum = self.optiresum)
+        self.co = pb.Common(Nl=self.Nl, kmax=self.kmax+0.05, optiresum = self.optiresum)
         self.nonlinear = pb.NonLinear(load=True, save=True, co=self.co)
         self.resum = pb.Resum(co=self.co)
         self.projection = pb.Projection(self.k, self.Om_AP, self.zAP, 
             window_fourier_name=self.window_fourier_name, path_to_window=self.path_to_window, window_configspace_file=self.window_configspace_file,
-            binning=self.binning, fibcol=self.fibcol_window, co=self.co)
+            binning=self.binning, fibcol=self.fibcol_window, Nwedges=self.Nw, co=self.co)
         
         self.bird = None
         print("-- bird loaded --")
@@ -2848,8 +2974,9 @@ class Likelihood_bird(Likelihood_eft):
                 self.bird.setPsCfl()
                 self.resum.Ps(self.bird)
                 self.projection.AP(self.bird)
-                if self.use_window is True: self.projection.Window(self.bird)
+                if self.use_window: self.projection.Window(self.bird)
                 if self.fibcol_window: self.projection.fibcolWindow(self.bird)
+                if self.use_wedge: self.projection.Wedges(self.bird) 
                 if self.binning: self.projection.kbinning(self.bird)
                 else: self.projection.kdata(self.bird)
 
@@ -2886,6 +3013,7 @@ class Likelihood_bird(Likelihood_eft):
         #     self.bird.fullPs[1] += bval[9] / self.nd / self.km**2 * self.kin**2
         #     self.projection.AP(self.bird)
         #     if self.use_window is True: self.projection.Window(self.bird)
+
         modelX = self.bird.fullPs.reshape(-1)
         
         if self.with_bao: # BAO
@@ -2907,16 +3035,17 @@ class Likelihood_bird(Likelihood_eft):
             vectorbi = np.dot(modelX, np.dot(self.invcov, Pi.T)) - np.dot(self.invcovdata, Pi.T)
             chi2nomar = (np.dot(modelX, np.dot(self.invcov, modelX)) -
                          2. * np.dot(self.invcovdata, modelX) + self.chi2data)
-            chi2mar = -np.dot(vectorbi, np.dot(Cinvbi, vectorbi)) + np.log(np.linalg.det(Covbi))
+            chi2mar = -np.dot(vectorbi, np.dot(Cinvbi, vectorbi)) + np.log(np.abs(np.linalg.det(Covbi)))
             chi2 = chi2mar + chi2nomar - self.priors.shape[0] * np.log(2. * np.pi)
 
         elif 'full' in self.birdlkl:
             chi2 = np.dot(modelX - self.ydata, np.dot(self.invcov, modelX - self.ydata))
         
+        #### BE CAREFUL HERE NO PRIOR IMPLEMENTED FOR Nl=3 ONLY FOR Nl=2
         if self.use_prior:
             prior = - 0.5 * (  
                                (bval[1] / 10.)**2                                    # c2
-                             + (bval[3] / 2.)**2                                    # c4
+                             + (bval[3] / 2.)**2                                     # c4
                              + (bval[2] / self.priors[0])**2                         # b3
                              + (bval[4] / self.knl**2 / self.priors[1])**2           # cct
                              + (bval[5] / self.km**2 / self.priors[2])**2            # cr1(+cr2)
@@ -2933,23 +3062,44 @@ class Likelihood_bird(Likelihood_eft):
         return lkl
 
     def __get_Pi_for_marg(self, Pct, Pb3, b1, f, model=2):
+        kp2l2 = np.zeros(shape=(self.Nl, self.Nk))
+        kp2l2[1] = self.k**2 / self.nd / self.km**2 # k^2 quad
+        if self.use_wedge: kp2l2 = self.projection.Wedges_external(kp2l2)
 
-        kl2 = np.array([np.zeros(self.Nk), self.k]) # k^2 quad
-
-        Pi = np.array([ 
+        if self.Nl is 2:
+            Pi = np.array([ 
+                            Pb3,                                          # *b3
+                            (2*f*Pct[:,0+3]+2*b1*Pct[:,0]) / self.knl**2, # *cct
+                            (2*f*Pct[:,1+3]+2*b1*Pct[:,1]) / self.km**2 , # *cr1
+                            #(2*f*Pct[:,2+3]+2*b1*Pct[:,2]) / self.km**2 ,# *cr2
+                            kp2l2                                         # *ce,l2
+                        ])
+        elif self.Nl is 3:
+            Pi = np.array([ 
                         Pb3,                                          # *b3
                         (2*f*Pct[:,0+3]+2*b1*Pct[:,0]) / self.knl**2, # *cct
                         (2*f*Pct[:,1+3]+2*b1*Pct[:,1]) / self.km**2 , # *cr1
-                        #(2*f*Pct[:,2+3]+2*b1*Pct[:,2]) / self.km**2 , # *cr2
-                        kl2**2 / self.nd / self.km**2                 # *ce,l2
+                        (2*f*Pct[:,2+3]+2*b1*Pct[:,2]) / self.km**2 , # *cr2
+                        kp2l2                                         # *ce,l2
                     ])
 
-        if model == 1:  
-            Onel0 = np.array([ np.array([np.ones(self.Nk), np.zeros(self.Nk)]) ])# shot-noise mono
-            Pi = np.concatenate((Pi, Onel0 / self.nd ))
+        if model == 1: 
+            Onel0 = np.zeros(shape=(self.Nl, self.Nk))
+            Onel0[0] = np.ones(self.Nk) / self.nd # shot-noise mono
+            if self.use_wedge: Onel0 = self.projection.Wedges_external(Onel0)
+            Pi = np.concatenate((Pi, np.array([Onel0])))
         elif model == 3:
-            kl0 = np.array([ np.array([self.k, np.zeros(self.Nk)]) ])# k^2 mono
-            Pi = np.concatenate((Pi, kl0**2 / self.nd / self.km**2))
+            kp2l0 = np.zeros(shape=(self.Nl, self.Nk))
+            kp2l0[0] = self.k**2 / self.nd / self.km**2 # k^2 mono
+            if self.use_wedge: kp2l0 = self.projection.Wedges_external(kp2l0)
+            Pi = np.concatenate((Pi, np.array([kp2l0])))
+        elif model == 4:
+            kp2l0 = np.zeros(shape=(self.Nl, self.Nk))
+            kp2l0[0] = self.k**2 / self.nd / self.km**2 # k^2 mono
+            Onel0 = np.zeros(shape=(self.Nl, self.Nk))
+            Onel0[0] = np.ones(self.Nk) / self.nd # shot-noise mono
+            if self.use_wedge: kp2l0 = self.projection.Wedges_external(kp2l0)
+            Pi = np.concatenate((Pi, np.array([kp2l0]), np.array([Onel0])))
 
         Pi = Pi.reshape( (Pi.shape[0], -1) )
 
@@ -2961,6 +3111,11 @@ class Likelihood_bird(Likelihood_eft):
         Pi = Pi[:,self.kmask]
 
         return Pi
+
+
+
+
+
 
 class Likelihood_taylor(Likelihood_eft):
 
