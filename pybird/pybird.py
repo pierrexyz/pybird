@@ -6,7 +6,7 @@ from numpy.fft import rfft
 from scipy.interpolate import interp1d
 from scipy.special import gamma, legendre, j1, spherical_jn
 from scipy.integrate import quad
-from dev_pyfeather import Qa, Qakp2x12, Qakp2x16, Qawithhex, Qawithhex20
+from pyfeather import Qa, Qakp2x12, Qakp2x16, Qawithhex, Qawithhex20
 
 def cH(Om, a):
     """ LCDM growth rate auxiliary function """
@@ -301,7 +301,6 @@ class Bird(object):
             self.Pctl = np.empty(shape=(self.co.Nl, self.co.Nct, self.co.Nk))
             self.P22l = np.empty(shape=(self.co.Nl, self.co.N22, self.co.Nk))
             self.P13l = np.empty(shape=(self.co.Nl, self.co.N13, self.co.Nk))
-            self.Pb3 = np.empty(shape=(self.co.Nl, self.co.Nk))
 
         self.C11 = np.empty(shape=(self.co.Nl, self.co.Ns))
         self.C22 = np.empty(shape=(self.co.Nl, self.co.N22, self.co.Ns))
@@ -311,6 +310,8 @@ class Bird(object):
 
         if 'all' in self.which:
             self.Cloopl = np.empty(shape=(self.co.Nl, self.co.Nloop, self.co.Ns))
+            self.C11l = np.empty(shape=(self.co.Nl, self.co.N11, self.co.Ns))
+            self.Cctl = np.empty(shape=(self.co.Nl, self.co.Nct, self.co.Ns))
 
         ### DEPRECIATED
         # elif self.which is 'marg':
@@ -423,6 +424,8 @@ class Bird(object):
         self.P22l = np.einsum('nx,ln->lnx', self.P22, self.co.l22)
         self.P13l = np.einsum('nx,ln->lnx', self.P13, self.co.l13)
 
+        self.C11l = np.einsum('lx,ln->lnx', self.C11, self.co.l11)
+        self.Cctl = np.einsum('lx,ln->lnx', self.Cct, self.co.lct)
         self.C22 = np.einsum('lnx,ln->lnx', self.C22, self.co.l22)
         self.C13 = np.einsum('lnx,ln->lnx', self.C13, self.co.l13)
 
@@ -489,6 +492,25 @@ class Bird(object):
         Ps0 = np.einsum('b,lbx->lx', b11, self.P11l)
         Ps1 = np.einsum('b,lbx->lx', bloop, self.Ploopl) + np.einsum('b,lbx->lx', bct, self.Pctl)
         self.fullPs = Ps0 + Ps1
+
+    def setreduceCflb(self, bs):
+        """ For option: which='all'. Given an array of EFT parameters, multiply them accordingly to the correlation multipole regrouped terms and adds the resulting terms together per loop order.
+
+        Parameters
+        ----------
+        bs : array
+            An array of 7 EFT parameters: b_1, b_2, b_3, b_4, c_{ct}/k_{nl}^2, c_{r,1}/k_{m}^2, c_{r,2}/k_{m}^2
+        """
+        b1, b2, b3, b4, b5, b6, b7 = bs
+        f = self.f
+
+        b11 = np.array([b1**2, 2. * b1 * f, f**2])
+        bct = np.array([2. * b1 * b5, 2. * b1 * b6, 2. * b1 * b7, 2. * f * b5, 2. * f * b6, 2. * f * b7])
+        bloop = np.array([1., b1, b2, b3, b4, b1 * b1, b1 * b2, b1 * b3, b1 * b4, b2 * b2, b2 * b4, b4 * b4])
+
+        Cf0 = np.einsum('b,lbx->lx', b11, self.C11l)
+        Cf1 = np.einsum('b,lbx->lx', bloop, self.Cloopl) + np.einsum('b,lbx->lx', bct, self.Cctl)
+        self.fullCf = Cf0 + Cf1
 
     def subtractShotNoise(self):
         """ For option: which='all'. Subtract the constant stochastic term from the (22-)loop """
@@ -1245,9 +1267,9 @@ class Resum(object):
             bird.Pctl += self.IRPsct
             bird.Ploopl += self.IRPsloop
 
-            bird.C11 += self.IRCf11
-            bird.Cct += self.IRCfct
-            bird.Cloop += self.IRCfloop
+            bird.C11l += self.IRCf11
+            bird.Cctl += self.IRCfct
+            bird.Cloopl += self.IRCfloop
 
         if 'full' in bird.which:
             bird.Ps += self.IRPs
@@ -1496,9 +1518,10 @@ class Projection(object):
     """
     def __init__(self, kout, Om_AP, z_AP, nbinsmu=200, 
         window_fourier_name=None, path_to_window=None, window_configspace_file=None, 
-        binning=False, fibcol=False, Nwedges=0, co=common):
+        binning=False, fibcol=False, Nwedges=0, cf=False, co=common):
 
         self.co = co
+        self.cf = cf
         self.kout = kout
 
         self.Om = Om_AP
@@ -1508,7 +1531,8 @@ class Projection(object):
         self.H = Hubble(self.Om, self.z)
 
         self.muacc = np.linspace(0., 1., nbinsmu)
-        self.kgrid, self.mugrid = np.meshgrid(self.co.k, self.muacc, indexing='ij')
+        if self.cf: self.sgrid, self.mugrid = np.meshgrid(self.co.s, self.muacc, indexing='ij')
+        else: self.kgrid, self.mugrid = np.meshgrid(self.co.k, self.muacc, indexing='ij')
         self.arrayLegendremugrid = np.array([(2*2*l+1)/2.*legendre(2*l)(self.mugrid) for l in range(self.co.Nl)])
 
         if window_fourier_name is not None: 
@@ -1533,12 +1557,12 @@ class Projection(object):
         qpar = self.H / bird.H
         return qperp, qpar
 
-    def integrAP(self, Pk, kp, arrayLegendremup, many=False):
+    def integrAP(self, k, Pk, kp, arrayLegendremup, many=False):
         """
         AP integration
         Credit: Jerome Gleyzes
         """
-        Pkint = interp1d(self.co.k, Pk, axis=-1, kind='cubic', bounds_error=False, fill_value='extrapolate')
+        Pkint = interp1d(k, Pk, axis=-1, kind='cubic', bounds_error=False, fill_value='extrapolate')
         if many:
             Pkmu = np.einsum('lpkm,lkm->pkm', Pkint(kp), arrayLegendremup)
             Integrandmu = np.einsum('pkm,lkm->lpkm', Pkmu, self.arrayLegendremugrid)
@@ -1549,31 +1573,45 @@ class Projection(object):
 
     def AP(self, bird=None, q=None):
         """
-        Apply the AP effect to the bird power spectrum
+        Apply the AP effect to the bird power spectrum or correlation function
         Credit: Jerome Gleyzes
-        """
-        if q is None:
-            qperp, qpar = self.get_AP_param(bird)
+            """
+        if q is None: qperp, qpar = self.get_AP_param(bird)
+        else: qperp, qpar = q
+
+        if self.cf:
+            G = (self.mugrid**2 * qpar**2 + (1-self.mugrid**2) * qperp**2)**0.5
+            sp = self.sgrid * G
+            mup = self.mugrid * qpar / G
+            arrayLegendremup = np.array([legendre(2*l)(mup) for l in range(self.co.Nl)])
+
+            if 'all' in bird.which:
+                bird.C11l = self.integrAP(self.co.s, bird.C11l, sp, arrayLegendremup, many=True)
+                bird.Cctl = self.integrAP(self.co.s, bird.Cctl, sp, arrayLegendremup, many=True)
+                bird.Cloopl = self.integrAP(self.co.s, bird.Cloopl, sp, arrayLegendremup, many=True)
+            
+            elif 'full' in bird.which:
+                bird.fullCf = self.integrAP(self.co.s, bird.fullCf, sp, arrayLegendremup, many=False)
+        
         else:
-            qperp, qpar = q
-        F = qpar / qperp
-        kp = self.kgrid / qperp * (1 + self.mugrid**2 * (F**-2 - 1))**0.5
-        mup = self.mugrid / F * (1 + self.mugrid**2 * (F**-2 - 1))**-0.5
+            F = qpar / qperp
+            kp = self.kgrid / qperp * (1 + self.mugrid**2 * (F**-2 - 1))**0.5
+            mup = self.mugrid / F * (1 + self.mugrid**2 * (F**-2 - 1))**-0.5
+            arrayLegendremup = np.array([legendre(2*l)(mup) for l in range(self.co.Nl)])
 
-        arrayLegendremup = np.array([legendre(2*l)(mup) for l in range(self.co.Nl)])
+            if bird.which is 'marg':
+                bird.fullPs = 1. / (qperp**2 * qpar) * self.integrAP(self.co.k, bird.fullPs, kp, arrayLegendremup, many=False)
+                bird.Pb3 = 1. / (qperp**2 * qpar) * self.integrAP(self.co.k, bird.Pb3, kp, arrayLegendremup, many=False)
+                bird.Pctl = 1. / (qperp**2 * qpar) * self.integrAP(self.co.k, bird.Pctl, kp, arrayLegendremup, many=True)
 
-        if bird.which is 'marg':
-            bird.fullPs = 1. / (qperp**2 * qpar) * self.integrAP(bird.fullPs, kp, arrayLegendremup, many=False)
-            bird.Pb3 = 1. / (qperp**2 * qpar) * self.integrAP(bird.Pb3, kp, arrayLegendremup, many=False)
-            bird.Pctl = 1. / (qperp**2 * qpar) * self.integrAP(bird.Pctl, kp, arrayLegendremup, many=True)
+            elif 'all' in bird.which:
+                bird.P11l = 1. / (qperp**2 * qpar) * self.integrAP(self.co.k, bird.P11l, kp, arrayLegendremup, many=True)
+                bird.Pctl = 1. / (qperp**2 * qpar) * self.integrAP(self.co.k, bird.Pctl, kp, arrayLegendremup, many=True)
+                bird.Ploopl = 1. / (qperp**2 * qpar) * self.integrAP(self.co.k, bird.Ploopl, kp, arrayLegendremup, many=True)
 
-        elif 'all' in bird.which:
-            bird.P11l = 1. / (qperp**2 * qpar) * self.integrAP(bird.P11l, kp, arrayLegendremup, many=True)
-            bird.Pctl = 1. / (qperp**2 * qpar) * self.integrAP(bird.Pctl, kp, arrayLegendremup, many=True)
-            bird.Ploopl = 1. / (qperp**2 * qpar) * self.integrAP(bird.Ploopl, kp, arrayLegendremup, many=True)
+            elif 'full' in bird.which:
+                bird.fullPs = 1. / (qperp**2 * qpar) * self.integrAP(self.co.k, bird.fullPs, kp, arrayLegendremup, many=False)
 
-        elif 'full' in bird.which:
-            bird.fullPs = 1. / (qperp**2 * qpar) * self.integrAP(bird.fullPs, kp, arrayLegendremup, many=False)
 
     def setWindow(self, load=True, save=True, Nl=3, withmask=True, windowk=0.05):
 
@@ -1800,12 +1838,20 @@ class Projection(object):
         """
         Interpolate the bird power spectrum on the data k-array
         """
-        if 'all' in bird.which:
-            bird.P11l = interp1d(self.co.k, bird.P11l, axis=-1, kind='cubic', bounds_error=False)(self.kout)
-            bird.Pctl = interp1d(self.co.k, bird.Pctl, axis=-1, kind='cubic', bounds_error=False)(self.kout)
-            bird.Ploopl = interp1d(self.co.k, bird.Ploopl, axis=-1, kind='cubic', bounds_error=False)(self.kout)
-        if 'full' in bird.which:
-            bird.fullPs = interp1d(self.co.k, bird.fullPs, axis=-1, kind='cubic', bounds_error=False)(self.kout)
+        if self.cf:
+            if 'all' in bird.which:
+                bird.C11l = interp1d(self.co.s, bird.C11l, axis=-1, kind='cubic', bounds_error=False)(self.kout)
+                bird.Cctl = interp1d(self.co.s, bird.Cctl, axis=-1, kind='cubic', bounds_error=False)(self.kout)
+                bird.Cloopl = interp1d(self.co.s, bird.Cloopl, axis=-1, kind='cubic', bounds_error=False)(self.kout)
+            if 'full' in bird.which:
+                bird.fullCf = interp1d(self.co.s, bird.fullCf, axis=-1, kind='cubic', bounds_error=False)(self.kout)
+        else:
+            if 'all' in bird.which:
+                bird.P11l = interp1d(self.co.k, bird.P11l, axis=-1, kind='cubic', bounds_error=False)(self.kout)
+                bird.Pctl = interp1d(self.co.k, bird.Pctl, axis=-1, kind='cubic', bounds_error=False)(self.kout)
+                bird.Ploopl = interp1d(self.co.k, bird.Ploopl, axis=-1, kind='cubic', bounds_error=False)(self.kout)
+            if 'full' in bird.which:
+                bird.fullPs = interp1d(self.co.k, bird.fullPs, axis=-1, kind='cubic', bounds_error=False)(self.kout)
 
     def IntegralLegendre(self, l, a, b):
         if l == 0: return 1.

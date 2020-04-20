@@ -2782,7 +2782,11 @@ class Likelihood_eft(Likelihood):
                     self.priors = np.array([ 2., 2., 8., 2., 2., 2. ])
                     b3, cct, cr1, ce2, ce1, sn = self.priors
                     print ('EFT priors: b3: %s, cct: %s, cr1(+cr2): %s, ce2: %s, ce1: %s, shotnoise: %s (default)' % (b3, cct, cr1, ce2, ce1, sn) )
-        
+                elif self.model == 5:
+                    self.priors = np.array([ 2., 2., 8. ])
+                    b3, cct, cr1 = self.priors
+                    print ('EFT priors: b3: %s, cct: %s, cr1(+cr2): %s (default)' % (b3, cct, cr1) )
+
         elif self.Nl is 3:
             try: 
                 if self.use_prior and self.priors is not None: 
@@ -2817,7 +2821,7 @@ class Likelihood_eft(Likelihood):
                     self.priors = np.array([ 2., 2., 4., 4., 2., 2., 2. ])
                     b3, cct, cr1, cr2, ce2, ce1, sn = self.priors
                     print ('EFT priors: b3: %s, cct: %s, cr1: %s, cr2: %s, ce2: %s, ce1: %s, shotnoise: %s (default)' % (b3, cct, cr1, cr2, ce2, ce1, sn) )
-        
+
         self.priormat = np.diagflat(1./self.priors**2)
 
         self.use_BBNprior = False
@@ -2865,6 +2869,18 @@ class Likelihood_bird(Likelihood_eft):
 
         print ("-- bird settings --")
 
+        # Power spectrum or correlation function?
+        self.smax = None
+        try:
+            if self.cf: 
+                print ("Correlation function analysis")
+                self.smax = 1000.
+            else: print ("Power spectrum analysis")
+        except:
+            self.cf = False
+            print ("Power spectrum analysis (default)")
+
+        # Multipoles or wedges?
         self.use_wedge = False
         try:
             if self.Nw is 0: print ("multipoles: " % self.Nl)
@@ -2882,6 +2898,7 @@ class Likelihood_bird(Likelihood_eft):
         # except:
         #     self.birdNl = self.Nl
 
+        # Redshift
         try: 
             if self.zAP != self.z: 
                 print ('Effective redshift: %s, AP redshift: %s'%(self.z, self.zAP))  
@@ -2892,6 +2909,7 @@ class Likelihood_bird(Likelihood_eft):
             self.zAP = self.z
             print ('Effective redshift: %s'%(self.z))
 
+        # Full or marginalized likelihood?
         try:
             if self.birdlkl is 'full': print ('bird lkl: full')
             elif self.birdlkl is 'marg': print ('bird lkl: marg')
@@ -2904,15 +2922,21 @@ class Likelihood_bird(Likelihood_eft):
             self.birdlkl = 'fastmarg'
             print ('bird lkl: fast marg (default)')
 
+        # Full or optimized resummation?
         try: 
             if self.optiresum is True: print ('resummation: optimized')
             else: 
                 self.optiresum = False
                 print ('resummation: full')
         except: 
-            self.optiresum = False
-            print ('resummation: full (default)')
+            if self.cf: 
+                self.optiresum = True
+                print ('resummation: optimized (default)')
+            else:
+                self.optiresum = False
+                print ('resummation: full (default)')
 
+        # Mask?
         try:
             self.path_to_window = os.path.join(self.data_directory, self.path_to_window)
             self.window_configspace_file = os.path.join(self.path_to_window, self.window_configspace_file)
@@ -2926,6 +2950,7 @@ class Likelihood_bird(Likelihood_eft):
             self.window_configspace_file = None
             self.use_window = False
 
+        # Fiber collision correction?
         try:
             if self.fibcol_window: print ("fiber collision window: on")
             else: 
@@ -2935,6 +2960,7 @@ class Likelihood_bird(Likelihood_eft):
             self.fibcol_window = False
             print("fiber collision window: none")
 
+        # Binning?
         try:
             if self.binning: print ("k-binning: on")
             else: print ("k-binning: none") 
@@ -2942,10 +2968,11 @@ class Likelihood_bird(Likelihood_eft):
             self.binning = False
             print ("k-binning: none")
         
-        self.co = pb.Common(Nl=self.Nl, kmax=self.kmax+0.05, optiresum = self.optiresum)
+        # PyBird engines instanciation
+        self.co = pb.Common(Nl=self.Nl, kmax=self.kmax+0.05, smax=self.smax, optiresum = self.optiresum)
         self.nonlinear = pb.NonLinear(load=True, save=True, co=self.co)
         self.resum = pb.Resum(co=self.co)
-        self.projection = pb.Projection(self.k, self.Om_AP, self.zAP, 
+        self.projection = pb.Projection(self.k, self.Om_AP, self.zAP, cf=self.cf, 
             window_fourier_name=self.window_fourier_name, path_to_window=self.path_to_window, window_configspace_file=self.window_configspace_file,
             binning=self.binning, fibcol=self.fibcol_window, Nwedges=self.Nw, co=self.co)
         
@@ -2984,10 +3011,12 @@ class Likelihood_bird(Likelihood_eft):
             else: pass
                 #print ('pass')
 
-            self.bird.setreducePslb(bs)
+            if self.cf: self.bird.setreduceCflb(bs)
+            else: self.bird.setreducePslb(bs)
 
             if self.birdlkl is 'fastmarg':
-                self.bird.Pb3 = self.bird.Ploopl[:,3] + b1 * self.bird.Ploopl[:,7]
+                if self.cf: self.bird.Cb3 = self.bird.Cloopl[:,3] + b1 * self.bird.Cloopl[:,7]
+                else: self.bird.Pb3 = self.bird.Ploopl[:,3] + b1 * self.bird.Ploopl[:,7]
 
             if self.birdlkl is 'fastfull':
                 self.bird.fullPs[0] += bval[7] / self.nd + bval[8] / self.nd / self.km**2 * self.k**2
@@ -3014,7 +3043,8 @@ class Likelihood_bird(Likelihood_eft):
         #     self.projection.AP(self.bird)
         #     if self.use_window is True: self.projection.Window(self.bird)
 
-        modelX = self.bird.fullPs.reshape(-1)
+        if self.cf: modelX = self.bird.fullCf.reshape(-1)
+        else: modelX = self.bird.fullPs.reshape(-1)
         
         if self.with_bao: # BAO
             DM_at_z = cosmo.angular_distance(self.zbao) * (1. + self.zbao)
@@ -3029,7 +3059,8 @@ class Likelihood_bird(Likelihood_eft):
         modelX = modelX[self.kmask]
 
         if 'marg' in self.birdlkl:
-            Pi = self.__get_Pi_for_marg(self.bird.Pctl, self.bird.Pb3, b1, self.bird.f, model=self.model)
+            if self.cf: Pi = self.__get_Pi_for_marg(self.bird.Cctl, self.bird.Cb3, b1, self.bird.f, model=self.model)
+            else: self.__get_Pi_for_marg(self.bird.Pctl, self.bird.Pb3, b1, self.bird.f, model=self.model)
             Covbi = np.dot(Pi, np.dot(self.invcov, Pi.T)) + self.priormat
             Cinvbi = np.linalg.inv(Covbi)
             vectorbi = np.dot(modelX, np.dot(self.invcov, Pi.T)) - np.dot(self.invcovdata, Pi.T)
@@ -3049,10 +3080,10 @@ class Likelihood_bird(Likelihood_eft):
                              + (bval[2] / self.priors[0])**2                         # b3
                              + (bval[4] / self.knl**2 / self.priors[1])**2           # cct
                              + (bval[5] / self.km**2 / self.priors[2])**2            # cr1(+cr2)
-                             + (bval[9] / self.nd / self.km**2 / self.priors[3])**2  # ce,l2
                              )
-            if self.model == 1: prior += -0.5 * ( (bval[7] / self.nd / self.priors[4])**2 )              # ce0
-            if self.model == 3: prior += -0.5 * ( (bval[8] / self.nd / self.km**2 / self.priors[4])**2 ) # ce,l0
+            if self.model <= 4: prior += 0.5 * (bval[9] / self.nd / self.km**2 / self.priors[3])**2  # ce,l2
+            if self.model == 1: prior += -0.5 * (bval[7] / self.nd / self.priors[4])**2               # ce0
+            if self.model == 3: prior += -0.5 * (bval[8] / self.nd / self.km**2 / self.priors[4])**2 # ce,l0
 
         if self.use_BBNprior: 
             prior += -0.5 * ((data.cosmo_arguments['omega_b'] - self.omega_b_BBNcenter) / self.omega_b_BBNsigma)**2
@@ -3062,46 +3093,59 @@ class Likelihood_bird(Likelihood_eft):
         return lkl
 
     def __get_Pi_for_marg(self, Pct, Pb3, b1, f, model=2):
-        kp2l2 = np.zeros(shape=(self.Nl, self.Nk))
-        kp2l2[1] = self.k**2 / self.nd / self.km**2 # k^2 quad
-        if self.use_wedge: kp2l2 = self.projection.Wedges_external(kp2l2)
 
         if self.Nl is 2:
             Pi = np.array([ 
-                            Pb3,                                          # *b3
-                            (2*f*Pct[:,0+3]+2*b1*Pct[:,0]) / self.knl**2, # *cct
-                            (2*f*Pct[:,1+3]+2*b1*Pct[:,1]) / self.km**2 , # *cr1
+                            Pb3.reshape(-1),                                          # *b3
+                            (2*f*Pct[:,0+3]+2*b1*Pct[:,0]).reshape(-1) / self.knl**2, # *cct
+                            (2*f*Pct[:,1+3]+2*b1*Pct[:,1]).reshape(-1) / self.km**2  # *cr1
                             #(2*f*Pct[:,2+3]+2*b1*Pct[:,2]) / self.km**2 ,# *cr2
-                            kp2l2                                         # *ce,l2
+                            #kp2l2                                        # *ce,l2
                         ])
+
         elif self.Nl is 3:
             Pi = np.array([ 
-                        Pb3,                                          # *b3
-                        (2*f*Pct[:,0+3]+2*b1*Pct[:,0]) / self.knl**2, # *cct
-                        (2*f*Pct[:,1+3]+2*b1*Pct[:,1]) / self.km**2 , # *cr1
-                        (2*f*Pct[:,2+3]+2*b1*Pct[:,2]) / self.km**2 , # *cr2
-                        kp2l2                                         # *ce,l2
+                        Pb3.reshape(-1),                                          # *b3
+                        (2*f*Pct[:,0+3]+2*b1*Pct[:,0]).reshape(-1) / self.knl**2, # *cct
+                        (2*f*Pct[:,1+3]+2*b1*Pct[:,1]).reshape(-1) / self.km**2 , # *cr1
+                        (2*f*Pct[:,2+3]+2*b1*Pct[:,2]).reshape(-1) / self.km**2  # *cr2
+                        #kp2l2                                         # *ce,l2
                     ])
 
         if model == 1: 
+            kp2l2 = np.zeros(shape=(self.Nl, self.Nk))
+            kp2l2[1] = self.k**2 / self.nd / self.km**2 # k^2 quad
+            if self.use_wedge: kp2l2 = self.Projection.Wedges_external(kp2l2)
             Onel0 = np.zeros(shape=(self.Nl, self.Nk))
             Onel0[0] = np.ones(self.Nk) / self.nd # shot-noise mono
             if self.use_wedge: Onel0 = self.projection.Wedges_external(Onel0)
-            Pi = np.concatenate((Pi, np.array([Onel0])))
+            Pi = np.hstack([Pi, kp2l2, Onel0])
+        
         elif model == 3:
+            kp2l2 = np.zeros(shape=(self.Nl, self.Nk))
+            kp2l2[1] = self.k**2 / self.nd / self.km**2 # k^2 quad
+            if self.use_wedge: kp2l2 = self.projection.Wedges_external(kp2l2)
+            Pi = np.concatenate((Pi, np.array([kp2l2])))
+        
+        elif model == 3:
+            kp2l2 = np.zeros(shape=(self.Nl, self.Nk))
+            kp2l2[1] = self.k**2 / self.nd / self.km**2 # k^2 quad
+            if self.use_wedge: kp2l2 = self.projection.Wedges_external(kp2l2)
             kp2l0 = np.zeros(shape=(self.Nl, self.Nk))
             kp2l0[0] = self.k**2 / self.nd / self.km**2 # k^2 mono
             if self.use_wedge: kp2l0 = self.projection.Wedges_external(kp2l0)
-            Pi = np.concatenate((Pi, np.array([kp2l0])))
+            Pi = np.concatenate((Pi, np.array([kp2l2]), np.array([kp2l0])))
+        
         elif model == 4:
+            kp2l2 = np.zeros(shape=(self.Nl, self.Nk))
+            kp2l2[1] = self.k**2 / self.nd / self.km**2 # k^2 quad
+            if self.use_wedge: kp2l2 = self.projection.Wedges_external(kp2l2)
             kp2l0 = np.zeros(shape=(self.Nl, self.Nk))
             kp2l0[0] = self.k**2 / self.nd / self.km**2 # k^2 mono
             Onel0 = np.zeros(shape=(self.Nl, self.Nk))
             Onel0[0] = np.ones(self.Nk) / self.nd # shot-noise mono
             if self.use_wedge: kp2l0 = self.projection.Wedges_external(kp2l0)
-            Pi = np.concatenate((Pi, np.array([kp2l0]), np.array([Onel0])))
-
-        Pi = Pi.reshape( (Pi.shape[0], -1) )
+            Pi = np.concatenate((Pi, np.array([kp2l2]), np.array([kp2l0]), np.array([Onel0])))
 
         if self.with_bao: # BAO
             newPi = np.zeros(shape=(Pi.shape[0], Pi.shape[1]+2))
