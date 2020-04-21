@@ -6,7 +6,7 @@ from numpy.fft import rfft
 from scipy.interpolate import interp1d
 from scipy.special import gamma, legendre, j1, spherical_jn
 from scipy.integrate import quad
-from pyfeather import Qa, Qakp2x12, Qakp2x16, Qawithhex, Qawithhex20
+from .pyfeather import Qa, Qakp2x12, Qakp2x16, Qawithhex, Qawithhex20
 
 def cH(Om, a):
     """ LCDM growth rate auxiliary function """
@@ -1535,11 +1535,13 @@ class Projection(object):
         else: self.kgrid, self.mugrid = np.meshgrid(self.co.k, self.muacc, indexing='ij')
         self.arrayLegendremugrid = np.array([(2*2*l+1)/2.*legendre(2*l)(self.mugrid) for l in range(self.co.Nl)])
 
-        if window_fourier_name is not None: 
-            self.path_to_window = path_to_window
-            self.window_fourier_name = window_fourier_name
+
+        if window_configspace_file is not None: 
+            if window_fourier_name is not None:
+                self.path_to_window = path_to_window
+                self.window_fourier_name = window_fourier_name
             self.window_configspace_file = window_configspace_file
-            self.setWindow()
+            self.setWindow(Nl=self.co.Nl)
 
         if binning:
             self.loadBinning(self.kout)
@@ -1614,7 +1616,6 @@ class Projection(object):
 
 
     def setWindow(self, load=True, save=True, Nl=3, withmask=True, windowk=0.05):
-
         """
         Pre-load the window function to apply to the power spectrum by convolution in Fourier space
         Wal is an array of shape l,l',k',k where so that $P_a(k) = \int dk' \sum_l W_{a l}(k,k') P_l(k')$
@@ -1625,52 +1626,63 @@ class Projection(object):
         withmask: whether to only do the convolution over a small range around k
         windowk: the size of said range
         """
-        
-        self.p = np.concatenate([ np.geomspace(1e-5, 0.015, 100, endpoint=False) , np.arange(0.015, self.co.kmax, 1e-3) ])
-        
-        window_fourier_file = os.path.join(self.path_to_window, '%s_Nl%s_kmax%.2f.npy') % (self.window_fourier_name, self.co.Nl, self.co.kmax)
-        
-        if load is True:
+
+        compute = True
+
+        if self.cf:
             try:
-                self.Wal = np.load(window_fourier_file)
-                print ('Loaded mask: %s' % window_fourier_file)
-                save = False
+                swindow_config_space = np.loadtxt(self.window_configspace_file)
             except:
-                print ('Can\'t load mask: %s \n instead,' % window_fourier_file )
-                load = False
-            
-        if load is False:
-            print ('Computing new mask.')
-            if self.window_configspace_file is None:
-                print ('Error: please specify a configuration-space mask file.')
+                print ('Error: can\'t load mask file: %s.'%self.window_configspace_file)
                 compute = False
-            else:    
+
+        else:
+            self.p = np.concatenate([ np.geomspace(1e-5, 0.015, 100, endpoint=False) , np.arange(0.015, self.co.kmax, 1e-3) ])
+            window_fourier_file = os.path.join(self.path_to_window, '%s_Nl%s_kmax%.2f.npy') % (self.window_fourier_name, self.co.Nl, self.co.kmax)
+            
+            if load:
                 try:
-                    #swindow_config_space = np.loadtxt('dev_window_BOSS_CMASS_z057.dat')
-                    swindow_config_space = np.loadtxt(self.window_configspace_file)
-                    compute = True
-                except:
-                    print ('Error: can\'t load mask file: %s.'%self.window_configspace_file)
+                    self.Wal = np.load(window_fourier_file)
+                    print ('Loaded mask: %s' % window_fourier_file)
+                    save = False
                     compute = False
+                except:
+                    print ('Can\'t load mask: %s \n instead,' % window_fourier_file )
+                    load = False
+
+            if not load: # do not change to else
+                print ('Computing new mask.')
+                if self.window_configspace_file is None:
+                    print ('Error: please specify a configuration-space mask file.')
+                    compute = False
+                else:    
+                    try:
+                        swindow_config_space = np.loadtxt(self.window_configspace_file)
+                    except:
+                        print ('Error: can\'t load mask file: %s.'%self.window_configspace_file)
+                        compute = False
         
-            if compute is True:
-                Calp = np.array([ 
-                    [ [1., 0., 0.],
-                      [0., 1/5., 0.],
-                      [0., 0., 1/9.] ],
-                    [ [0., 1., 0.],
-                      [1., 2/7., 2/7.],
-                      [0., 2/7., 100/693.] ],
-                    [ [0., 0., 1.],
-                      [0., 18/35., 20/77.],
-                      [1., 20/77., 162/1001.] ],
-                    ])
+        if compute is True:
+            Calp = np.array([ 
+                [ [1., 0., 0.],
+                  [0., 1/5., 0.],
+                  [0., 0., 1/9.] ],
+                [ [0., 1., 0.],
+                  [1., 2/7., 2/7.],
+                  [0., 2/7., 100/693.] ],
+                [ [0., 0., 1.],
+                  [0., 18/35., 20/77.],
+                  [1., 20/77., 162/1001.] ],
+                ])
 
-                sw = swindow_config_space[:,0]
-                Qp = np.moveaxis(swindow_config_space[:,1:].reshape(-1,3), 0, -1 )[:Nl]
+            sw = swindow_config_space[:,0]
+            Qp = np.moveaxis(swindow_config_space[:,1:].reshape(-1,3), 0, -1 )[:Nl]
+            Qal = np.einsum('alp,ps->als', Calp[:Nl,:Nl,:Nl], Qp)
 
-                Qal = np.einsum('alp,ps->als', Calp, Qp)
+            if self.cf: 
+                self.Qal = interp1d(sw, Qal, axis=-1, kind='cubic', bounds_error=False, fill_value='extrapolate')(self.co.s)
 
+            else:
                 self.fftsettings = dict(Nmax=4096, xmin=sw[0], xmax=sw[-1]*100., bias=-1.6) # 1e-2 - 1e6 [Mpc/h]
                 self.fft = FFTLog(**self.fftsettings)
                 self.pPow = exp(np.einsum('n,s->ns', -self.fft.Pow-3., log(self.p)))
@@ -1685,22 +1697,23 @@ class Projection(object):
 
                 self.Wal = self.p**2 * np.real( np.einsum('alkn,np,ln->alkp', self.Coef, self.pPow, self.M) )
 
-                if save is True: 
+                if save: 
                     print ( 'Saving mask: %s' % window_fourier_file )
                     np.save(window_fourier_file, self.Wal)
 
-        self.Wal = self.Wal[:,:self.co.Nl]
+        if not self.cf:
+            self.Wal = self.Wal[:,:self.co.Nl]
 
-        # Apply masking centered around the value of k
-        if withmask:
-            kpgrid, kgrid = np.meshgrid(self.p, self.co.k, indexing='ij')
-            mask = (kpgrid < kgrid + windowk) & (kpgrid > kgrid - windowk)
-            Wal_masked = np.einsum('alkp,pk->alkp', self.Wal, mask)
+            # Apply masking centered around the value of k
+            if withmask:
+                kpgrid, kgrid = np.meshgrid(self.p, self.co.k, indexing='ij')
+                mask = (kpgrid < kgrid + windowk) & (kpgrid > kgrid - windowk)
+                Wal_masked = np.einsum('alkp,pk->alkp', self.Wal, mask)
 
-        # the spacing (needed to do the convolution as a sum)
-        deltap = self.p[1:] - self.p[:-1]
-        deltap = np.concatenate([[0], deltap])
-        self.Waldk = np.einsum('alkp,p->alkp', Wal_masked, deltap)
+            # the spacing (needed to do the convolution as a sum)
+            deltap = self.p[1:] - self.p[:-1]
+            deltap = np.concatenate([[0], deltap])
+            self.Waldk = np.einsum('alkp,p->alkp', Wal_masked, deltap)
 
     def integrWindow(self, P, many=False):
         """
@@ -1718,18 +1731,28 @@ class Projection(object):
         """
         Apply the survey window function to the bird power spectrum 
         """
-        if bird.which is 'marg':
-            bird.fullPs = self.integrWindow(bird.fullPs, many=False)
-            bird.Pb3 = self.integrWindow(bird.Pb3, many=False)
-            bird.Pctl = self.integrWindow(bird.Pctl, many=True)
+        if self.cf:
+            if 'all' in bird.which:
+                bird.C11l = np.einsum('als,lns->ans', self.Qal, bird.C11l)
+                bird.Cctl = np.einsum('als,lns->ans', self.Qal, bird.Cctl)
+                bird.Cloopl = np.einsum('als,lns->ans', self.Qal, bird.Cloopl)
 
-        elif 'all' in bird.which:
-            bird.P11l = self.integrWindow(bird.P11l, many=True)
-            bird.Pctl = self.integrWindow(bird.Pctl, many=True)
-            bird.Ploopl = self.integrWindow(bird.Ploopl, many=True)
+            elif 'full' in bird.which:
+                bird.fullCf = np.einsum('als,ls->as', self.Qal, bird.fullCf)
 
-        elif 'full' in bird.which:
-            bird.fullPs = self.integrWindow(bird.fullPs, many=False)
+        else:
+            if bird.which is 'marg':
+                bird.fullPs = self.integrWindow(bird.fullPs, many=False)
+                bird.Pb3 = self.integrWindow(bird.Pb3, many=False)
+                bird.Pctl = self.integrWindow(bird.Pctl, many=True)
+
+            elif 'all' in bird.which:
+                bird.P11l = self.integrWindow(bird.P11l, many=True)
+                bird.Pctl = self.integrWindow(bird.Pctl, many=True)
+                bird.Ploopl = self.integrWindow(bird.Ploopl, many=True)
+
+            elif 'full' in bird.which:
+                bird.fullPs = self.integrWindow(bird.fullPs, many=False)
 
     def dPuncorr(self, kout, fs=0.6, Dfc=0.43 / 0.6777):
         """

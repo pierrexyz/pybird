@@ -2941,6 +2941,7 @@ class Likelihood_bird(Likelihood_eft):
             self.path_to_window = os.path.join(self.data_directory, self.path_to_window)
             self.window_configspace_file = os.path.join(self.path_to_window, self.window_configspace_file)
             test = np.loadtxt(self.window_configspace_file)
+            if self.cf: self.window_fourier_name = None
             if self.use_window: print("Mask: on")
             else: print("Mask: none")
         except:
@@ -2999,7 +3000,8 @@ class Likelihood_bird(Likelihood_eft):
                 self.bird = pb.Bird(self.kin, plin, f, DA, H, self.z, which='all', co=self.co)
                 self.nonlinear.PsCf(self.bird)
                 self.bird.setPsCfl()
-                self.resum.Ps(self.bird)
+                if self.cf: self.resum.PsCf(self.bird)
+                else: self.resum.Ps(self.bird)
                 self.projection.AP(self.bird)
                 if self.use_window: self.projection.Window(self.bird)
                 if self.fibcol_window: self.projection.fibcolWindow(self.bird)
@@ -3018,7 +3020,7 @@ class Likelihood_bird(Likelihood_eft):
                 if self.cf: self.bird.Cb3 = self.bird.Cloopl[:,3] + b1 * self.bird.Cloopl[:,7]
                 else: self.bird.Pb3 = self.bird.Ploopl[:,3] + b1 * self.bird.Ploopl[:,7]
 
-            if self.birdlkl is 'fastfull':
+            if self.birdlkl is 'fastfull' and not self.cf:
                 self.bird.fullPs[0] += bval[7] / self.nd + bval[8] / self.nd / self.km**2 * self.k**2
                 self.bird.fullPs[1] += bval[9] / self.nd / self.km**2 * self.k**2
 
@@ -3060,12 +3062,11 @@ class Likelihood_bird(Likelihood_eft):
 
         if 'marg' in self.birdlkl:
             if self.cf: Pi = self.__get_Pi_for_marg(self.bird.Cctl, self.bird.Cb3, b1, self.bird.f, model=self.model)
-            else: self.__get_Pi_for_marg(self.bird.Pctl, self.bird.Pb3, b1, self.bird.f, model=self.model)
+            else: Pi = self.__get_Pi_for_marg(self.bird.Pctl, self.bird.Pb3, b1, self.bird.f, model=self.model)
             Covbi = np.dot(Pi, np.dot(self.invcov, Pi.T)) + self.priormat
             Cinvbi = np.linalg.inv(Covbi)
             vectorbi = np.dot(modelX, np.dot(self.invcov, Pi.T)) - np.dot(self.invcovdata, Pi.T)
-            chi2nomar = (np.dot(modelX, np.dot(self.invcov, modelX)) -
-                         2. * np.dot(self.invcovdata, modelX) + self.chi2data)
+            chi2nomar = (np.dot(modelX, np.dot(self.invcov, modelX)) - 2. * np.dot(self.invcovdata, modelX) + self.chi2data)
             chi2mar = -np.dot(vectorbi, np.dot(Cinvbi, vectorbi)) + np.log(np.abs(np.linalg.det(Covbi)))
             chi2 = chi2mar + chi2nomar - self.priors.shape[0] * np.log(2. * np.pi)
 
@@ -3112,40 +3113,29 @@ class Likelihood_bird(Likelihood_eft):
                         #kp2l2                                         # *ce,l2
                     ])
 
-        if model == 1: 
+        if model <= 4:
             kp2l2 = np.zeros(shape=(self.Nl, self.Nk))
             kp2l2[1] = self.k**2 / self.nd / self.km**2 # k^2 quad
             if self.use_wedge: kp2l2 = self.Projection.Wedges_external(kp2l2)
+            Pi = np.vstack([Pi, kp2l2.reshape(-1)])
+
+        if model == 1: 
             Onel0 = np.zeros(shape=(self.Nl, self.Nk))
             Onel0[0] = np.ones(self.Nk) / self.nd # shot-noise mono
             if self.use_wedge: Onel0 = self.projection.Wedges_external(Onel0)
-            Pi = np.hstack([Pi, kp2l2, Onel0])
-        
+            Pi = np.vstack([Pi, Onel0.reshape(-1)])
         elif model == 3:
-            kp2l2 = np.zeros(shape=(self.Nl, self.Nk))
-            kp2l2[1] = self.k**2 / self.nd / self.km**2 # k^2 quad
-            if self.use_wedge: kp2l2 = self.projection.Wedges_external(kp2l2)
-            Pi = np.concatenate((Pi, np.array([kp2l2])))
-        
-        elif model == 3:
-            kp2l2 = np.zeros(shape=(self.Nl, self.Nk))
-            kp2l2[1] = self.k**2 / self.nd / self.km**2 # k^2 quad
-            if self.use_wedge: kp2l2 = self.projection.Wedges_external(kp2l2)
             kp2l0 = np.zeros(shape=(self.Nl, self.Nk))
             kp2l0[0] = self.k**2 / self.nd / self.km**2 # k^2 mono
             if self.use_wedge: kp2l0 = self.projection.Wedges_external(kp2l0)
-            Pi = np.concatenate((Pi, np.array([kp2l2]), np.array([kp2l0])))
-        
+            Pi = np.vstack([Pi, kp2l0.reshape(-1)])
         elif model == 4:
-            kp2l2 = np.zeros(shape=(self.Nl, self.Nk))
-            kp2l2[1] = self.k**2 / self.nd / self.km**2 # k^2 quad
-            if self.use_wedge: kp2l2 = self.projection.Wedges_external(kp2l2)
             kp2l0 = np.zeros(shape=(self.Nl, self.Nk))
             kp2l0[0] = self.k**2 / self.nd / self.km**2 # k^2 mono
             Onel0 = np.zeros(shape=(self.Nl, self.Nk))
             Onel0[0] = np.ones(self.Nk) / self.nd # shot-noise mono
             if self.use_wedge: kp2l0 = self.projection.Wedges_external(kp2l0)
-            Pi = np.concatenate((Pi, np.array([kp2l2]), np.array([kp2l0]), np.array([Onel0])))
+            Pi = np.vstack([Pi, kp2l0.reshape(-1), Onel0.reshape(-1)])
 
         if self.with_bao: # BAO
             newPi = np.zeros(shape=(Pi.shape[0], Pi.shape[1]+2))
