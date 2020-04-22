@@ -151,8 +151,7 @@ def MPC(l, pn):
 
 
 # precomputed k/q-arrays, in [h/Mpc] and [Mpc/h]
-kbird = np.array([0.001, 0.005, 0.0075, 0.01, 0.0125, 0.015, 0.0175, 0.02, 0.025, 0.03, 0.035, 0.04, 0.045, 0.05, 0.055, 0.06, 0.065, 0.07, 0.075, 0.08, 0.085, 0.09, 0.095,
-                  0.1, 0.105, 0.11, 0.115, 0.12, 0.125, 0.13, 0.135, 0.14, 0.145, 0.15, 0.155, 0.16, 0.17, 0.18, 0.19, 0.2])
+kbird = np.array([0.001, 0.005, 0.0075, 0.01, 0.0125, 0.015, 0.0175, 0.02])
 sbird = np.array([1.000e+00, 1.124e+00, 1.264e+00, 1.421e+00, 1.597e+00, 1.796e+00, 2.019e+00, 2.270e+00, 2.551e+00, 2.868e+00, 3.225e+00, 3.625e+00, 4.075e+00, 4.582e+00, 5.151e+00, 5.790e+00, 6.510e+00, 7.318e+00, 8.227e+00, 9.249e+00, 1.040e+01, 1.169e+01, 1.314e+01, 1.477e+01, 1.661e+01, 1.867e+01, 2.099e+01, 2.360e+01, 2.653e+01, 2.982e+01, 3.353e+01, 3.769e+01, 4.238e+01, 4.764e+01, 5.356e+01, 6.000e+01, 6.021e+01, 6.526e+01, 6.769e+01,
                   7.053e+01, 7.579e+01, 7.609e+01, 8.105e+01, 8.555e+01, 8.632e+01, 9.158e+01, 9.617e+01, 9.684e+01, 1.021e+02, 1.074e+02, 1.081e+02, 1.126e+02, 1.179e+02, 1.215e+02, 1.232e+02, 1.284e+02, 1.337e+02, 1.366e+02, 1.389e+02, 1.442e+02, 1.495e+02, 1.536e+02, 1.547e+02, 1.600e+02, 1.727e+02, 1.941e+02, 2.183e+02, 2.454e+02, 2.759e+02, 3.101e+02, 3.486e+02, 3.919e+02, 4.406e+02, 4.954e+02, 5.569e+02, 6.261e+02, 7.038e+02, 7.912e+02, 8.895e+02, 1.000e+03])
 
@@ -166,7 +165,7 @@ class Common(object):
         The maximum multipole to calculate (default 2)
     """
 
-    def __init__(self, Nl=2, kmin=0.001, kmax=0.25, smin=1., smax=None, optiresum=True):
+    def __init__(self, Nl=2, kmin=0.001, kmax=0.25, smin=1., smax=None, optiresum=True, accboost=1.):
         
         self.optiresum = optiresum
 
@@ -184,21 +183,25 @@ class Common(object):
             kmax = 0.5
             self.optiresum = True
             slog = np.geomspace(1., 1000., 100)
-            slin = np.arange(40., 200., 2.5)
+            slin = np.arange(40./accboost, 200., 2.5/accboost)
             slogmask = np.where((slog > slin[-1]) | (slog < slin[0] ))[0]
             self.s = np.unique( np.sort( np.concatenate((slog[slogmask], slin)) ) )
         else:
-            if self.optiresum is True: self.s = np.arange(60., 200., 2.5)
+            if self.optiresum is True: self.s = np.arange(60., 200., 2.5/accboost)
             else: self.s = sbird
         self.Ns = self.s.shape[0]
         
         if kmax is not None:
             self.kmin = kmin # no support for kmin: keep default
             self.kmax = kmax
-            if self.kmax <= kbird[-1]: self.k = kbird
-            else: 
-                kextra = np.arange(kbird[-1], kmax+0.01, 0.01)
-                self.k = np.concatenate([kbird, kextra[1:]])
+            self.k = kbird
+            if self.kmax > kbird[-1]:
+                kextra = np.arange(kbird[-1], 0.3+1e-3, 0.005/accboost)
+                self.k = np.concatenate([self.k, kextra[1:]])
+            if self.kmax > 0.3:
+                kextra = np.arange(0.3, self.kmax+1e-3, 0.01/accboost)
+                self.k = np.concatenate([self.k, kextra[1:]])
+
             self.Nk = self.k.shape[0]
 
         self.l11 = np.empty(shape=(self.Nl, self.N11))
@@ -951,7 +954,7 @@ class NonLinear(object):
         bird : class
             an object of type Bird()
         """
-        coef = self.Coef(bird, window=window)
+        coef = self.Coef(bird, window=.2)
         coefkPow = self.CoefkPow(coef)
         self.makeP22(coefkPow, bird)
         self.makeP13(coefkPow, bird)
@@ -964,8 +967,7 @@ class NonLinear(object):
         bird : class
             an object of type Bird()
         """
-        if self.co.optiresum is False or self.co.smax is not None: window = .6
-        coef = self.Coef(bird, window=window)
+        coef = self.Coef(bird, window=.2)
         coefsPow = self.CoefsPow(coef)
         self.makeC11(coefsPow, bird)
         self.makeCct(coefsPow, bird)
@@ -980,8 +982,7 @@ class NonLinear(object):
         bird : class
             an object of type Bird()
         """
-        if self.co.optiresum is False or self.co.smax is not None: window = .6
-        coef = self.Coef(bird, window=window)
+        coef = self.Coef(bird, window=.2)
 
         coefkPow = self.CoefkPow(coef)
         self.makeP22(coefkPow, bird)
@@ -1247,7 +1248,7 @@ class Resum(object):
             self.IRCf = np.zeros(shape=(2, self.co.Nl, self.co.Ns))
             for a, IRa in enumerate(self.IRPs):
                 for l, IRal in enumerate(IRa):
-                    Coef = 1j**(2*l) * self.Cfft.Coef(self.co.k, IRal * DampingWindow, extrap='padding', window=0.6 )
+                    Coef = 1j**(2*l) * self.Cfft.Coef(self.co.k, IRal * DampingWindow, extrap='padding', window=None)
                     CoefsPow = np.einsum('n,ns->ns', Coef, self.sPow)
                     self.IRCf[a,l] = np.real(np.einsum('ns,n->s', CoefsPow, self.Ml[l]))
 
