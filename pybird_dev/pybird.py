@@ -11,30 +11,21 @@ from angular import Angular
 from greenfunction import GreenFunction
 
 
-import importlib, sys
-importlib.reload(sys.modules['common'])
-importlib.reload(sys.modules['bird'])
-importlib.reload(sys.modules['nonlinear'])
-importlib.reload(sys.modules['resum'])
-importlib.reload(sys.modules['projection'])
-importlib.reload(sys.modules['angular'])
-importlib.reload(sys.modules['greenfunction'])
+# import importlib, sys
+# importlib.reload(sys.modules['common'])
+# importlib.reload(sys.modules['bird'])
+# importlib.reload(sys.modules['nonlinear'])
+# importlib.reload(sys.modules['resum'])
+# importlib.reload(sys.modules['projection'])
+# importlib.reload(sys.modules['angular'])
+# importlib.reload(sys.modules['greenfunction'])
 
-from common import Common, co
-from bird import Bird
-from nonlinear import NonLinear
-from resum import Resum
-from projection import Projection
-from angular import Angular
-
-
-class BiasCorrelator(Correlator):
-
-    def __init__(self, config_dict=None, load_engines=False):
-        Correlator.__init__(self, config_dict, load_engines=load_engines)
-
-
-
+# from common import Common, co
+# from bird import Bird
+# from nonlinear import NonLinear
+# from resum import Resum
+# from projection import Projection
+# from angular import Angular
 
 class Correlator(object):
     
@@ -442,13 +433,13 @@ class Correlator(object):
             return m
 
         if self.config["skycut"] == 1:
-            if "Pk" in self.config["output"]: return marg(self.bird.Ploopl, self.bird.Pctl, b1=b1, f=self.bird.f, Pst=self.bird.Pstl)
-            elif "Cf" in self.config["output"]: return marg(self.bird.Cloopl, self.bird.Cctl, b1=b1, f=self.bird.f)
-            elif "w" in self.config["output"]: return marg(self.bird.wloop, self.bird.wct, b1=b1, f=self.bird.f)
+            if "Pk" in self.config["output"]: return marg(self.bird.Ploopl, self.bird.Pctl, b1=b1, f1=self.bird.f, Pst=self.bird.Pstl)
+            elif "Cf" in self.config["output"]: return marg(self.bird.Cloopl, self.bird.Cctl, b1=b1, f1=self.bird.f)
+            elif "w" in self.config["output"]: return marg(self.bird.wloop, self.bird.wct, b1=b1, f1=self.bird.f)
         elif self.config["skycut"] > 1:
-            if "Pk" in self.config["output"]: return [ marg(self.birds[i].Ploopl, self.birds[i].Pctl, b1=b1[i], f=self.birds[i].f, Pst=self.birds[i].Pstl) for i in range(self.config["skycut"]) ]
-            elif "Cf" in self.config["output"]: return [ marg(self.birds[i].Cloopl, self.birds[i].Cctl, b1=b1[i], f=self.birds[i].f) for i in range(self.config["skycut"]) ]
-            elif "w" in self.config["output"]: return [ marg(self.birds[i].wloop, self.birds[i].wct, b1=b1[i], f=self.birds[i].f) for i in range(self.config["skycut"]) ]
+            if "Pk" in self.config["output"]: return [ marg(self.birds[i].Ploopl, self.birds[i].Pctl, b1=b1[i], f1=self.birds[i].f, Pst=self.birds[i].Pstl) for i in range(self.config["skycut"]) ]
+            elif "Cf" in self.config["output"]: return [ marg(self.birds[i].Cloopl, self.birds[i].Cctl, b1=b1[i], f1=self.birds[i].f) for i in range(self.config["skycut"]) ]
+            elif "w" in self.config["output"]: return [ marg(self.birds[i].wloop, self.birds[i].wct, b1=b1[i], f1=self.birds[i].f) for i in range(self.config["skycut"]) ]
 
     def __load_engines(self, only_common=False):
 
@@ -842,6 +833,13 @@ class Correlator(object):
                 elif self.config["skycut"] > 1: cosmo["rz"] = np.array([ [comoving_distance(z) for z in zz] for zz in self.config["zz"] ])
 
             return cosmo
+
+
+class BiasCorrelator(Correlator):
+
+    def __init__(self, config_dict=None, load_engines=False):
+        Correlator.__init__(self, config_dict, load_engines=load_engines)
+
 
 def translate_catalog_to_dict(catalog):
     newdict = dict.fromkeys(catalog)
