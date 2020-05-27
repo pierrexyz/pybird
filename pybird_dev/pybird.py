@@ -345,7 +345,7 @@ class Correlator(object):
                     self.bird.Cloopl = correlator_cache["loop"]
                     self.bird.Cctl = correlator_cache["ct"]
                 elif "w" in self.config["output"]:
-                    self.bird.w11 = correlator_cache["lin"]
+                    self.bird.wlin = correlator_cache["lin"]
                     self.bird.wloop = correlator_cache["loop"]
                     self.bird.wct = correlator_cache["ct"]
 
@@ -368,7 +368,7 @@ class Correlator(object):
                         self.bird.Cloopl = correlator_cache["loop"][i]
                         self.bird.Cctl = correlator_cache["ct"][i]
                     elif "w" in self.config["output"]:
-                        self.bird.w11 = correlator_cache["lin"][i]
+                        self.bird.wlin = correlator_cache["lin"][i]
                         self.bird.wloop = correlator_cache["loop"][i]
                         self.bird.wct = correlator_cache["ct"][i]
                     self.birds.append(self.bird)
