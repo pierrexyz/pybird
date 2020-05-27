@@ -2694,8 +2694,8 @@ class Likelihood_bird(Likelihood):
 
             for j in range(Nbin): ndes[j] /= np.trapz(ndes[j], x=zdes)
 
-            Nz = 40
-            zeff = np.array([0.24, 0.38, 0.525, 0.68, 0.83])
+            Nz = 200
+            zeff = np.array([0.24, 0.38, 0.525, 0.685, 0.83])
 
             zz = np.empty(shape=(Nbin, Nz))
             nz = np.empty(shape=(Nbin, Nz))
@@ -2707,6 +2707,8 @@ class Likelihood_bird(Likelihood):
             tamin = self.config["xmin"]
             tmask0 = np.argwhere((tam >= min(tamin)))[:,0]
             self.tmask = np.concatenate([np.argwhere((tam >= tamin[i]))[:,0] + i*20 for i in range(Nbin)])
+            print (tamin)
+            print (self.tmask)
             covred = cov[self.tmask.reshape((len(self.tmask), 1)), self.tmask]
             self.invcov = np.linalg.inv(covred)
             ydata = wdes.reshape(-1)[self.tmask]
@@ -2719,12 +2721,14 @@ class Likelihood_bird(Likelihood):
             self.config["zz"] = zz
             self.config["nz"] = nz
             self.config["xdata"] = t
-            self.config["model"] = 5
+            self.config["model"] = 0
             self.config["multipole"] = 3
-            self.config["with_AP"] = False
             self.config["with_redshift_bin"] = True
+            self.config["with_resum"] = False 
             self.config["with_stoch"] = False
             self.config["with_exact_time"] = False
+            self.config["with_AP"] = False
+            self.config["with_derived_bias"] = False
 
             # shape: (Nbin * Nmarg, Nbin * Nmarg)
             priormatdiag = []
@@ -2732,7 +2736,6 @@ class Likelihood_bird(Likelihood):
                 priormatdiag.append( np.diag(self.__set_prior(self.config["multipole"], model=self.config["model"])) )
             priormatdiag = np.array(priormatdiag).reshape(-1)
             self.priormat = np.diagflat(priormatdiag)
-
 
         else:
             self.x = []
@@ -2742,6 +2745,9 @@ class Likelihood_bird(Likelihood):
             self.invcov = []
             self.invcovdata = []
             self.priormat = []
+
+            self.config["zz"] = []
+            self.config["nz"] = []
 
             self.xmax = 0.
 
@@ -2771,6 +2777,20 @@ class Likelihood_bird(Likelihood):
                     xmin=self.config["xmin"][i], xmax=xmax, xmax0=xmax0, xmax1=xmax1, with_bao=self.config["with_bao"], baoH=baoH, baoD=baoD)
 
                 priormati = self.__set_prior(self.config["multipole"], model=self.config["model"])
+
+                if self.config["with_redshift_bin"]: # BOSS
+                    try: 
+                        if "None" in self.config["density"][i]: 
+                            zz = [0.32]
+                            nz = None
+                        else:
+                            z, _, _, nz = np.loadtxt(os.path.join(self.data_directory, self.config["density"][i]), unpack=True)
+                            nz /= np.trapz(nz, x=z)
+                            zz = np.linspace(z[0], z[-1], 40)
+                            nz = interp1d(z, nz, kind='cubic')(zz)
+                        self.config["zz"].append(zz)
+                        self.config["nz"].append(nz)
+                    except: raise Exception('galaxy count distribution: %s not found!' % self.config["density"][i])
 
                 # self.Nx.append(Nxi)
                 self.x.append(xi)
@@ -2816,6 +2836,8 @@ class Likelihood_bird(Likelihood):
         return [bs[0], bs[1]/np.sqrt(2.), 0., bs[1]/np.sqrt(2.), 0., 0., 0., 0., 0., 0. ]
 
     def loglkl(self, cosmo, data):
+
+        if self.config["with_derived_bias"]: data.derived_lkl = {}
         
         if data.need_cosmo_update is True: self.correlator.compute(self.__set_cosmo(cosmo, data))
         else: pass
@@ -2834,7 +2856,10 @@ class Likelihood_bird(Likelihood):
             modelX = np.asarray(correlator).reshape(-1)[self.tmask]
             Pi = block_diag(*marg_correlator)[:,self.tmask]
 
-            chi2 += self.__get_chi2(modelX, Pi, self.invcov, self.invcovdata, self.chi2data, self.priormat)
+            np.save('debugcorr.npy', np.asarray(correlator))
+            np.save('debugmode.npy', modelX)
+
+            chi2 += self.__get_chi2(modelX, Pi, self.invcov, self.invcovdata, self.chi2data, self.priormat, data)
 
         else:
             for i in range(self.config["skycut"]):
@@ -2855,23 +2880,38 @@ class Likelihood_bird(Likelihood):
                 if self.config["skycut"] is 1: Pi = self.__get_Pi_for_marg(marg_correlator, self.xmask[i])
                 elif self.config["skycut"] > 1: Pi = self.__get_Pi_for_marg(marg_correlator[i], self.xmask[i])
                 
-                chi2 += self.__get_chi2(modelX, Pi, self.invcov[i], self.invcovdata[i], self.chi2data[i], self.priormat[i])
+                chi2 += self.__get_chi2(modelX, Pi, self.invcov[i], self.invcovdata[i], self.chi2data[i], self.priormat[i], data, isky=i)
 
         prior = 0.
         if self.config["with_bbn"]:
             prior += -0.5 * ((data.cosmo_arguments['omega_b'] - self.config["omega_b_BBNcenter"]) / self.config["omega_b_BBNsigma"])**2
 
+        if "w" in self.config["output"]:
+            prior += -0.5 * ((data.mcmc_parameters['ln10^{10}A_s']['current'] * data.mcmc_parameters['ln10^{10}A_s']['scale'] - 2.84) / 0.2)**2
+
         lkl = - 0.5 * chi2 + prior
 
         return lkl
 
-    def __get_chi2(self, modelX, Pi, invcov, invcovdata, chi2data, priormat):
+    def __get_chi2(self, modelX, Pi, invcov, invcovdata, chi2data, priormat, data, isky=0):
+
         Covbi = np.dot(Pi, np.dot(invcov, Pi.T)) + priormat
         Cinvbi = np.linalg.inv(Covbi)
         vectorbi = np.dot(modelX, np.dot(invcov, Pi.T)) - np.dot(invcovdata, Pi.T)
         chi2nomar = np.dot(modelX, np.dot(invcov, modelX)) - 2. * np.dot(invcovdata, modelX) + chi2data
         chi2mar = - np.dot(vectorbi, np.dot(Cinvbi, vectorbi)) + np.log(np.abs(np.linalg.det(Covbi)))
         chi2tot = chi2mar + chi2nomar - priormat.shape[0] * np.log(2. * np.pi)
+
+        if self.config["with_derived_bias"]:
+            bg = - np.dot(Cinvbi, vectorbi)
+            Ng = len(bg)
+            for i, elem in enumerate(data.get_mcmc_parameters(['derived_lkl'])):
+                if i >= isky * Ng and i < (isky+1) * Ng:
+                    data.derived_lkl[elem] = bg[i - isky * Ng]
+
+        print (np.dot(modelX, np.dot(invcov, modelX)), -2. * np.dot(invcovdata, modelX), chi2data)
+        print (- np.dot(vectorbi, np.dot(Cinvbi, vectorbi)), np.log(np.abs(np.linalg.det(Covbi))))
+        print (chi2nomar, chi2mar )
 
         return chi2tot
 
@@ -2930,6 +2970,9 @@ class Likelihood_bird(Likelihood):
                     cosmo["DAz"] = np.array([M.angular_distance(z) * M.Hubble(0.) for z in self.config["zz"]])
                     cosmo["Hz"] = np.array([M.Hubble(z) / M.Hubble(0.) for z in self.config["zz"]])
 
+                    cosmo["DA"] = np.array([M.angular_distance(z) * M.Hubble(0.) for z in self.config["z"]])
+                    cosmo["H"] = np.array([M.Hubble(z) / M.Hubble(0.) for z in self.config["z"]])
+
             elif self.config["skycut"] > 1:
                 cosmo["Dz"] = np.array([ [M.scale_independent_growth_factor(z) for z in zz] for zz in self.config["zz"] ])
                 cosmo["fz"] = np.array([ [M.scale_independent_growth_factor_f(z) for z in zz] for zz in self.config["zz"] ])
@@ -2937,6 +2980,9 @@ class Likelihood_bird(Likelihood):
                 if self.config["with_AP"]:
                     cosmo["DAz"] = np.array([ [M.angular_distance(z) * M.Hubble(0.) for z in zz] for zz in self.config["zz"] ])
                     cosmo["Hz"] = np.array([ [M.Hubble(z) / M.Hubble(0.)  for z in zz] for zz in self.config["zz"] ])
+
+                    cosmo["DA"] = np.array([M.angular_distance(z) * M.Hubble(0.) for z in self.config["z"]])
+                    cosmo["H"] = np.array([M.Hubble(z) / M.Hubble(0.) for z in self.config["z"]])
 
         if "w" in self.config["output"]:
             def comoving_distance(z): return M.angular_distance(z)*(1+z)*M.h()
@@ -3000,6 +3046,11 @@ class Likelihood_bird(Likelihood):
         return kPS, PSdata
 
     def __set_prior(self, multipole, model=5):
+
+        if model == 0:
+            priors = np.array([ 2., 2.])
+            b3, cct = priors
+            print ('EFT priors: b3: %s, cct: %s (default)' % (b3, cct) )
         
         if multipole is 2:
             if model == 1: 

@@ -245,7 +245,7 @@ class Correlator(object):
                 cosmoi["f"] = self.cosmo["f"][i]
                 cosmoi["D"] = self.cosmo["D"][i]
 
-                if self.config["with_AP"] and not self.config["with_redshift_bin"]:
+                if self.config["with_AP"]: #and not self.config["with_redshift_bin"]:
                     cosmoi["DA"] = self.cosmo["DA"][i]
                     cosmoi["H"] = self.cosmo["H"][i]
 
@@ -272,7 +272,7 @@ class Correlator(object):
                 if "w" in self.config["output"]: 
                     self.angular[i].w(self.birds[i], self.cosmo["Dz"][i], self.cosmo["fz"][i], self.cosmo["rz"][i], self.config["zz"][i], self.config["nz"][i])
                 else:
-                    if self.config["with_redshift_bin"]: self.projection[i].redshift(self.birds[i], self.cosmo["Dz"][i], self.cosmo["fz"][i], self.cosmo["DAz"][i], self.cosmo["Hz"][i])
+                    if self.config["with_redshift_bin"] and self.config["nz"][i] is not None: self.projection[i].redshift(self.birds[i], self.cosmo["Dz"][i], self.cosmo["fz"][i], self.cosmo["DAz"][i], self.cosmo["Hz"][i])
                     elif self.config["with_AP"]: self.projection[i].AP(self.birds[i])
                     if self.config["with_window"]: self.projection[i].Window(self.birds[i])
                     if self.config["with_fibercol"]: self.projection[i].fibcolWindow(self.birds[i])
@@ -297,7 +297,7 @@ class Correlator(object):
                     correlator_cache["loop"] = self.bird.Cloopl
                     correlator_cache["ct"] = self.bird.Cctl
                 elif "w" in self.config["output"]:
-                    correlator_cache["lin"] = self.bird.w11
+                    correlator_cache["lin"] = self.bird.wlin
                     correlator_cache["loop"] = self.bird.wloop
                     correlator_cache["ct"] = self.bird.wct
                 return correlator_cache
@@ -319,7 +319,7 @@ class Correlator(object):
                     correlator_cache["loop"] = [self.birds[i].Cloopl for i in range(self.config["skycut"])]
                     correlator_cache["ct"] = [self.birds[i].Cctl for i in range(self.config["skycut"])]
                 elif "w" in self.config["output"]:
-                    correlator_cache["lin"] = [self.birds[i].w11 for i in range(self.config["skycut"])]
+                    correlator_cache["lin"] = [self.birds[i].wlin for i in range(self.config["skycut"])]
                     correlator_cache["loop"] = [self.birds[i].wloop for i in range(self.config["skycut"])]
                     correlator_cache["ct"] = [self.birds[i].wct for i in range(self.config["skycut"])]
                 return correlator_cache
@@ -422,13 +422,14 @@ class Correlator(object):
             m = np.array([ Pb3.reshape(-1),
                             2 * (f * ct[0+3] + b1 * ct[0]).reshape(-1) / self.config["km"]**2 ])
             
-            if self.config["multipole"] >= 2: m = np.vstack([m, 2 * (f * ct[1+3] + b1 * ct[1]).reshape(-1) / self.config["km"]**2])
-            if self.config["multipole"] >= 3: m = np.vstack([m, 2 * (f * ct[2+3] + b1 * ct[2]).reshape(-1) / self.config["km"]**2])
-            if self.config["with_stoch"]:
-                if model <= 4: m = np.vstack([m, Pst[2].reshape(-1) / self.config["km"]**2 / self.config["nd"]])
-                if model == 1: m = np.vstack([m, Pst[0].reshape(-1) / self.config["nd"]])
-                if model == 3: m = np.vstack([m, Pst[1].reshape(-1) / self.config["km"]**2 / self.config["nd"]])
-                if model == 4: m = np.vstack([m, Pst[1].reshape(-1) / self.config["km"]**2 / self.config["nd"], Pst[0].reshape(-1) / self.config["nd"]])
+            if "w" not in self.config["output"]:
+                if self.config["multipole"] >= 2: m = np.vstack([m, 2 * (f * ct[1+3] + b1 * ct[1]).reshape(-1) / self.config["km"]**2])
+                if self.config["multipole"] >= 3: m = np.vstack([m, 2 * (f * ct[2+3] + b1 * ct[2]).reshape(-1) / self.config["km"]**2])
+                if self.config["with_stoch"]:
+                    if model <= 4: m = np.vstack([m, Pst[2].reshape(-1) / self.config["km"]**2 / self.config["nd"]])
+                    if model == 1: m = np.vstack([m, Pst[0].reshape(-1) / self.config["nd"]])
+                    if model == 3: m = np.vstack([m, Pst[1].reshape(-1) / self.config["km"]**2 / self.config["nd"]])
+                    if model == 4: m = np.vstack([m, Pst[1].reshape(-1) / self.config["km"]**2 / self.config["nd"], Pst[0].reshape(-1) / self.config["nd"]])
 
             return m
 
@@ -527,7 +528,7 @@ class Correlator(object):
         if self.cosmo["k11"] is None or self.cosmo["P11"] is None:
             raise Exception("Please provide a linear matter power spectrum \'P11\' and the corresponding \'k11\'. ")
         
-        if len(self.cosmo["k11"]) is not len(self.cosmo["P11"]):
+        if len(self.cosmo["k11"]) != len(self.cosmo["P11"]):
             raise Exception("Please provide a linear matter power spectrum \'P11\' and the corresponding \'k11\' of same length.")
 
         if self.cosmo["k11"][0] > 1e-4 or self.cosmo["k11"][-1] < 1.:
@@ -539,7 +540,7 @@ class Correlator(object):
             elif len(self.cosmo["D"]) is not self.config["skycut"]:
                 raise Exception("Please specify (in a list) as many growth functions \'D\' as the corresponding skycuts.")
 
-        if self.config["multipole"] is 0: self.cosmo["f"] = 0.
+        if self.config["multipole"] == 0: self.cosmo["f"] = 0.
         elif not self.config["with_redshift_bin"]:
             if self.cosmo["f"] is None: 
                 raise Exception("Please specify the growth rate \'f\'.")
@@ -552,7 +553,7 @@ class Correlator(object):
         if self.config["with_bias"]:
             self.__is_bias_conflict()
 
-        if self.config["with_AP"] and not self.config["with_redshift_bin"]:
+        if self.config["with_AP"]: #and not self.config["with_redshift_bin"]:
             if self.cosmo["DA"] is None or self.cosmo["H"] is None:
                 raise Exception("You asked to apply the AP effect. Please specify \'DA\' and \'H\'. ")
             
@@ -603,34 +604,34 @@ class Correlator(object):
         if not isinstance(self.cosmo["bias"], dict): raise Exception("Please specify bias in a dict. ")
 
         if "m" in self.config["output"]:
-            if self.config["multipole"] is 0:
+            if self.config["multipole"] == 0:
                 if len(self.cosmo["bias"]) is not 1: raise Exception("Please specify a dict of 1 bias: \{ \'cct\' \}. ")
                 else: self.bias = { "b1": 1., "b2": 1., "b3": 1., "b4": 0., "cct": self.cosmo["bias"]["cct"], "cr1": 0., "cr2": 0., "ce0": 0., "ce1": 0., "ce2": 0. }
-            elif self.config["multipole"] is 2:
+            elif self.config["multipole"] == 2:
                 if len(self.cosmo["bias"]) is not 2: raise Exception("Please specify a dict of 2 biases: \{ \'cct\', \'cr1\' \}. ")
                 else: self.bias = { "b1": 1., "b2": 1., "b3": 1., "b4": 0., "cct": self.cosmo["bias"]["cct"], "cr1": self.cosmo["bias"]["cr1"], "cr2": 0., "ce0": 0., "ce1": 0., "ce2": 0. }
-            elif self.config["multipole"] is 3:
+            elif self.config["multipole"] == 3:
                 if len(self.cosmo["bias"]) is not 3: raise Exception("Please specify a dict of 3 biases: \{ \'cct\', \'cr1\', \'cr2\' \}. ")
                 else: self.bias = { "b1": 1., "b2": 1., "b3": 1., "b4": 0., "cct": self.cosmo["bias"]["cct"], "cr1": self.cosmo["bias"]["cr1"], "cr2": self.cosmo["bias"]["cr2"], "ce0": 0., "ce1": 0., "ce2": 0. }
         else:
             if not self.config["with_stoch"]:
-                if self.config["multipole"] is 0:
+                if self.config["multipole"] == 0:
                     if len(self.cosmo["bias"]) is not 5: raise Exception("Please specify a dict of 5 biases: \{ \'b1\', \'b2\', \'b3\', \'b4\', \'cct\' \}. ")
                     else: self.bias = { "b1": self.cosmo["bias"]["b1"], "b2": self.cosmo["bias"]["b2"], "b3": self.cosmo["bias"]["b3"], "b4": self.cosmo["bias"]["b4"], "cct": self.cosmo["bias"]["cct"], "cr1": 0., "cr2": 0., "ce0": 0., "ce1": 0., "ce2": 0. }
-                elif self.config["multipole"] is 2:
+                elif self.config["multipole"] == 2:
                     if len(self.cosmo["bias"]) is not 6: raise Exception("Please specify a dict of 6 biases: \{ \'b1\', \'b2\', \'b3\', \'b4\', \'cct\', \'cr1\' \}. ")
                     else: self.bias = { "b1": self.cosmo["bias"]["b1"], "b2": self.cosmo["bias"]["b2"], "b3": self.cosmo["bias"]["b3"], "b4": self.cosmo["bias"]["b4"], "cct": self.cosmo["bias"]["cct"], "cr1": self.cosmo["bias"]["cr1"], "cr2": 0., "ce0": 0., "ce1": 0., "ce2": 0. }
-                elif self.config["multipole"] is 3:
+                elif self.config["multipole"] == 3:
                     if len(self.cosmo["bias"]) is not 7: raise Exception("Please specify a dict of 7 biases: \{ \'b1\', \'b2\', \'b3\', \'b4\', \'cct\', \'cr1\', \'cr2\' \}. ")
                     else: self.bias = { "b1": self.cosmo["bias"]["b1"], "b2": self.cosmo["bias"]["b2"], "b3": self.cosmo["bias"]["b3"], "b4": self.cosmo["bias"]["b4"], "cct": self.cosmo["bias"]["cct"], "cr1": self.cosmo["bias"]["cr1"], "cr2": self.cosmo["bias"]["cr2"], "ce0": 0., "ce1": 0., "ce2": 0. }
             else:
-                if self.config["multipole"] is 0:
+                if self.config["multipole"] == 0:
                     if len(self.cosmo["bias"]) is not 6: raise Exception("Please specify a dict of 6 biases: \{ \'b1\', \'b2\', \'b3\', \'b4\', \'cct\', \'ce0\' \}. ")
                     else: self.bias = { "b1": self.cosmo["bias"]["b1"], "b2": self.cosmo["bias"]["b2"], "b3": self.cosmo["bias"]["b3"], "b4": self.cosmo["bias"]["b4"], "cct": self.cosmo["bias"]["cct"], "cr1": 0., "cr2": 0., "ce0": self.cosmo["bias"]["ce0"], "ce1": 0., "ce2": 0. }
-                elif self.config["multipole"] is 2:
+                elif self.config["multipole"] == 2:
                     if len(self.cosmo["bias"]) is not 9: raise Exception("Please specify a dict of 9 biases: \{ \'b1\', \'b2\', \'b3\', \'b4\', \'cct\', \'cr1\', \'ce0\', \'ce1\', \'ce2\'  \}. ")
                     else: self.bias = { "b1": self.cosmo["bias"]["b1"], "b2": self.cosmo["bias"]["b2"], "b3": self.cosmo["bias"]["b3"], "b4": self.cosmo["bias"]["b4"], "cct": self.cosmo["bias"]["cct"], "cr1": self.cosmo["bias"]["cr1"], "cr2": 0., "ce0": self.cosmo["bias"]["ce0"], "ce1": self.cosmo["bias"]["ce1"], "ce2": self.cosmo["bias"]["ce2"] }
-                elif self.config["multipole"] is 3:
+                elif self.config["multipole"] == 3:
                     if len(self.cosmo["bias"]) is not 10: raise Exception("Please specify a dict of 10 biases: \{ \'b1\', \'b2\', \'b3\', \'b4\', \'cct\', \'cr1\', \'cr2\', \'ce0\', \'ce1\', \'ce2\' \}. ")
                     else: self.bias = { "b1": self.cosmo["bias"]["b1"], "b2": self.cosmo["bias"]["b2"], "b3": self.cosmo["bias"]["b3"], "b4": self.cosmo["bias"]["b4"], "cct": self.cosmo["bias"]["cct"], "cr1": self.cosmo["bias"]["cr1"], "cr2": self.cosmo["bias"]["cr2"], "ce0": self.cosmo["bias"]["ce0"], "ce1": self.cosmo["bias"]["ce1"], "ce2": self.cosmo["bias"]["ce2"] }
 
@@ -740,8 +741,8 @@ class Correlator(object):
 
             def is_conflict_zz(zz, nz):
                 if zz is None or nz is None:
-                    raise Exception("You asked to account for the galaxy counts distribution over a redshift bins. Please provide a distribution \'nz\' and corresponding \'zz\'. ")
-                if len(zz) is not len(nz):
+                    pass#raise Exception("You asked to account for the galaxy counts distribution over a redshift bins. Please provide a distribution \'nz\' and corresponding \'zz\'. ")
+                elif len(zz) != len(nz):
                     raise Exception("Please provide \'nz\' and corresponding \'zz\' of the same length. ")
 
             if self.config["skycut"] == 1: is_conflict_zz(self.config["zz"], self.config["nz"])
