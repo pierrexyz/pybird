@@ -144,7 +144,7 @@ class Bird(object):
             self.Plin = None
             self.P11 = None
 
-        self.D = cosmo["D"]
+        if not self.co.with_time: self.D = cosmo["D"]
         self.f = cosmo["f"]
         self.DA = cosmo["DA"]
         self.H = cosmo["H"]

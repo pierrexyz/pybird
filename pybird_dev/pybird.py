@@ -245,7 +245,7 @@ class Correlator(object):
                 cosmoi["f"] = self.cosmo["f"][i]
                 cosmoi["D"] = self.cosmo["D"][i]
 
-                if self.config["with_AP"]: #and not self.config["with_redshift_bin"]:
+                if self.config["with_AP"] and not self.config["with_redshift_bin"]:
                     cosmoi["DA"] = self.cosmo["DA"][i]
                     cosmoi["H"] = self.cosmo["H"][i]
 
@@ -553,7 +553,7 @@ class Correlator(object):
         if self.config["with_bias"]:
             self.__is_bias_conflict()
 
-        if self.config["with_AP"]: #and not self.config["with_redshift_bin"]:
+        if self.config["with_AP"] and not self.config["with_redshift_bin"]:
             if self.cosmo["DA"] is None or self.cosmo["H"] is None:
                 raise Exception("You asked to apply the AP effect. Please specify \'DA\' and \'H\'. ")
             
