@@ -232,7 +232,7 @@ class NonLinear(object):
         bird : class
             an object of type Bird()
         """
-        coef = self.Coef(bird, window=.6)
+        coef = self.Coef(bird, window=.2)
 
         coefkPow = self.CoefkPow(coef)
         self.makeP22(coefkPow, bird)
