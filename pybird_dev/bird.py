@@ -63,11 +63,12 @@ class Bird(object):
         EFT parameters for the counter terms per multipole
     """
 
-    def __init__(self, cosmology=None, with_bias=True, with_stoch=False, co=co):
+    def __init__(self, cosmology=None, with_bias=True, with_stoch=False, with_assembly_bias=False, co=co):
         self.co = co
 
         self.with_bias = with_bias
         self.with_stoch = with_stoch
+        self.with_assembly_bias = with_assembly_bias
 
         if cosmology is not None: self.setcosmo(cosmology)
 
@@ -186,11 +187,14 @@ class Bird(object):
         b6 = bias["cr1"] / self.co.km**2
         b7 = bias["cr2"] / self.co.km**2
 
+        if self.with_assembly_bias: bq = bias["bq"]
+
         if self.with_bias:
             for i in range(self.co.Nl):
                 l = 2 * i
                 
-                self.b11[i] = b1**2 * mu[0][l] + 2. * b1 * f * mu[2][l] + f**2 * mu[4][l]
+                if self.with_assembly_bias: (b1-bq/3.)**2 * mu[0][l] + 2. * (b1-bq/3.) * (f+bq) * mu[2][l] + (f+bq)**2 * mu[4][l]
+                else: self.b11[i] = b1**2 * mu[0][l] + 2. * b1 * f * mu[2][l] + f**2 * mu[4][l]
                 self.bct[i] = 2. * b1 * (b5 * mu[0][l] + b6 * mu[2][l] + b7 * mu[4][l]) + 2. * f * (b5 * mu[2][l] + b6 * mu[4][l] + b7 * mu[6][l])
                 
                 if self.co.exact_time:
@@ -207,7 +211,8 @@ class Bird(object):
                 
         
         else:
-            self.b11 = np.array([b1**2, 2. * b1 * f, f**2])
+            if self.with_assembly_bias: self.b11 = np.array([(b1-bq/3.)**2, 2. * (b1-bq/3.) * (f+bq), (f+bq)**2])
+            else: self.b11 = np.array([b1**2, 2. * b1 * f, f**2])
             self.bct = np.array([2. * b1 * b5, 2. * b1 * b6, 2. * b1 * b7, 2. * f * b5, 2. * f * b6, 2. * f * b7])
             if self.co.Nloop is 12: self.bloop = np.array([1., b1, b2, b3, b4, b1 * b1, b1 * b2, b1 * b3, b1 * b4, b2 * b2, b2 * b4, b4 * b4])
             elif self.co.Nloop is 22: self.bloop = np.array([f**2, f**3, f**4, b1*f, b1*f**2, b1*f**3, b2*f, b2*f**2, b3*f, b4*f, b4*f**2, b1**2, b1**2*f, b1**2*f**2, b1*b2, b1*b2*f, b1*b3, b1*b4, b1*b4*f, b2**2, b2*b4, b4**2])

@@ -11,21 +11,21 @@ from angular import Angular
 from greenfunction import GreenFunction
 
 
-# import importlib, sys
-# importlib.reload(sys.modules['common'])
-# importlib.reload(sys.modules['bird'])
-# importlib.reload(sys.modules['nonlinear'])
-# importlib.reload(sys.modules['resum'])
-# importlib.reload(sys.modules['projection'])
-# importlib.reload(sys.modules['angular'])
-# importlib.reload(sys.modules['greenfunction'])
+import importlib, sys
+importlib.reload(sys.modules['common'])
+importlib.reload(sys.modules['bird'])
+importlib.reload(sys.modules['nonlinear'])
+importlib.reload(sys.modules['resum'])
+importlib.reload(sys.modules['projection'])
+importlib.reload(sys.modules['angular'])
+importlib.reload(sys.modules['greenfunction'])
 
-# from common import Common, co
-# from bird import Bird
-# from nonlinear import NonLinear
-# from resum import Resum
-# from projection import Projection
-# from angular import Angular
+from common import Common, co
+from bird import Bird
+from nonlinear import NonLinear
+from resum import Resum
+from projection import Projection
+from angular import Angular
 
 class Correlator(object):
     
@@ -164,6 +164,9 @@ class Correlator(object):
             "with_fibercol": Option("with_fibercol", bool,
                 description="Apply fiber collision effective window corrections.",
                 default=False) ,
+            "with_assembly_bias": Option("with_assembly_bias", bool,
+                description="With assembly bias.",
+                default=False) ,
         }
         
         if config_dict is not None: self.set(config_dict, load_engines=load_engines)
@@ -217,7 +220,7 @@ class Correlator(object):
         self.__is_cosmo_conflict()
 
         if self.config["skycut"] == 1:
-            self.bird = Bird(self.cosmo, with_bias=self.config["with_bias"], with_stoch=self.config["with_stoch"], co=self.co)
+            self.bird = Bird(self.cosmo, with_bias=self.config["with_bias"], with_stoch=self.config["with_stoch"], with_assembly_bias=self.config["with_assembly_bias"], co=self.co)
             self.nonlinear.PsCf(self.bird)
             if self.config["with_bias"]: self.bird.setPsCf(self.bias)
             else: self.bird.setPsCfl()
@@ -250,7 +253,7 @@ class Correlator(object):
                     cosmoi["H"] = self.cosmo["H"][i]
 
                 if i is 0: 
-                    self.bird = Bird(cosmoi, with_bias=False, with_stoch=self.config["with_stoch"], co=self.co)
+                    self.bird = Bird(cosmoi, with_bias=False, with_stoch=self.config["with_stoch"], with_assembly_bias=self.config["with_assembly_bias"], co=self.co)
                     self.nonlinear.PsCf(self.bird)
                     self.bird.setPsCfl()
                     if self.config["with_resum"]: self.resum.Ps(self.bird, makeIR=True, makeQ=True, setPs=False)
@@ -614,26 +617,34 @@ class Correlator(object):
                 if len(self.cosmo["bias"]) is not 3: raise Exception("Please specify a dict of 3 biases: \{ \'cct\', \'cr1\', \'cr2\' \}. ")
                 else: self.bias = { "b1": 1., "b2": 1., "b3": 1., "b4": 0., "cct": self.cosmo["bias"]["cct"], "cr1": self.cosmo["bias"]["cr1"], "cr2": self.cosmo["bias"]["cr2"], "ce0": 0., "ce1": 0., "ce2": 0. }
         else:
+
+            if self.config["with_assembly_bias"]: Nbq = 1
+            else: Nbq = 0
+
             if not self.config["with_stoch"]:
                 if self.config["multipole"] == 0:
-                    if len(self.cosmo["bias"]) is not 5: raise Exception("Please specify a dict of 5 biases: \{ \'b1\', \'b2\', \'b3\', \'b4\', \'cct\' \}. ")
+                    if len(self.cosmo["bias"]) is not 5+Nbq: raise Exception("Please specify a dict of 5 biases: \{ \'b1\', \'b2\', \'b3\', \'b4\', \'cct\' \}. ")
                     else: self.bias = { "b1": self.cosmo["bias"]["b1"], "b2": self.cosmo["bias"]["b2"], "b3": self.cosmo["bias"]["b3"], "b4": self.cosmo["bias"]["b4"], "cct": self.cosmo["bias"]["cct"], "cr1": 0., "cr2": 0., "ce0": 0., "ce1": 0., "ce2": 0. }
                 elif self.config["multipole"] == 2:
-                    if len(self.cosmo["bias"]) is not 6: raise Exception("Please specify a dict of 6 biases: \{ \'b1\', \'b2\', \'b3\', \'b4\', \'cct\', \'cr1\' \}. ")
+                    if len(self.cosmo["bias"]) is not 6+Nbq: raise Exception("Please specify a dict of 6 biases: \{ \'b1\', \'b2\', \'b3\', \'b4\', \'cct\', \'cr1\' \}. ")
                     else: self.bias = { "b1": self.cosmo["bias"]["b1"], "b2": self.cosmo["bias"]["b2"], "b3": self.cosmo["bias"]["b3"], "b4": self.cosmo["bias"]["b4"], "cct": self.cosmo["bias"]["cct"], "cr1": self.cosmo["bias"]["cr1"], "cr2": 0., "ce0": 0., "ce1": 0., "ce2": 0. }
                 elif self.config["multipole"] == 3:
-                    if len(self.cosmo["bias"]) is not 7: raise Exception("Please specify a dict of 7 biases: \{ \'b1\', \'b2\', \'b3\', \'b4\', \'cct\', \'cr1\', \'cr2\' \}. ")
+                    if len(self.cosmo["bias"]) is not 7+Nbq: raise Exception("Please specify a dict of 7 biases: \{ \'b1\', \'b2\', \'b3\', \'b4\', \'cct\', \'cr1\', \'cr2\' \}. ")
                     else: self.bias = { "b1": self.cosmo["bias"]["b1"], "b2": self.cosmo["bias"]["b2"], "b3": self.cosmo["bias"]["b3"], "b4": self.cosmo["bias"]["b4"], "cct": self.cosmo["bias"]["cct"], "cr1": self.cosmo["bias"]["cr1"], "cr2": self.cosmo["bias"]["cr2"], "ce0": 0., "ce1": 0., "ce2": 0. }
             else:
                 if self.config["multipole"] == 0:
-                    if len(self.cosmo["bias"]) is not 6: raise Exception("Please specify a dict of 6 biases: \{ \'b1\', \'b2\', \'b3\', \'b4\', \'cct\', \'ce0\' \}. ")
+                    if len(self.cosmo["bias"]) is not 6+Nbq: raise Exception("Please specify a dict of 6 biases: \{ \'b1\', \'b2\', \'b3\', \'b4\', \'cct\', \'ce0\' \}. ")
                     else: self.bias = { "b1": self.cosmo["bias"]["b1"], "b2": self.cosmo["bias"]["b2"], "b3": self.cosmo["bias"]["b3"], "b4": self.cosmo["bias"]["b4"], "cct": self.cosmo["bias"]["cct"], "cr1": 0., "cr2": 0., "ce0": self.cosmo["bias"]["ce0"], "ce1": 0., "ce2": 0. }
                 elif self.config["multipole"] == 2:
-                    if len(self.cosmo["bias"]) is not 9: raise Exception("Please specify a dict of 9 biases: \{ \'b1\', \'b2\', \'b3\', \'b4\', \'cct\', \'cr1\', \'ce0\', \'ce1\', \'ce2\'  \}. ")
+                    if len(self.cosmo["bias"]) is not 9+Nbq: raise Exception("Please specify a dict of 9 biases: \{ \'b1\', \'b2\', \'b3\', \'b4\', \'cct\', \'cr1\', \'ce0\', \'ce1\', \'ce2\'  \}. ")
                     else: self.bias = { "b1": self.cosmo["bias"]["b1"], "b2": self.cosmo["bias"]["b2"], "b3": self.cosmo["bias"]["b3"], "b4": self.cosmo["bias"]["b4"], "cct": self.cosmo["bias"]["cct"], "cr1": self.cosmo["bias"]["cr1"], "cr2": 0., "ce0": self.cosmo["bias"]["ce0"], "ce1": self.cosmo["bias"]["ce1"], "ce2": self.cosmo["bias"]["ce2"] }
                 elif self.config["multipole"] == 3:
-                    if len(self.cosmo["bias"]) is not 10: raise Exception("Please specify a dict of 10 biases: \{ \'b1\', \'b2\', \'b3\', \'b4\', \'cct\', \'cr1\', \'cr2\', \'ce0\', \'ce1\', \'ce2\' \}. ")
+                    if len(self.cosmo["bias"]) is not 10+Nbq: raise Exception("Please specify a dict of 10 biases: \{ \'b1\', \'b2\', \'b3\', \'b4\', \'cct\', \'cr1\', \'cr2\', \'ce0\', \'ce1\', \'ce2\' \}. ")
                     else: self.bias = { "b1": self.cosmo["bias"]["b1"], "b2": self.cosmo["bias"]["b2"], "b3": self.cosmo["bias"]["b3"], "b4": self.cosmo["bias"]["b4"], "cct": self.cosmo["bias"]["cct"], "cr1": self.cosmo["bias"]["cr1"], "cr2": self.cosmo["bias"]["cr2"], "ce0": self.cosmo["bias"]["ce0"], "ce1": self.cosmo["bias"]["ce1"], "ce2": self.cosmo["bias"]["ce2"] }
+
+            if self.config["with_assembly_bias"]: 
+                try: self.bias["bq"] = self.cosmo["bias"]["bq"]
+                except: raise Exception ("Please specify the assembly bias \'bq\'.  ")
 
     def __read_config(self, config_dict):
 
