@@ -127,7 +127,7 @@ class Bird(object):
             self.bloop = np.empty(shape=(self.co.Nloop))
 
         if self.with_stoch:
-            self.bst = np.zeros(shape=(self.co.Nl, self.co.Nst))
+            self.bst = np.zeros(shape=(self.co.Nst))
             self.Pstl = np.zeros(shape=(self.co.Nl, self.co.Nst, self.co.Nk))
             self.Pstl[0,0] = self.co.k**0
             self.Pstl[0,1] = self.co.k**2
@@ -224,8 +224,9 @@ class Bird(object):
                 b1**2, b1 * b3, b1**2 * f, b1 * f, b3 * f, b1 * f**2, b1 * f**2, f**2, f**3, f**3])
 
         if self.with_stoch:
-            self.bst[0] = np.array([ bias["ce0"], bias["ce1"] / self.co.km**2, 0. ]) / self.co.nd
-            self.bst[1] = np.array([ 0., 0., bias["ce2"] / self.co.km**2 ]) / self.co.nd
+            self.bst[0] = bias["ce0"] / self.co.nd
+            self.bst[1] = bias["ce1"] / self.co.km**2 / self.co.nd
+            self.bst[2] = bias["ce2"] / self.co.km**2 / self.co.nd
 
     def setPs(self, bs, setfull=True):
         """ For option: which='full'. Given an array of EFT parameters, multiplies them accordingly to the power spectrum multipole terms and adds the resulting terms together per loop order
@@ -468,7 +469,7 @@ class Bird(object):
         Ps0 = np.einsum('b,lbx->lx', self.b11, self.P11l)
         Ps1 = np.einsum('b,lbx->lx', self.bloop, self.Ploopl) + np.einsum('b,lbx->lx', self.bct, self.Pctl)
 
-        if self.with_stoch: Ps1 += np.einsum('lb,lbx->lx', self.bst, self.Pstl)
+        if self.with_stoch: Ps1 += np.einsum('b,lbx->lx', self.bst, self.Pstl)
 
         self.fullPs = Ps0 + Ps1
 

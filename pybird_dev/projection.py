@@ -88,11 +88,11 @@ class Projection(object):
         self.xout = xout
 
         if Om_AP is not None and z_AP is not None:
-            self.Om = Om_AP
-            self.z = z_AP
+            self.Om_AP = Om_AP
+            self.z_AP = z_AP
 
-            self.DA = DA(self.Om, self.z)
-            self.H = Hubble(self.Om, self.z)
+            self.DA = DA(self.Om_AP, self.z_AP)
+            self.H = Hubble(self.Om_AP, self.z_AP)
             self.muacc = np.linspace(0., 1., nbinsmu)
             if self.cf: self.sgrid, self.mugrid = np.meshgrid(self.co.s, self.muacc, indexing='ij')
             else: self.kgrid, self.mugrid = np.meshgrid(self.co.k, self.muacc, indexing='ij')
@@ -517,10 +517,12 @@ class Projection(object):
             P11l = np.empty(shape=(len(self.zz), self.co.Nl, self.co.N11, self.co.Nk))
             Pctl = np.empty(shape=(len(self.zz), self.co.Nl, self.co.Nct, self.co.Nk))
             Ploopl = np.empty(shape=(len(self.zz), self.co.Nl, self.co.Nloop, self.co.Nk))
+        
+        for i, (zi, DAi, Hi) in enumerate(zip(self.zz, DAz, Hz)):
 
-        qperpz, qparz = self.get_AP_param(DA=DAz, H=Hz)
-
-        for i, (qperp, qpar) in enumerate(zip(qperpz, qparz)):
+            self.DA = DA(self.Om_AP, zi)
+            self.H = Hubble(self.Om_AP, zi)
+            qperp, qpar = self.get_AP_param(DA=DAi, H=Hi)
             birdi = deepcopy(bird)
             self.AP(birdi, q=(qperp, qpar))
             

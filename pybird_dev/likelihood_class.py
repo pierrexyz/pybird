@@ -2707,8 +2707,6 @@ class Likelihood_bird(Likelihood):
             tamin = self.config["xmin"]
             tmask0 = np.argwhere((tam >= min(tamin)))[:,0]
             self.tmask = np.concatenate([np.argwhere((tam >= tamin[i]))[:,0] + i*20 for i in range(Nbin)])
-            print (tamin)
-            print (self.tmask)
             covred = cov[self.tmask.reshape((len(self.tmask), 1)), self.tmask]
             self.invcov = np.linalg.inv(covred)
             ydata = wdes.reshape(-1)[self.tmask]
@@ -2746,8 +2744,9 @@ class Likelihood_bird(Likelihood):
             self.invcovdata = []
             self.priormat = []
 
-            self.config["zz"] = []
-            self.config["nz"] = []
+            if self.config["skycut"] > 1:
+                self.config["zz"] = []
+                self.config["nz"] = []
 
             self.xmax = 0.
 
@@ -2788,8 +2787,12 @@ class Likelihood_bird(Likelihood):
                             nz /= np.trapz(nz, x=z)
                             zz = np.linspace(z[0], z[-1], 40)
                             nz = interp1d(z, nz, kind='cubic')(zz)
-                        self.config["zz"].append(zz)
-                        self.config["nz"].append(nz)
+                        if self.config["skycut"] > 1:
+                            self.config["zz"].append(zz)
+                            self.config["nz"].append(nz)
+                        else: 
+                            self.config["zz"] = zz
+                            self.config["nz"] = nz
                     except: raise Exception('galaxy count distribution: %s not found!' % self.config["density"][i])
 
                 # self.Nx.append(Nxi)
@@ -2804,11 +2807,17 @@ class Likelihood_bird(Likelihood):
             # formatting configuration for pybird
             self.config["xdata"] = self.x
             if self.config["with_window"]:
-                self.config["windowPk"] = [os.path.join(self.data_directory, self.config["windowPk"][i]) for i in range(self.config["skycut"])]
-                self.config["windowCf"] = [os.path.join(self.data_directory, self.config["windowCf"][i]) for i in range(self.config["skycut"])] 
+                if self.config["skycut"] > 1:
+                    self.config["windowPk"] = [os.path.join(self.data_directory, self.config["windowPk"][i]) for i in range(self.config["skycut"])]
+                    self.config["windowCf"] = [os.path.join(self.data_directory, self.config["windowCf"][i]) for i in range(self.config["skycut"])] 
+                else: 
+                    self.config["windowPk"] = os.path.join(self.data_directory, self.config["windowPk"][i])
+                    self.config["windowCf"] = os.path.join(self.data_directory, self.config["windowCf"][i])
             if "Pk" in self.config["output"]: self.config["kmax"] = self.xmax+0.05
             try: self.config["with_exact_time"]
             except: self.config["with_exact_time"] = False
+            try: self.config["with_assembly_bias"]
+            except: self.config["with_assembly_bias"] = False
 
         # BBN prior?
         if self.config["with_bbn"] and self.config["omega_b_BBNcenter"] is not None and self.config["omega_b_BBNsigma"] is not None: 
@@ -2827,13 +2836,16 @@ class Likelihood_bird(Likelihood):
 
     def bias_array_to_dict(self, bs): 
         if self.config["with_stoch"]:
-            if self.config["multipole"] is 2: return { "b1": bs[0], "b2": bs[1], "b3": bs[2], "b4": bs[3], "cct": bs[4], "cr1": bs[5], "ce0": bs[7], "ce1": bs[8], "ce2": bs[9] }
-            if self.config["multipole"] is 3: return { "b1": bs[0], "b2": bs[1], "b3": bs[2], "b4": bs[3], "cct": bs[4], "cr1": bs[5], "cr2": bs[6], "ce0": bs[7], "ce1": bs[8], "ce2": bs[9] }
-        else:
-            return { "b1": bs[0], "b2": bs[1], "b3": bs[2], "b4": bs[3], "cct": bs[4], "cr1": bs[5], "cr2": bs[6] }
+            if self.config["multipole"] is 2: bdict = { "b1": bs[0], "b2": bs[1], "b3": bs[2], "b4": bs[3], "cct": bs[4], "cr1": bs[5], "ce0": bs[7], "ce1": bs[8], "ce2": bs[9] }
+            if self.config["multipole"] is 3: bdict = { "b1": bs[0], "b2": bs[1], "b3": bs[2], "b4": bs[3], "cct": bs[4], "cr1": bs[5], "cr2": bs[6], "ce0": bs[7], "ce1": bs[8], "ce2": bs[9] }
+        else: bdict = { "b1": bs[0], "b2": bs[1], "b3": bs[2], "b4": bs[3], "cct": bs[4], "cr1": bs[5], "cr2": bs[6] }
+
+        if self.config["with_assembly_bias"]: bdict["bq"] = bs[-1]
+        
+        return bdict
 
     def bias_custom_to_all(self, bs):
-        return [bs[0], bs[1]/np.sqrt(2.), 0., bs[1]/np.sqrt(2.), 0., 0., 0., 0., 0., 0. ]
+        return [bs[0], bs[1]/np.sqrt(2.), 0., bs[1]/np.sqrt(2.), 0., 0., 0., 0., 0., 0., bs[-1] ]
 
     def loglkl(self, cosmo, data):
 
@@ -2855,9 +2867,6 @@ class Likelihood_bird(Likelihood):
         if "w" in self.config["output"]:
             modelX = np.asarray(correlator).reshape(-1)[self.tmask]
             Pi = block_diag(*marg_correlator)[:,self.tmask]
-
-            np.save('debugcorr.npy', np.asarray(correlator))
-            np.save('debugmode.npy', modelX)
 
             chi2 += self.__get_chi2(modelX, Pi, self.invcov, self.invcovdata, self.chi2data, self.priormat, data)
 
@@ -2908,10 +2917,6 @@ class Likelihood_bird(Likelihood):
             for i, elem in enumerate(data.get_mcmc_parameters(['derived_lkl'])):
                 if i >= isky * Ng and i < (isky+1) * Ng:
                     data.derived_lkl[elem] = bg[i - isky * Ng]
-
-        print (np.dot(modelX, np.dot(invcov, modelX)), -2. * np.dot(invcovdata, modelX), chi2data)
-        print (- np.dot(vectorbi, np.dot(Cinvbi, vectorbi)), np.log(np.abs(np.linalg.det(Covbi))))
-        print (chi2nomar, chi2mar )
 
         return chi2tot
 
@@ -2970,8 +2975,8 @@ class Likelihood_bird(Likelihood):
                     cosmo["DAz"] = np.array([M.angular_distance(z) * M.Hubble(0.) for z in self.config["zz"]])
                     cosmo["Hz"] = np.array([M.Hubble(z) / M.Hubble(0.) for z in self.config["zz"]])
 
-                    cosmo["DA"] = np.array([M.angular_distance(z) * M.Hubble(0.) for z in self.config["z"]])
-                    cosmo["H"] = np.array([M.Hubble(z) / M.Hubble(0.) for z in self.config["z"]])
+                    #cosmo["DA"] = np.array([M.angular_distance(z) * M.Hubble(0.) for z in self.config["z"]])
+                    #cosmo["H"] = np.array([M.Hubble(z) / M.Hubble(0.) for z in self.config["z"]])
 
             elif self.config["skycut"] > 1:
                 cosmo["Dz"] = np.array([ [M.scale_independent_growth_factor(z) for z in zz] for zz in self.config["zz"] ])
@@ -2991,10 +2996,12 @@ class Likelihood_bird(Likelihood):
 
         return cosmo
 
-    def __load_data(self, multipole, wedge, data_directory, spectrum_file, covmat_file, xmin, xmax=None, xmax0=None, xmax1=None, with_bao=False, baoH=None, baoD=None):
+    def __load_data(self, multipole, wedge, data_directory, spectrum_file, covmat_file, xmin, xmax=None, xmax0=None, xmax1=None, xmaxspacing='default', with_bao=False, baoH=None, baoD=None):
         
+        #cov = None
+        #try: 
         xdata, ydata = self.__load_spectrum(data_directory, spectrum_file) # read values of k (in h/Mpc)
-        #xdata, ydata, cov = __load_gaussian_spectra(data_directory, spectrum_file) # with gaussian case: column 1: k[h/Mpc]  column 2-N+2: signal  column N+3-2N+2: error
+        #except: xdata, ydata, cov = self.__load_gaussian_spectrum(data_directory, spectrum_file) # with gaussian case: column 1: k[h/Mpc]  column 2-N+2: signal  column N+3-2N+2: error
         
         if wedge is not 0:
             x = xdata.reshape(wedge,-1)[0]
@@ -3005,12 +3012,27 @@ class Likelihood_bird(Likelihood):
             elif xmax is not None:
                 xmax0 = xmax
                 xmax1 = xmax
-            dxmax = (xmax1-xmax0)/(wedge-1.)
+
             xmask0 = np.argwhere((x <= xmax0) & (x >= xmin))[:,0]
             xmask = xmask0
-            for i in range(wedge-1):
-                xmaski = np.argwhere((x <= xmax0 + (i+1)*dxmax) & (x >= xmin))[:,0] + (i+1)*Nx
-                xmask = np.concatenate((xmask, xmaski))
+
+            if 'linear' in xmaxspacing: 
+                dxmax = (xmax1-xmax0)/(wedge-1.)
+                for i in range(wedge-1):
+                    xmaski = np.argwhere((x <= xmax0 + (i+1)*dxmax) & (x >= xmin))[:,0] + (i+1)*Nx
+                    xmask = np.concatenate((xmask, xmaski))
+            else: 
+                print ('youhou new wedge')
+                def get_xmax(k0, k1, N=wedge):
+                    a = ((k0 - k1)*(-1 + 2*N)**2)/(16.*(-1 + N)*N**3)
+                    b = -(k0 - k1 + 4*k1*N - 4*k1*N**2)/(4.*(-1 + N)*N)
+                    mu = (np.arange(0, N, 1)+0.5)/N
+                    return a / mu**2 + b
+                xmaxs = get_xmax(xmax0, xmax1)
+                for i, xmaxi in enumerate(xmaxs[1:]):
+                    xmaski = np.argwhere((x <= xmaxi) & (x >= xmin))[:,0] + (i+1)*Nx
+                    xmask = np.concatenate((xmask, xmaski))
+                
         elif multipole is not 0:
             x = xdata.reshape(3,-1)[0]
             Nx = len(x)
@@ -3030,6 +3052,7 @@ class Likelihood_bird(Likelihood):
             print ("BAO recon: on")
         else: print ("BAO recon: none")
 
+        #if cov is None: 
         cov = np.loadtxt(os.path.join(data_directory, covmat_file))
         covred = cov[xmask.reshape((len(xmask), 1)), xmask]
         invcov = np.linalg.inv(covred)
@@ -3044,6 +3067,22 @@ class Likelihood_bird(Likelihood):
         try: kPS, PSdata, _ = np.loadtxt(fname, unpack=True)
         except: kPS, PSdata = np.loadtxt(fname, unpack=True)
         return kPS, PSdata
+
+    def __load_gaussian_spectrum(self, data_directory, spectrum_file):
+        """
+        Helper function to read in the full data vector with gaussian error:
+        column 1: k[h/Mpc]  column 2-N+2: signal  column N+3-2N+2: error
+        """
+        if self.config["wedge"] == 0: Nd = self.config["multipole"]
+        else: Nd = self.config["wedge"]
+        raw = np.loadtxt(os.path.join(data_directory, spectrum_file)).T
+        k = raw[0]
+        allk = np.concatenate([k for i in range(Nd)])
+        allPS = np.concatenate([raw[1+i] for i in range(Nd)])
+        diag = np.concatenate([raw[1+Nd+i] for i in range(Nd)])
+        cov = np.diagflat(diag**2)
+        #kPS = np.vstack([allkpt, allwpt]).T
+        return allk, allPS, cov
 
     def __set_prior(self, multipole, model=5):
 
