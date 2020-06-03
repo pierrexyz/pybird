@@ -1,0 +1,34 @@
+output: bCf
+multipole: 2
+wedge: 0
+skycut: 1
+z: [0.5]
+with_redshift_bin: False
+with_AP: True
+z_AP: [0.5]
+Omega_m_AP: 0.286
+with_window: False
+with_binning: True
+with_fibercol: False
+
+with_stoch: False
+model: 5
+
+with_exact_time: False
+
+with_bao: False
+
+xmin: [2.]
+xmax: [200.]
+
+covmat_file: [pybird/CF/cov_cf_challenge_D.dat]
+spectrum_file: [pybird/CF/cf_challenge_D.dat]
+
+nd: 3.e-4
+km: 0.7
+
+with_bbn: True
+omega_b_BBNcenter: 0.02303
+omega_b_BBNsigma: 0.0005
+
+with_derived_bias: True

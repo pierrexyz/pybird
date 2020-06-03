@@ -157,7 +157,7 @@ class Projection(object):
         if q is None: qperp, qpar = self.get_AP_param(bird)
         else: qperp, qpar = q
 
-        if self.cf:
+        if self.co.with_cf:
             G = (self.mugrid**2 * qpar**2 + (1-self.mugrid**2) * qperp**2)**0.5
             sp = self.sgrid * G
             mup = self.mugrid * qpar / G
@@ -199,7 +199,7 @@ class Projection(object):
 
         compute = True
 
-        if self.cf:
+        if self.co.with_cf:
             try:
                 swindow_config_space = np.loadtxt(self.window_configspace_file)
             except:
@@ -249,7 +249,7 @@ class Projection(object):
             Qp = np.moveaxis(swindow_config_space[:,1:].reshape(-1,3), 0, -1 )[:Nl]
             Qal = np.einsum('alp,ps->als', Calp[:Nl,:Nl,:Nl], Qp)
 
-            if self.cf: 
+            if self.co.with_cf: 
                 self.Qal = interp1d(sw, Qal, axis=-1, kind='cubic', bounds_error=False, fill_value='extrapolate')(self.co.s)
 
             else:
@@ -271,7 +271,7 @@ class Projection(object):
                     print ( 'Saving mask: %s' % window_fourier_file )
                     np.save(window_fourier_file, self.Wal)
 
-        if not self.cf:
+        if not self.co.with_cf:
             self.Wal = self.Wal[:,:self.co.Nl]
 
             # Apply masking centered around the value of k
@@ -302,7 +302,7 @@ class Projection(object):
         Apply the survey window function to the bird power spectrum 
         """
         if self.with_window:
-            if self.cf:
+            if self.co.with_cf:
                 if bird.with_bias:
                     bird.fullCf = np.einsum('als,ls->as', self.Qal, bird.fullCf)
                 else:
@@ -410,19 +410,27 @@ class Projection(object):
         """
         Integrate over each bin of the data k's
         """
-        Pkint = interp1d(self.co.k, P, axis=-1, kind='cubic', bounds_error=False, fill_value='extrapolate')
-        res = np.array([np.trapz(Pkint(pts) * pts**2, x=pts) for pts in self.points])
+        if self.co.with_cf: integrand = interp1d(self.co.s, P, axis=-1, kind='cubic', bounds_error=False, fill_value='extrapolate')
+        else: integrand = interp1d(self.co.k, P, axis=-1, kind='cubic', bounds_error=False, fill_value='extrapolate')
+        res = np.array([np.trapz(integrand(pts) * pts**2, x=pts) for pts in self.points])
         return np.moveaxis(res, 0, -1) / self.binvol
 
     def kbinning(self, bird):
         """
         Apply binning in k-space for linear-spaced data k-array
         """
-        if not bird.with_bias:
-            bird.P11l = self.integrBinning(bird.P11l)
-            bird.Pctl = self.integrBinning(bird.Pctl)
-            bird.Ploopl = self.integrBinning(bird.Ploopl)
-            if bird.with_stoch: bird.Pstl = self.integrBinning(bird.Pstl)
+        if self.co.with_cf:
+            if not bird.with_bias:
+                bird.C11l = self.integrBinning(bird.C11l)
+                bird.Cctl = self.integrBinning(bird.Cctl)
+                bird.Cloopl = self.integrBinning(bird.Cloopl)
+        else:
+            if not bird.with_bias:
+                bird.P11l = self.integrBinning(bird.P11l)
+                bird.Pctl = self.integrBinning(bird.Pctl)
+                bird.Ploopl = self.integrBinning(bird.Ploopl)
+                if bird.with_stoch: bird.Pstl = self.integrBinning(bird.Pstl)
+
 
     def xdata(self, bird):
         """
@@ -517,7 +525,7 @@ class Projection(object):
             P11l = np.empty(shape=(len(self.zz), self.co.Nl, self.co.N11, self.co.Nk))
             Pctl = np.empty(shape=(len(self.zz), self.co.Nl, self.co.Nct, self.co.Nk))
             Ploopl = np.empty(shape=(len(self.zz), self.co.Nl, self.co.Nloop, self.co.Nk))
-        
+
         for i, (zi, DAi, Hi) in enumerate(zip(self.zz, DAz, Hz)):
 
             self.DA = DA(self.Om_AP, zi)

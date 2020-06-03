@@ -62,12 +62,12 @@ class Resum(object):
         s's to the powers on which to perform the FFTLog to evaluate the IR-filters X and Y    
     """
 
-    def __init__(self, LambdaIR=1., NFFT=192, co=co):
+    def __init__(self, LambdaIR=.2, NFFT=192, co=co):
 
         self.co = co
+        self.LambdaIR = LambdaIR
 
         if self.co.optiresum is True:
-            self.LambdaIR = LambdaIR
             self.sLow = 70.
             self.sHigh = 190.
             self.idlow = np.where(self.co.s > self.sLow)[0][0]
@@ -76,7 +76,7 @@ class Resum(object):
             self.snobao = np.concatenate([self.co.s[:self.idlow], self.co.s[self.idhigh:]])
             self.sr = self.sbao
         else:
-            self.LambdaIR = .2
+
             self.sr = self.co.s
 
         self.klow = 0.02

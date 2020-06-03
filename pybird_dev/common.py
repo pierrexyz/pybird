@@ -60,7 +60,7 @@ class Common(object):
             kmax = 0.5
             self.optiresum = True
             slog = np.geomspace(1., 1000., 100)
-            slin = np.arange(40./accboost, 200., 2.5/accboost)
+            slin = np.arange(1./accboost, 200., 1./accboost)
             slogmask = np.where((slog > slin[-1]) | (slog < slin[0] ))[0]
             self.s = np.unique( np.sort( np.concatenate((slog[slogmask], slin)) ) )
         else:

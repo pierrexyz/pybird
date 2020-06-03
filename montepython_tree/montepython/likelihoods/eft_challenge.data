@@ -1,0 +1,4 @@
+# location of data files
+eft_challenge.data_directory = data.path['data']
+eft_challenge.configfile = 'pybird/config/challengeA_ell3_cf.yaml'
+eft_challenge.use_nuisance = ['b1', 'c2']

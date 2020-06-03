@@ -2641,216 +2641,449 @@ class Likelihood_isw(Likelihood):
         chi2_auto=np.asscalar(np.dot(self.cl_binned_auto-b**2*cl_binned_auto_theory,np.dot(np.linalg.inv(self.cov_binned_auto),self.cl_binned_auto-b**2*cl_binned_auto_theory)))
         return -0.5*(chi2_cross+chi2_auto)
 
-############################
+############################################################################################################################################
+#
+#
+#
+############################################################################################################################################
 
 import scipy.constants as conts
+import yaml
+from astropy.io import fits
+from scipy.interpolate import interp1d
+from scipy.linalg import block_diag
 try: import pybird as pb
 except ImportError: raise Exception('Cannot find pybird library')
 
-class Likelihood_eft(Likelihood):
+class Likelihood_bird(Likelihood):
 
     def __init__(self, path, data, command_line):
 
         Likelihood.__init__(self, path, data, command_line)
 
-        # wedges
-        try: self.Nw
-        except: self.Nw = 0
+        self.config = yaml.full_load(open(os.path.join(self.data_directory, self.configfile), 'r'))
 
-        # multipoles
-        try: self.Nl
-        except: self.Nl = 2
+        # Loading data and priors
+        if "w" in self.config["output"]:
 
-        # read values of k (in h/Mpc)
-        cov = None
-        try: kdata, PSdata = self.__load_data()
-        except: kdata, PSdata, cov = self.__load_gaussian_data() # with gaussian case: column 1: k[h/Mpc]  column 2-N+2: signal  column N+3-2N+2: error
-        
-        if self.Nw is not 0:
-            self.k = kdata.reshape(self.Nw,-1)[0]
-            self.ps = PSdata.reshape(self.Nw, -1)
-            self.Nk = len(self.k)
+            des = fits.open(os.path.join(self.data_directory, self.config["data_file"]))
 
-            try:
-                self.kmax0
-                self.kmax1
-                self.kmax = max(self.kmax0, self.kmax1)
-            except:
-                self.kmax0 = self.kmax
-                self.kmax1 = self.kmax
-            dkmax = (self.kmax1-self.kmax0)/(self.Nw-1.)
-            kmask0 = np.argwhere((self.k <= self.kmax0) & (self.k >= self.kmin))[:,0]
-            self.kmask = kmask0
-            for i in range(self.Nw-1):
-                kmaski = np.argwhere((self.k <= self.kmax0 + (i+1)*dkmax) & (self.k >= self.kmin))[:,0] + (i+1)*self.Nk
-                self.kmask = np.concatenate((self.kmask, kmaski))
-        else:
-            self.k = kdata.reshape(3,-1)[0]
-            self.ps = PSdata.reshape(3, -1)
-            self.Nk = len(self.k)
-            kmask0 = np.argwhere((self.k <= self.kmax) & (self.k >= self.kmin))[:,0]
-            self.kmask = kmask0
-            for i in range(self.Nl-1):
-                kmaski = np.argwhere((self.k <= self.kmax) & (self.k >= self.kmin))[:,0] + (i+1)*self.Nk
-                self.kmask = np.concatenate((self.kmask, kmaski))
-            
-            # if self.Nw == 3:
-            #     try:
-            #         self.kmax0
-            #         self.kmax1
-            #         self.kmax2
-            #     except:
-            #         self.kmax0 = self.kmax
-            #         self.kmax1 = self.kmax
-            #         self.kmax2 = self.kmax
-            #     
-            #     kmask1 = np.argwhere((self.k <= self.kmax1) & (self.k >= self.kmin))[:,0] + len(self.k)
-            #     kmask2 = np.argwhere((self.k <= self.kmax2) & (self.k >= self.kmin))[:,0] + 2*len(self.k)
-            #     self.kmask = np.concatenate((kmask0, kmask1, kmask2))
-            # elif self.Nw == 2:
-            #     try:
-            #         self.kmax0
-            #         self.kmax2
-            #     except:
-            #         self.kmax0 = self.kmax
-            #         self.kmax2 = self.kmax
-            #     kmask0 = np.argwhere((self.k <= self.kmax0) & (self.k >= self.kmin))[:,0]
-            #     kmask2 = np.argwhere((self.k <= self.kmax2) & (self.k >= self.kmin))[:,0] + len(self.k)
-            #     self.kmask = np.concatenate((kmask0, kmask2))
+            Nbin = 5
 
-        # self.xdata = self.k[kmask0]
-        self.ydata = PSdata[self.kmask]
+            tam = np.empty(shape=(20))
+            wdes = np.empty(shape=(Nbin*20))
+            for i, line in enumerate(des['wtheta'].data):
+                bin1, bin2, angbin, val, ang, npairs = line
+                if i < 20: tam[i] = ang
+                wdes[i] = val
+            wdes = wdes.reshape(Nbin, 20)
 
-        # BAO
-        try:
-            if self.baoH is not 0 and self.baoD is not 0:
-                self.ydata = np.concatenate((self.ydata, [self.baoH, self.baoD]))
-                self.kmask = np.concatenate(( self.kmask, [-2, -1] ))
-                self.with_bao = True
-            else: self.with_bao = False
-        except:
-            self.with_bao = False
+            cov = des['COVMAT'].data[-100:,-100:]
+            #err = np.sqrt(np.diag(cov)).reshape(5,-1)
 
-        # read covariance matrices
-        try:
-            self.covmat_file
-            self.use_covmat = True
-        except Exception:
-            print("You should declare a covariance matrix!")
+            t = tam * np.pi/(60. * 180.) 
 
-        if self.use_covmat:
-            if cov is None: cov = np.loadtxt(os.path.join(self.data_directory, self.covmat_file))
-            covred = cov[self.kmask.reshape((len(self.kmask), 1)), self.kmask]
+            N = des['nz_lens'].data.shape[0]
+
+            zdes = np.empty(shape=(N))
+            ndes = np.empty(shape=(Nbin,N))
+            for i, line in enumerate(des['nz_lens'].data):
+                zlow, zmid, zhigh, bin1, bin2, bin3, bin4, bin5 = line
+                zdes[i] = zmid
+                for j in range(Nbin): ndes[j,i] = line[3+j]/(zhigh-zlow)
+
+            for j in range(Nbin): ndes[j] /= np.trapz(ndes[j], x=zdes)
+
+            Nz = 200
+            zeff = np.array([0.24, 0.38, 0.525, 0.685, 0.83])
+
+            zz = np.empty(shape=(Nbin, Nz))
+            nz = np.empty(shape=(Nbin, Nz))
+
+            for i in range(Nbin):
+                zz[i] = np.linspace(zeff[i]-0.15, zeff[i]+0.15, Nz)
+                nz[i] = interp1d(zdes, ndes[i], kind='cubic')(zz[i])
+
+            tamin = self.config["xmin"]
+            tmask0 = np.argwhere((tam >= min(tamin)))[:,0]
+            self.tmask = np.concatenate([np.argwhere((tam >= tamin[i]))[:,0] + i*20 for i in range(Nbin)])
+            covred = cov[self.tmask.reshape((len(self.tmask), 1)), self.tmask]
             self.invcov = np.linalg.inv(covred)
+            ydata = wdes.reshape(-1)[self.tmask]
+            xdata = tam[tmask0]
+            self.chi2data = np.dot(ydata, np.dot(self.invcov, ydata))
+            self.invcovdata = np.dot(ydata, self.invcov)
 
-        self.chi2data = np.dot(self.ydata, np.dot(self.invcov, self.ydata))
-        self.invcovdata = np.dot(self.ydata, self.invcov)
+            self.config["skycut"] = Nbin
+            self.config["z"] = zeff
+            self.config["zz"] = zz
+            self.config["nz"] = nz
+            self.config["xdata"] = t
+            self.config["model"] = 0
+            self.config["multipole"] = 3
+            self.config["with_redshift_bin"] = True
+            self.config["with_resum"] = False 
+            self.config["with_stoch"] = False
+            self.config["with_exact_time"] = False
+            self.config["with_AP"] = False
+            self.config["with_derived_bias"] = False
 
-        self.kin = np.logspace(-5, 0, 200)
+            # shape: (Nbin * Nmarg, Nbin * Nmarg)
+            priormatdiag = []
+            for i in range(self.config["skycut"]): 
+                priormatdiag.append( np.diag(self.__set_prior(self.config["multipole"], model=self.config["model"])) )
+            priormatdiag = np.array(priormatdiag).reshape(-1)
+            self.priormat = np.diagflat(priormatdiag)
 
-        if self.Nl is 2:
-            try: 
-                if self.use_prior and self.priors is not None: 
-                    self.priors = np.array(self.priors)
-                    if self.model == 1: 
-                        b3, cct, cr1, ce2, sn = self.priors
-                        print ('EFT priors: b3: %s, cct: %s, cr1(+cr2): %s, ce2: %s, shotnoise: %s' % (b3, cct, cr1, ce2, sn) )
-                    elif self.model == 2: 
-                        b3, cct, cr1, ce2 = self.priors
-                        print ('EFT priors: b3: %s, cct: %s, cr1(+cr2): %s, ce2: %s' % (b3, cct, cr1, ce2) )
+        else:
+            self.x = []
+            self.xmask = []
+            self.ydata = []
+            self.chi2data = []
+            self.invcov = []
+            self.invcovdata = []
+            self.priormat = []
+
+            if self.config["skycut"] > 1:
+                self.config["zz"] = []
+                self.config["nz"] = []
+
+            self.xmax = 0.
+
+            for i in range(self.config["skycut"]):
+
+                if self.config.get("xmax") is None:
+                    xmax0 = self.config["xmax0"][i]
+                    xmax1 = self.config["xmax1"][i]
+                    xmax = max(xmax0, xmax1)
+                else:
+                    xmax = self.config["xmax"][i]
+                    xmax0 = None
+                    xmax1 = None
+
+                if self.xmax < xmax: self.xmax = xmax
+
+                if self.config["with_bao"]:
+                    baoH = self.config["baoH"][i]
+                    baoD = self.config["baoD"][i]
+                else:
+                    baoH = None
+                    baoD = None
+
+                xi, xmaski, ydatai, chi2datai, invcovi, invcovdatai = self.__load_data(
+                    self.config["multipole"], self.config["wedge"],
+                    self.data_directory, self.config["spectrum_file"][i], self.config["covmat_file"][i], 
+                    xmin=self.config["xmin"][i], xmax=xmax, xmax0=xmax0, xmax1=xmax1, with_bao=self.config["with_bao"], baoH=baoH, baoD=baoD)
+
+                priormati = self.__set_prior(self.config["multipole"], model=self.config["model"])
+
+                if self.config["with_redshift_bin"]: # BOSS
+                    try: 
+                        if "None" in self.config["density"][i]: 
+                            zz = [0.32]
+                            nz = None
+                        else:
+                            z, _, _, nz = np.loadtxt(os.path.join(self.data_directory, self.config["density"][i]), unpack=True)
+                            nz /= np.trapz(nz, x=z)
+                            zz = np.linspace(z[0], z[-1], 40)
+                            nz = interp1d(z, nz, kind='cubic')(zz)
+                        if self.config["skycut"] > 1:
+                            self.config["zz"].append(zz)
+                            self.config["nz"].append(nz)
+                        else: 
+                            self.config["zz"] = zz
+                            self.config["nz"] = nz
+                    except: raise Exception('galaxy count distribution: %s not found!' % self.config["density"][i])
+
+                # self.Nx.append(Nxi)
+                self.x.append(xi)
+                self.xmask.append(xmaski)
+                self.ydata.append(ydatai)
+                self.chi2data.append(chi2datai)
+                self.invcov.append(invcovi)
+                self.invcovdata.append(invcovdatai)
+                self.priormat.append(priormati)
+
+            # formatting configuration for pybird
+            self.config["xdata"] = self.x
+            if self.config["with_window"]:
+                if self.config["skycut"] > 1:
+                    self.config["windowPk"] = [os.path.join(self.data_directory, self.config["windowPk"][i]) for i in range(self.config["skycut"])]
+                    self.config["windowCf"] = [os.path.join(self.data_directory, self.config["windowCf"][i]) for i in range(self.config["skycut"])] 
                 else: 
-                    print ('EFT priors: none')
-                    self.use_prior = True
-                    if self.model == 1: self.priors = np.array([ 10., 10., 16., 10., 2.])
-                    elif self.model == 2: self.priors = np.array([ 10., 10., 16., 10. ])
-                    elif self.model == 3: self.priors = np.array([ 10., 10., 16., 10., 10. ])
-            except:
-                self.use_prior = True
-                if self.model == 1: 
-                    self.priors = np.array([ 2., 2., 8., 2., 2. ])
-                    b3, cct, cr1, ce2, sn = self.priors
-                    print ('EFT priors: b3: %s, cct: %s, cr1(+cr2): %s, ce2: %s, shotnoise: %s (default)' % (b3, cct, cr1, ce2, sn) )
-                elif self.model == 2: 
-                    self.priors = np.array([ 2., 2., 8., 2. ])
-                    b3, cct, cr1, ce2 = self.priors
-                    print ('EFT priors: b3: %s, cct: %s, cr1(+cr2): %s, ce2: %s (default)' % (b3, cct, cr1, ce2) )
-                elif self.model == 3: 
-                    self.priors = np.array([ 2., 2., 8., 2., 2. ])#np.array([ 10., 4., 8., 4., 2. ])
-                    b3, cct, cr1, ce2, ce1 = self.priors
-                    print ('EFT priors: b3: %s, cct: %s, cr1(+cr2): %s, ce2: %s, ce1: %s (default)' % (b3, cct, cr1, ce2, ce1) )
-                elif self.model == 4: 
-                    self.priors = np.array([ 2., 2., 8., 2., 2., 2. ])
-                    b3, cct, cr1, ce2, ce1, sn = self.priors
-                    print ('EFT priors: b3: %s, cct: %s, cr1(+cr2): %s, ce2: %s, ce1: %s, shotnoise: %s (default)' % (b3, cct, cr1, ce2, ce1, sn) )
-                elif self.model == 5:
-                    self.priors = np.array([ 2., 2., 8. ])
-                    b3, cct, cr1 = self.priors
-                    print ('EFT priors: b3: %s, cct: %s, cr1(+cr2): %s (default)' % (b3, cct, cr1) )
+                    self.config["windowPk"] = os.path.join(self.data_directory, self.config["windowPk"][i])
+                    self.config["windowCf"] = os.path.join(self.data_directory, self.config["windowCf"][i])
+            if "Pk" in self.config["output"]: self.config["kmax"] = self.xmax+0.05
+            try: self.config["with_exact_time"]
+            except: self.config["with_exact_time"] = False
+            try: self.config["with_assembly_bias"]
+            except: self.config["with_assembly_bias"] = False
 
-        elif self.Nl is 3:
-            try: 
-                if self.use_prior and self.priors is not None: 
-                    self.priors = np.array(self.priors)
-                    if self.model == 1: 
-                        b3, cct, cr1, cr2, ce2, sn = self.priors
-                        print ('EFT priors: b3: %s, cct: %s, cr1: %s, cr2: %s, ce2: %s, shotnoise: %s' % (b3, cct, cr1, cr2, ce2, sn) )
-                    elif self.model == 2: 
-                        b3, cct, cr1, cr2, ce2 = self.priors
-                        print ('EFT priors: b3: %s, cct: %s, cr1: %s, cr2: %s, ce2: %s' % (b3, cct, cr1, cr2, ce2) )
-                else: 
-                    print ('EFT priors: none')
-                    self.use_prior = True
-                    if self.model == 1: self.priors = np.array([ 10., 10., 10., 10., 10., 2.])
-                    elif self.model == 2: self.priors = np.array([ 10., 10., 10., 10., 10. ])
-                    elif self.model == 3: self.priors = np.array([ 10., 10., 10., 10., 10., 10. ])
-            except:
-                self.use_prior = True
-                if self.model == 1: 
-                    self.priors = np.array([ 2., 2., 4., 4., 2., 2. ])
-                    b3, cct, cr1, cr2, ce2, sn = self.priors
-                    print ('EFT priors: b3: %s, cct: %s, cr1: %s, cr2: %s, ce2: %s, shotnoise: %s (default)' % (b3, cct, cr1, cr2, ce2, sn) )
-                elif self.model == 2: 
-                    self.priors = np.array([ 2., 2., 4., 4., 2. ])
-                    b3, cct, cr1, ce2 = self.priors
-                    print ('EFT priors: b3: %s, cct: %s, cr1: %s, cr2: %s, ce2: %s (default)' % (b3, cct, cr1, cr2, ce2) )
-                elif self.model == 3: 
-                    self.priors = np.array([ 2., 2., 4., 4., 2., 2. ])#np.array([ 10., 4., 8., 4., 2. ])
-                    b3, cct, cr1, cr2, ce2, ce1 = self.priors
-                    print ('EFT priors: b3: %s, cct: %s, cr1: %s, cr2: %s, ce2: %s, ce1: %s (default)' % (b3, cct, cr1, cr2, ce2, ce1) )
-                elif self.model == 4: 
-                    self.priors = np.array([ 2., 2., 4., 4., 2., 2., 2. ])
-                    b3, cct, cr1, cr2, ce2, ce1, sn = self.priors
-                    print ('EFT priors: b3: %s, cct: %s, cr1: %s, cr2: %s, ce2: %s, ce1: %s, shotnoise: %s (default)' % (b3, cct, cr1, cr2, ce2, ce1, sn) )
+            print ("output: %s" % self.config["output"])
+            print ("multipole: %s" % self.config["multipole"])
+            print ("wedge: %s" % self.config["wedge"])
+            print ("skycut: %s" % self.config["skycut"])
 
-        self.priormat = np.diagflat(1./self.priors**2)
 
-        self.use_BBNprior = False
-        try: 
-            if self.omega_b_BBNsigma is not 0: 
-                self.use_BBNprior = True
-                print ('BBN prior on omega_b: on')
-            else: print ('BBN prior on omega_b: none')
-        except:
+        # BBN prior?
+        if self.config["with_bbn"] and self.config["omega_b_BBNcenter"] is not None and self.config["omega_b_BBNsigma"] is not None: 
+            print ('BBN prior on omega_b: on')
+        else: 
+            self.config["with_bbn"] = False
             print ('BBN prior on omega_b: none')
 
-    def __load_data(self):
-        """
-        Helper function to read in the full data vector.
-        """
-        #print("Load data?")
-        fname = os.path.join(self.data_directory, self.data_file)
+        # setting pybird correlator configuration
+        self.correlator = pb.Correlator()
+        self.correlator.set(self.config)
+
+        # setting classy for pybird
+        self.need_cosmo_arguments(data, {'output': 'mPk', 'z_max_pk': max(self.config["z"]), 'P_k_max_h/Mpc': 1.})
+        self.kin = np.logspace(-5, 0, 200)
+
+    def bias_array_to_dict(self, bs): 
+        if self.config["with_stoch"]:
+            if self.config["multipole"] == 2: bdict = { "b1": bs[0], "b2": bs[1], "b3": bs[2], "b4": bs[3], "cct": bs[4], "cr1": bs[5], "ce0": bs[7], "ce1": bs[8], "ce2": bs[9] }
+            elif self.config["multipole"] == 3: bdict = { "b1": bs[0], "b2": bs[1], "b3": bs[2], "b4": bs[3], "cct": bs[4], "cr1": bs[5], "cr2": bs[6], "ce0": bs[7], "ce1": bs[8], "ce2": bs[9] }
+        else: 
+            if self.config["multipole"] == 2: bdict = { "b1": bs[0], "b2": bs[1], "b3": bs[2], "b4": bs[3], "cct": bs[4], "cr1": bs[5] }
+            elif self.config["multipole"] == 3: bdict = { "b1": bs[0], "b2": bs[1], "b3": bs[2], "b4": bs[3], "cct": bs[4], "cr1": bs[5], "cr2": bs[6] }
+
+        if self.config["with_assembly_bias"]: bdict["bq"] = bs[-1]
+        
+        return bdict
+
+    def bias_custom_to_all(self, bs):
+        return [bs[0], bs[1]/np.sqrt(2.), 0., bs[1]/np.sqrt(2.), 0., 0., 0., 0., 0., 0., bs[-1] ]
+
+    def loglkl(self, cosmo, data):
+
+        if self.config["with_derived_bias"]: data.derived_lkl = {}
+        
+        if data.need_cosmo_update is True: self.correlator.compute(self.__set_cosmo(cosmo, data))
+        else: pass
+
+        bval = np.array([data.mcmc_parameters[k]['current'] * data.mcmc_parameters[k]['scale'] for k in self.use_nuisance])
+        bval = bval.reshape(self.config["skycut"],-1)
+        bdict = np.array([self.bias_array_to_dict(self.bias_custom_to_all(bs)) for bs in bval])
+        b1 = np.array([ bval[i,0] for i in range(self.config["skycut"]) ])
+
+        correlator = self.correlator.get(bdict)
+        marg_correlator = self.correlator.getmarg(b1, model=self.config["model"])
+
+        chi2 = 0.
+
+        if "w" in self.config["output"]:
+            modelX = np.asarray(correlator).reshape(-1)[self.tmask]
+            Pi = block_diag(*marg_correlator)[:,self.tmask]
+
+            chi2 += self.__get_chi2(modelX, Pi, self.invcov, self.invcovdata, self.chi2data, self.priormat, data)
+
+        else:
+            for i in range(self.config["skycut"]):
+
+                if self.config["skycut"] is 1: modelX = correlator.reshape(-1)
+                elif self.config["skycut"] > 1: modelX = correlator[i].reshape(-1)
+                
+                if self.config["with_bao"]: # BAO
+                    DM_at_z = cosmo.angular_distance(self.config["zbao"][i]) * (1. + self.config["zbao"][i])
+                    H_at_z = cosmo.Hubble(self.config["zbao"][i]) * conts.c / 1000.0
+                    rd = cosmo.rs_drag() * self.config["rs_rescale"][i]
+                    theo_DM_rdfid_by_rd_in_Mpc = DM_at_z / rd * self.config["rd_fid_in_Mpc"][i]
+                    theo_H_rd_by_rdfid = H_at_z * rd / self.config["rd_fid_in_Mpc"][i]
+                    modelX = np.concatenate((modelX, [theo_H_rd_by_rdfid, theo_DM_rdfid_by_rd_in_Mpc]))
+                
+                modelX = modelX[self.xmask[i]]
+
+                if self.config["skycut"] is 1: Pi = self.__get_Pi_for_marg(marg_correlator, self.xmask[i])
+                elif self.config["skycut"] > 1: Pi = self.__get_Pi_for_marg(marg_correlator[i], self.xmask[i])
+                
+                chi2 += self.__get_chi2(modelX, Pi, self.invcov[i], self.invcovdata[i], self.chi2data[i], self.priormat[i], data, isky=i)
+
+        prior = 0.
+        if self.config["with_bbn"]:
+            prior += -0.5 * ((data.cosmo_arguments['omega_b'] - self.config["omega_b_BBNcenter"]) / self.config["omega_b_BBNsigma"])**2
+
+        if "w" in self.config["output"]:
+            prior += -0.5 * ((data.mcmc_parameters['ln10^{10}A_s']['current'] * data.mcmc_parameters['ln10^{10}A_s']['scale'] - 2.84) / 0.2)**2
+
+        lkl = - 0.5 * chi2 + prior
+
+        return lkl
+
+    def __get_chi2(self, modelX, Pi, invcov, invcovdata, chi2data, priormat, data, isky=0):
+
+        Covbi = np.dot(Pi, np.dot(invcov, Pi.T)) + priormat
+        Cinvbi = np.linalg.inv(Covbi)
+        vectorbi = np.dot(modelX, np.dot(invcov, Pi.T)) - np.dot(invcovdata, Pi.T)
+        chi2nomar = np.dot(modelX, np.dot(invcov, modelX)) - 2. * np.dot(invcovdata, modelX) + chi2data
+        chi2mar = - np.dot(vectorbi, np.dot(Cinvbi, vectorbi)) + np.log(np.abs(np.linalg.det(Covbi)))
+        chi2tot = chi2mar + chi2nomar - priormat.shape[0] * np.log(2. * np.pi)
+
+        if self.config["with_derived_bias"]:
+            bg = - np.dot(Cinvbi, vectorbi)
+            Ng = len(bg)
+            for i, elem in enumerate(data.get_mcmc_parameters(['derived_lkl'])):
+                if i >= isky * Ng and i < (isky+1) * Ng:
+                    data.derived_lkl[elem] = bg[i - isky * Ng]
+
+        return chi2tot
+
+    def __get_Pi_for_marg(self, marg_correlator, xmask):
+
+        Pi = marg_correlator
+
+        if self.config["with_bao"]: # BAO
+            newPi = np.zeros(shape=(Pi.shape[0], Pi.shape[1]+2))
+            newPi[:Pi.shape[0], :Pi.shape[1]] = Pi
+            Pi = 1.*newPi
+
+        Pi = Pi[:,xmask]
+
+        return Pi
+
+    def __set_cosmo(self, M, data):
+
+        zfid = self.config["z"][0]
+
+        cosmo = {}
+
+        cosmo["k11"] = self.kin # k in h/Mpc
+        cosmo["P11"] = [M.pk(k*M.h(), zfid)*M.h()**3 for k in self.kin] # P(k) in (Mpc/h)**3
+
+        if self.config["skycut"] == 1:
+            #if self.config["multipole"] is not 0: 
+            cosmo["f"] = M.scale_independent_growth_factor_f(zfid)
+            if self.config["with_exact_time"]: 
+                    cosmo["z"] = self.config["z"][0]
+                    cosmo["Omega0_m"] = M.Omega0_m()
+                    try: cosmo["w0_fld"] = data.cosmo_arguments['w0_fld']
+                    except: pass
+
+            if self.config["with_AP"]:
+                cosmo["DA"] = M.angular_distance(zfid) * M.Hubble(0.)
+                cosmo["H"] = M.Hubble(zfid) / M.Hubble(0.)
+
+        elif self.config["skycut"] > 1:
+            #if self.config["multipole"] is not 0: 
+            cosmo["f"] = np.array([M.scale_independent_growth_factor_f(z) for z in self.config["z"]])
+            cosmo["D"] = np.array([M.scale_independent_growth_factor(z) for z in self.config["z"]])
+            
+            if self.config["with_AP"] and not self.config["with_redshift_bin"]:
+                cosmo["DA"] = np.array([M.angular_distance(z) * M.Hubble(0.) for z in self.config["z"]])
+                cosmo["H"] = np.array([M.Hubble(z) / M.Hubble(0.) for z in self.config["z"]])
+
+        if self.config["with_redshift_bin"]:
+            if self.config["skycut"] == 1:
+                cosmo["D"] = M.scale_independent_growth_factor(zfid)
+                
+                cosmo["Dz"] = np.array([M.scale_independent_growth_factor(z) for z in self.config["zz"]])
+                cosmo["fz"] = np.array([M.scale_independent_growth_factor_f(z) for z in self.config["zz"]])
+
+                if self.config["with_AP"]:
+                    cosmo["DAz"] = np.array([M.angular_distance(z) * M.Hubble(0.) for z in self.config["zz"]])
+                    cosmo["Hz"] = np.array([M.Hubble(z) / M.Hubble(0.) for z in self.config["zz"]])
+
+                    #cosmo["DA"] = np.array([M.angular_distance(z) * M.Hubble(0.) for z in self.config["z"]])
+                    #cosmo["H"] = np.array([M.Hubble(z) / M.Hubble(0.) for z in self.config["z"]])
+
+            elif self.config["skycut"] > 1:
+                cosmo["Dz"] = np.array([ [M.scale_independent_growth_factor(z) for z in zz] for zz in self.config["zz"] ])
+                cosmo["fz"] = np.array([ [M.scale_independent_growth_factor_f(z) for z in zz] for zz in self.config["zz"] ])
+
+                if self.config["with_AP"]:
+                    cosmo["DAz"] = np.array([ [M.angular_distance(z) * M.Hubble(0.) for z in zz] for zz in self.config["zz"] ])
+                    cosmo["Hz"] = np.array([ [M.Hubble(z) / M.Hubble(0.)  for z in zz] for zz in self.config["zz"] ])
+
+                    cosmo["DA"] = np.array([M.angular_distance(z) * M.Hubble(0.) for z in self.config["z"]])
+                    cosmo["H"] = np.array([M.Hubble(z) / M.Hubble(0.) for z in self.config["z"]])
+
+        if "w" in self.config["output"]:
+            def comoving_distance(z): return M.angular_distance(z)*(1+z)*M.h()
+            if self.config["skycut"] is 1: cosmo["rz"] = np.array([comoving_distance(z) for z in self.config["zz"]])
+            elif self.config["skycut"] > 1: cosmo["rz"] = np.array([ [comoving_distance(z) for z in zz] for zz in self.config["zz"] ])
+
+        return cosmo
+
+    def __load_data(self, multipole, wedge, data_directory, spectrum_file, covmat_file, xmin, xmax=None, xmax0=None, xmax1=None, xmaxspacing='default', with_bao=False, baoH=None, baoD=None):
+        
+        #cov = None
+        #try: 
+        xdata, ydata = self.__load_spectrum(data_directory, spectrum_file) # read values of k (in h/Mpc)
+        #except: xdata, ydata, cov = self.__load_gaussian_spectrum(data_directory, spectrum_file) # with gaussian case: column 1: k[h/Mpc]  column 2-N+2: signal  column N+3-2N+2: error
+        
+        if wedge is not 0:
+            x = xdata.reshape(wedge,-1)[0]
+            Nx = len(x)
+
+            if xmax0 is not None and xmax1 is not None:
+                xmax = max(xmax0, xmax1)
+            elif xmax is not None:
+                xmax0 = xmax
+                xmax1 = xmax
+
+            xmask0 = np.argwhere((x <= xmax0) & (x >= xmin))[:,0]
+            xmask = xmask0
+
+            if 'linear' in xmaxspacing: 
+                dxmax = (xmax1-xmax0)/(wedge-1.)
+                for i in range(wedge-1):
+                    xmaski = np.argwhere((x <= xmax0 + (i+1)*dxmax) & (x >= xmin))[:,0] + (i+1)*Nx
+                    xmask = np.concatenate((xmask, xmaski))
+            else: 
+                print ('youhou new wedge')
+                def get_xmax(k0, k1, N=wedge):
+                    a = ((k0 - k1)*(-1 + 2*N)**2)/(16.*(-1 + N)*N**3)
+                    b = -(k0 - k1 + 4*k1*N - 4*k1*N**2)/(4.*(-1 + N)*N)
+                    mu = (np.arange(0, N, 1)+0.5)/N
+                    return a / mu**2 + b
+                xmaxs = get_xmax(xmax0, xmax1)
+                for i, xmaxi in enumerate(xmaxs[1:]):
+                    xmaski = np.argwhere((x <= xmaxi) & (x >= xmin))[:,0] + (i+1)*Nx
+                    xmask = np.concatenate((xmask, xmaski))
+                
+        elif multipole is not 0:
+            x = xdata.reshape(3,-1)[0]
+            Nx = len(x)
+            xmask0 = np.argwhere((x <= xmax) & (x >= xmin))[:,0]
+            xmask = xmask0
+            for i in range(multipole-1):
+                xmaski = np.argwhere((x <= xmax) & (x >= xmin))[:,0] + (i+1)*Nx
+                xmask = np.concatenate((xmask, xmaski))
+
+        xdata = x[xmask0]
+        ydata = ydata[xmask]
+
+        # BAO
+        if with_bao and baoH is not None and baoD is not None:
+            ydata = np.concatenate((ydata, [baoH, baoD]))
+            xmask = np.concatenate(( xmask, [-2, -1] ))
+            print ("BAO recon: on")
+        else: print ("BAO recon: none")
+
+        #if cov is None: 
+        cov = np.loadtxt(os.path.join(data_directory, covmat_file))
+        covred = cov[xmask.reshape((len(xmask), 1)), xmask]
+        invcov = np.linalg.inv(covred)
+
+        chi2data = np.dot(ydata, np.dot(invcov, ydata))
+        invcovdata = np.dot(ydata, invcov)
+
+        return x, xmask, ydata, chi2data, invcov, invcovdata
+
+    def __load_spectrum(self, data_directory, spectrum_file):
+        fname = os.path.join(data_directory, spectrum_file)
         try: kPS, PSdata, _ = np.loadtxt(fname, unpack=True)
         except: kPS, PSdata = np.loadtxt(fname, unpack=True)
         return kPS, PSdata
 
-    def __load_gaussian_data(self):
+    def __load_gaussian_spectrum(self, data_directory, spectrum_file):
         """
         Helper function to read in the full data vector with gaussian error:
         column 1: k[h/Mpc]  column 2-N+2: signal  column N+3-2N+2: error
         """
-        if self.Nw is 0: Nd = self.Nl
-        else: Nd = self.Nl
-        raw = np.loadtxt(os.path.join(self.data_directory, self.data_file)).T
+        if self.config["wedge"] == 0: Nd = self.config["multipole"]
+        else: Nd = self.config["wedge"]
+        raw = np.loadtxt(os.path.join(data_directory, spectrum_file)).T
         k = raw[0]
         allk = np.concatenate([k for i in range(Nd)])
         allPS = np.concatenate([raw[1+i] for i in range(Nd)])
@@ -2859,447 +3092,57 @@ class Likelihood_eft(Likelihood):
         #kPS = np.vstack([allkpt, allwpt]).T
         return allk, allPS, cov
 
-class Likelihood_bird(Likelihood_eft):
+    def __set_prior(self, multipole, model=5):
 
-    def __init__(self, path, data, command_line):
+        if model == 0:
+            priors = np.array([ 2., 2.])
+            b3, cct = priors
+            print ('EFT priors: b3: %s, cct: %s (default)' % (b3, cct) )
         
-        Likelihood_eft.__init__(self, path, data, command_line)
-
-        self.need_cosmo_arguments(data, {'output': 'mPk', 'z_max_pk': self.z, 'P_k_max_h/Mpc': 1.})
-
-        print ("-- bird settings --")
-
-        # Power spectrum or correlation function?
-        self.smax = None
-        try:
-            if self.cf: 
-                print ("Correlation function analysis")
-                self.smax = 1000.
-            else: print ("Power spectrum analysis")
-        except:
-            self.cf = False
-            print ("Power spectrum analysis (default)")
-
-        # Multipoles or wedges?
-        self.use_wedge = False
-        try:
-            if self.Nw is 0: print ("multipoles: " % self.Nl)
-            else:
-                self.use_wedge = True
-                print("wedges: %s" % self.Nw)
-        except:
-            self.Nw = 0
-            print("multipoles: %s" % self.Nl)
-
-        # try:
-        #     if self.birdNl > self.Nl: print("%s multipoles analyzed but Bird evaluates %s multipoles: good for resummation!" % (self.birdNl, self.Nl))
-        #     elif self.birdNl == self.Nl: pass
-        #     else: self.birdNl = self.Nl # PyBird cannot evaluate less multipoles than the ones analyzed
-        # except:
-        #     self.birdNl = self.Nl
-
-        # Redshift
-        try: 
-            if self.zAP != self.z: 
-                print ('Effective redshift: %s, AP redshift: %s'%(self.z, self.zAP))  
-            else: 
-                self.zAP = self.z
-                print ('Effective redshift: %s'%(self.z))
-        except: 
-            self.zAP = self.z
-            print ('Effective redshift: %s'%(self.z))
-
-        # Full or marginalized likelihood?
-        try:
-            if self.birdlkl is 'full': print ('bird lkl: full')
-            elif self.birdlkl is 'marg': print ('bird lkl: marg')
-            elif self.birdlkl is 'fastfull': print ('bird lkl: fast full')
-            elif self.birdlkl is 'fastmarg': print ('bird lkl: fast marg')
-            else: 
-                self.birdlkl = 'fastmarg'
-                print ('bird lkl: fast marg')
-        except:
-            self.birdlkl = 'fastmarg'
-            print ('bird lkl: fast marg (default)')
-
-        # Full or optimized resummation?
-        try: 
-            if self.optiresum is True: print ('resummation: optimized')
-            else: 
-                self.optiresum = False
-                print ('resummation: full')
-        except: 
-            if self.cf: 
-                self.optiresum = True
-                print ('resummation: optimized (default)')
-            else:
-                self.optiresum = False
-                print ('resummation: full (default)')
-
-        # Mask?
-        try:
-            self.path_to_window = os.path.join(self.data_directory, self.path_to_window)
-            self.window_configspace_file = os.path.join(self.path_to_window, self.window_configspace_file)
-            test = np.loadtxt(self.window_configspace_file)
-            if self.cf: self.window_fourier_name = None
-            if self.use_window: print("Mask: on")
-            else: print("Mask: none")
-        except:
-            print("Mask: none")
-            self.window_fourier_name = None
-            self.path_to_window = None
-            self.window_configspace_file = None
-            self.use_window = False
-
-        # Fiber collision correction?
-        try:
-            if self.fibcol_window: print ("fiber collision window: on")
-            else: 
-                self.fibcol_window = False
-                print ("fiber collision window: none")
-        except:
-            self.fibcol_window = False
-            print("fiber collision window: none")
-
-        # Binning?
-        try:
-            if self.binning: print ("k-binning: on")
-            else: print ("k-binning: none") 
-        except: 
-            self.binning = False
-            print ("k-binning: none")
-        
-        # PyBird engines instanciation
-        self.co = pb.Common(Nl=self.Nl, kmax=self.kmax+0.05, smax=self.smax, optiresum = self.optiresum)
-        self.nonlinear = pb.NonLinear(load=True, save=True, co=self.co)
-        self.resum = pb.Resum(co=self.co)
-        self.projection = pb.Projection(self.k, self.Om_AP, self.zAP, cf=self.cf, 
-            window_fourier_name=self.window_fourier_name, path_to_window=self.path_to_window, window_configspace_file=self.window_configspace_file,
-            binning=self.binning, fibcol=self.fibcol_window, Nwedges=self.Nw, co=self.co)
-        
-        self.bird = None
-        print("-- bird loaded --")
-
-    def loglkl(self, cosmo, data):
-
-        bval = [data.mcmc_parameters[k]['current'] * data.mcmc_parameters[k]['scale'] for k in self.use_nuisance]
-
-        b1 = bval[0]
-        b2 = (bval[1] + bval[3]) / np.sqrt(2.)
-        b4 = (bval[1] - bval[3]) / np.sqrt(2.)
-        bs = [b1, b2, bval[2], b4, bval[4]/self.knl**2, bval[5]/self.km**2, 0.]
-
-        if self.birdlkl is 'fastmarg' or self.birdlkl is 'fastfull':
-            if data.need_cosmo_update is True or self.bird is None: 
-                plin = [cosmo.pk(ki*cosmo.h(), self.z)*cosmo.h()**3 for ki in self.kin]
-
-                DA = cosmo.angular_distance(self.z) * cosmo.Hubble(0.)
-                H = cosmo.Hubble(self.z) / cosmo.Hubble(0.)
-                f = cosmo.scale_independent_growth_factor_f(self.z)
-                
-                self.bird = pb.Bird(self.kin, plin, f, DA, H, self.z, which='all', co=self.co)
-                self.nonlinear.PsCf(self.bird)
-                self.bird.setPsCfl()
-                if self.cf: self.resum.PsCf(self.bird)
-                else: self.resum.Ps(self.bird)
-                self.projection.AP(self.bird)
-                if self.use_window: self.projection.Window(self.bird)
-                if self.fibcol_window: self.projection.fibcolWindow(self.bird)
-                if self.use_wedge: self.projection.Wedges(self.bird) 
-                if self.binning: self.projection.kbinning(self.bird)
-                else: self.projection.kdata(self.bird)
-
-                #print ('update')
-            else: pass
-                #print ('pass')
-
-            if self.cf: self.bird.setreduceCflb(bs)
-            else: self.bird.setreducePslb(bs)
-
-            if self.birdlkl is 'fastmarg':
-                if self.cf: self.bird.Cb3 = self.bird.Cloopl[:,3] + b1 * self.bird.Cloopl[:,7]
-                else: self.bird.Pb3 = self.bird.Ploopl[:,3] + b1 * self.bird.Ploopl[:,7]
-
-            if self.birdlkl is 'fastfull' and not self.cf:
-                self.bird.fullPs[0] += bval[7] / self.nd + bval[8] / self.nd / self.km**2 * self.k**2
-                self.bird.fullPs[1] += bval[9] / self.nd / self.km**2 * self.k**2
-
-        ### DEPRECIATED
-        # elif self.birdlkl is 'marg': 
-        #     plin = [cosmo.pk(ki*cosmo.h(), self.z)*cosmo.h()**3 for ki in self.kin]
-        #     self.bird = pb.Bird(self.kin, plin, cosmo.Omega_m(), self.z, which='marg', co=self.co)
-        #     self.nonlinear.PsCf(self.bird)
-        #     self.bird.setmargPsCfl(bs) # giving here b1, b2 (b4)
-        #     self.resum.Ps(self.bird)
-        #     self.projection.AP(self.bird)
-        #     if self.use_window is True: self.projection.Window(self.bird)
-            
-        # elif self.birdlkl is 'full':
-        #     plin = [cosmo.pk(ki*cosmo.h(), self.z)*cosmo.h()**3 for ki in self.kin]
-        #     self.bird = pb.Bird(self.kin, plin, cosmo.Omega_m(), self.z, which='full', co=self.co)
-        #     self.nonlinear.PsCf(self.bird)
-        #     self.bird.setPsCf(bs)
-        #     self.resum.Ps(self.bird)
-        #     self.bird.fullPs[0] += bval[7] + bval[8] / self.nd / self.km**2 * self.kin**2
-        #     self.bird.fullPs[1] += bval[9] / self.nd / self.km**2 * self.kin**2
-        #     self.projection.AP(self.bird)
-        #     if self.use_window is True: self.projection.Window(self.bird)
-
-        if self.cf: modelX = self.bird.fullCf.reshape(-1)
-        else: modelX = self.bird.fullPs.reshape(-1)
-        
-        if self.with_bao: # BAO
-            DM_at_z = cosmo.angular_distance(self.zbao) * (1. + self.zbao)
-            H_at_z = cosmo.Hubble(self.zbao) * conts.c / 1000.0
-            rd = cosmo.rs_drag() * self.rs_rescale
-
-            theo_DM_rdfid_by_rd_in_Mpc = DM_at_z / rd * self.rd_fid_in_Mpc
-            theo_H_rd_by_rdfid = H_at_z * rd / self.rd_fid_in_Mpc
-
-            modelX = np.concatenate((modelX, [theo_H_rd_by_rdfid, theo_DM_rdfid_by_rd_in_Mpc]))
-        
-        modelX = modelX[self.kmask]
-
-        if 'marg' in self.birdlkl:
-            if self.cf: Pi = self.__get_Pi_for_marg(self.bird.Cctl, self.bird.Cb3, b1, self.bird.f, model=self.model)
-            else: Pi = self.__get_Pi_for_marg(self.bird.Pctl, self.bird.Pb3, b1, self.bird.f, model=self.model)
-            Covbi = np.dot(Pi, np.dot(self.invcov, Pi.T)) + self.priormat
-            Cinvbi = np.linalg.inv(Covbi)
-            vectorbi = np.dot(modelX, np.dot(self.invcov, Pi.T)) - np.dot(self.invcovdata, Pi.T)
-            chi2nomar = (np.dot(modelX, np.dot(self.invcov, modelX)) - 2. * np.dot(self.invcovdata, modelX) + self.chi2data)
-            chi2mar = -np.dot(vectorbi, np.dot(Cinvbi, vectorbi)) + np.log(np.abs(np.linalg.det(Covbi)))
-            chi2 = chi2mar + chi2nomar - self.priors.shape[0] * np.log(2. * np.pi)
-
-        elif 'full' in self.birdlkl:
-            chi2 = np.dot(modelX - self.ydata, np.dot(self.invcov, modelX - self.ydata))
-        
-        #### BE CAREFUL HERE NO PRIOR IMPLEMENTED FOR Nl=3 ONLY FOR Nl=2
-        if self.use_prior:
-            prior = - 0.5 * (  
-                               (bval[1] / 10.)**2                                    # c2
-                             + (bval[3] / 2.)**2                                     # c4
-                             + (bval[2] / self.priors[0])**2                         # b3
-                             + (bval[4] / self.knl**2 / self.priors[1])**2           # cct
-                             + (bval[5] / self.km**2 / self.priors[2])**2            # cr1(+cr2)
-                             )
-            if self.model <= 4: prior += 0.5 * (bval[9] / self.nd / self.km**2 / self.priors[3])**2  # ce,l2
-            if self.model == 1: prior += -0.5 * (bval[7] / self.nd / self.priors[4])**2               # ce0
-            if self.model == 3: prior += -0.5 * (bval[8] / self.nd / self.km**2 / self.priors[4])**2 # ce,l0
-
-        if self.use_BBNprior: 
-            prior += -0.5 * ((data.cosmo_arguments['omega_b'] - self.omega_b_BBNcenter) / self.omega_b_BBNsigma)**2
-
-        lkl = - 0.5 * chi2 + prior
-
-        return lkl
-
-    def __get_Pi_for_marg(self, Pct, Pb3, b1, f, model=2):
-
-        if self.Nl is 2:
-            Pi = np.array([ 
-                            Pb3.reshape(-1),                                          # *b3
-                            (2*f*Pct[:,0+3]+2*b1*Pct[:,0]).reshape(-1) / self.knl**2, # *cct
-                            (2*f*Pct[:,1+3]+2*b1*Pct[:,1]).reshape(-1) / self.km**2  # *cr1
-                            #(2*f*Pct[:,2+3]+2*b1*Pct[:,2]) / self.km**2 ,# *cr2
-                            #kp2l2                                        # *ce,l2
-                        ])
-
-        elif self.Nl is 3:
-            Pi = np.array([ 
-                        Pb3.reshape(-1),                                          # *b3
-                        (2*f*Pct[:,0+3]+2*b1*Pct[:,0]).reshape(-1) / self.knl**2, # *cct
-                        (2*f*Pct[:,1+3]+2*b1*Pct[:,1]).reshape(-1) / self.km**2 , # *cr1
-                        (2*f*Pct[:,2+3]+2*b1*Pct[:,2]).reshape(-1) / self.km**2  # *cr2
-                        #kp2l2                                         # *ce,l2
-                    ])
-
-        if model <= 4:
-            kp2l2 = np.zeros(shape=(self.Nl, self.Nk))
-            kp2l2[1] = self.k**2 / self.nd / self.km**2 # k^2 quad
-            if self.use_wedge: kp2l2 = self.Projection.Wedges_external(kp2l2)
-            Pi = np.vstack([Pi, kp2l2.reshape(-1)])
-
-        if model == 1: 
-            Onel0 = np.zeros(shape=(self.Nl, self.Nk))
-            Onel0[0] = np.ones(self.Nk) / self.nd # shot-noise mono
-            if self.use_wedge: Onel0 = self.projection.Wedges_external(Onel0)
-            Pi = np.vstack([Pi, Onel0.reshape(-1)])
-        elif model == 3:
-            kp2l0 = np.zeros(shape=(self.Nl, self.Nk))
-            kp2l0[0] = self.k**2 / self.nd / self.km**2 # k^2 mono
-            if self.use_wedge: kp2l0 = self.projection.Wedges_external(kp2l0)
-            Pi = np.vstack([Pi, kp2l0.reshape(-1)])
-        elif model == 4:
-            kp2l0 = np.zeros(shape=(self.Nl, self.Nk))
-            kp2l0[0] = self.k**2 / self.nd / self.km**2 # k^2 mono
-            Onel0 = np.zeros(shape=(self.Nl, self.Nk))
-            Onel0[0] = np.ones(self.Nk) / self.nd # shot-noise mono
-            if self.use_wedge: kp2l0 = self.projection.Wedges_external(kp2l0)
-            Pi = np.vstack([Pi, kp2l0.reshape(-1), Onel0.reshape(-1)])
-
-        if self.with_bao: # BAO
-            newPi = np.zeros(shape=(Pi.shape[0], Pi.shape[1]+2))
-            newPi[:Pi.shape[0], :Pi.shape[1]] = Pi
-            Pi = 1.*newPi
-
-        Pi = Pi[:,self.kmask]
-
-        return Pi
-
-
-
-
-
-
-class Likelihood_taylor(Likelihood_eft):
-
-    def __init__(self, path, data, command_line):
-        
-        Likelihood_eft.__init__(self, path, data, command_line)
-        
-        self.linder = np.load(os.path.abspath(
-                              os.path.join(self.data_directory, self.gridpath, 'DerPlin%s.npy' % self.gridname)), allow_pickle=True)
-        self.loopder = np.load(os.path.abspath(
-                               os.path.join(self.data_directory, self.gridpath, 'DerPloop%s.npy' % self.gridname)), allow_pickle=True)
-
-        print("End of initialization")
-
-    def loglkl(self, cosmo, data, marg_gaussian=True):
-
-        try:
-            mnu = [float(m) for m in data.cosmo_arguments['m_ncdm'].split(', ')]
-            mtot = np.sum(mnu)
-
-            dtheta = np.array((data.cosmo_arguments['A_s'] - self.central[0],
-                               data.cosmo_arguments['h'] - self.central[1],
-                               data.cosmo_arguments['omega_cdm'] - self.central[2],
-                               data.cosmo_arguments['omega_b'] - self.central[3],
-                               data.cosmo_arguments['n_s'] - self.central[4],
-                               mtot - self.central[5]
-                               ))
-        except:
-            dtheta = np.array((data.cosmo_arguments['A_s'] - self.central[0],
-                   data.cosmo_arguments['h'] - self.central[1],
-                   data.cosmo_arguments['omega_cdm'] - self.central[2],
-                   data.cosmo_arguments['omega_b'] - self.central[3],
-                   data.cosmo_arguments['n_s'] - self.central[4]
-                   ))
-
-
-        Plin = self.__get_PSTaylor(dtheta, self.linder)
-        Ploop = self.__get_PSTaylor(dtheta, self.loopder)
-
-        kfull = Plin[0, :, 0]
-        Plin = np.swapaxes(Plin.reshape(2, len(kfull), Plin.shape[-1]), axis1=1, axis2=2)[:, 1:, :]
-        Ploop = np.swapaxes(Ploop.reshape(2, len(kfull), Ploop.shape[-1]), axis1=1, axis2=2)[:, 1:, :]
-        bval = [data.mcmc_parameters[k]['current'] for k in self.use_nuisance]
-        modelX = self.__computePS(bval, Plin, Ploop, kfull).reshape(-1)
-
-        if marg_gaussian:
-            Pi = self.__get_Pi_for_marg(Ploop, kfull, bval[0], model=self.model)
-            Pi = Pi.reshape((Pi.shape[0], -1))
-            Covbi = self.get_Covbi_for_marg(Pi, self.invcov)
-            Cinvbi = np.linalg.inv(Covbi)
-            vectorbi = np.dot(modelX, np.dot(self.invcov, Pi.T)) - np.dot(self.invcovdata, Pi.T)
-            chi2nomar = (np.dot(modelX, np.dot(self.invcov, modelX)) -
-                         2. * np.dot(self.invcovdata, modelX) + self.chi2data)
-            chi2mar = -np.dot(vectorbi, np.dot(Cinvbi, vectorbi)) + np.log(np.linalg.det(Covbi))
-            chi2 = chi2mar + chi2nomar - 5 * np.log(2. * np.pi)
-        else:
-            chi2 = np.dot(modelX - self.ydata, np.dot(self.invcov, modelX - self.ydata))
-
-        # return ln(L)
-        if self.use_prior:
-            prior = - 0.5 * (
-                             (bval[2] / 2.)**2 + (bval[3] / 2.)**2 +
-                             (bval[4] / 2.)**2 + (bval[5] / 8.)**2 +
-                             (bval[6] / 4.)**2 + (bval[7] / 400.)**2 +
-                             (bval[9] / 2.)**2 
-                             )
-        else:
-            prior = -0.5 * ( (bval[9] / 10.)**2 )
-
-        if self.use_BBNprior: 
-            prior += -0.5 * ((data.cosmo_arguments['omega_b'] - self.omega_b_BBNcenter) / self.omega_b_BBNsigma)**2
-        
-        lkl = - 0.5 * chi2 + prior
-
-        return lkl
-
-    def __computePS(self, cvals, plin, ploop, setkin):
-        plin0, plin2 = plin
-        ploop0, ploop2 = ploop[:, :18, :]
-        b1, c2, b3, c4, b5, b6, b7, b8, b9, b10 = cvals
-
-        b2 = (c2 + c4) / np.sqrt(2.)
-        b4 = (c2 - c4) / np.sqrt(2.)
-
-        # the columns of the Ploop data files.
-        cvals = np.array([1, b1, b2, b3, b4, b1 * b1, b1 * b2, b1 * b3, b1 * b4, b2 * b2, b2 * b4, b4 * b4,
-                          b1 * b5 / self.knl**2, b1 * b6 / self.km**2, b1 * b7 / self.km**2,
-                          b5 / self.knl**2, b6 / self.km**2, b7 / self.km**2])
-
-        kmask = np.where((setkin >= self.kmin) & (setkin <= self.kmax))[0]
-        km = self.knl
-
-        P0 = (np.dot(cvals, ploop0) +
-              plin0[0] + b1 * plin0[1] + b1 * b1 * plin0[2] +
-              b8 / self.nd + b9 / self.nd / km**2 * setkin**2)
-        P2 = (np.dot(cvals, ploop2) +
-              plin2[0] + b1 * plin2[1] + b1 * b1 * plin2[2] +
-              b10 / self.nd / km**2 * setkin**2)
-        # P4 = (np.dot(cvals, ploop4) +
-        #       plin4[0] + b1 * plin4[1] + b1 * b1 * plin4[2]
-        #       + e3 * (b1 * ploop4e1b1 + ploop4e1))
-
-        # if Puncorr is not 0:
-        #    P0 += Puncorr[0]
-        #    P2 += Puncorr[1]
-
-        return np.array([P0[kmask], P2[kmask]])
-
-    def __get_Pi_for_marg(self, Ploop, kfull, b1, model=2, withBisp=False):
-        nk = len(kfull)
-        ploop0, ploop2 = Ploop[:, :18, :]
-        if model == 1:
-            Onel0 = np.array([np.ones(nk), np.zeros(nk)])
-            kl2 = np.array([np.zeros(nk), kfull])
-            Pi = np.array([2. * Ploop[:, 3, :] + b1 * Ploop[:, 7, :],
-                           2. * (Ploop[:, 15, :] + b1 * Ploop[:, 12, :]) / self.knl**2,
-                           4. * (Ploop[:, 16, :] + b1 * Ploop[:, 13, :]) / self.km**2,
-                           4. * (Ploop[:, 17, :] + b1 * Ploop[:, 14, :]) / self.km**2,  # b7
-                           2400. * Onel0,
-                           2. * kl2**2 / self.nd / self.km**2])  # this is k2 quad
-        elif model == 2:
-            kl2 = np.array([np.zeros(nk), kfull])
-            Pi = np.array([2. * (Ploop[:, 3, :] + b1 * Ploop[:, 7, :]), # b3
-                           2. * (Ploop[:, 15, :] + b1 * Ploop[:, 12, :]) / self.knl**2, # b5
-                           4. * (Ploop[:, 16, :] + b1 * Ploop[:, 13, :]) / self.km**2,  # b6
-                           4. * (Ploop[:, 17, :] + b1 * Ploop[:, 14, :]) / self.km**2,  # b7
-                           2. * kl2**2 / self.nd / self.km**2])
-
-        kmask = np.where((kfull >= self.kmin) & (kfull <= self.kmax))[0]
-
-        return Pi[:, :2, kmask]
-
-    def __get_PSTaylor(self, dtheta, derivatives):
-        # Shape of dtheta: number of free parameters
-        # Shape of derivatives: tuple up to third derivative where each element has shape (num free par, multipoles, lenk, columns)
-        t1 = np.einsum('p,pmkb->mkb', dtheta, derivatives[1])
-        t2diag = np.einsum('p,pmkb->mkb', dtheta**2, derivatives[2])
-        t2nondiag = np.sum([dtheta[d[0]] * dtheta[d[1]] * d[2] for d in derivatives[3]], axis=0)
-        t3diag = np.einsum('p,pmkb->mkb', dtheta**3, derivatives[4])
-        t3semidiagx = np.sum([dtheta[d[0]]**2 * dtheta[d[1]] * d[2] for d in derivatives[5]], axis=0)
-        t3semidiagy = np.sum([dtheta[d[0]] * dtheta[d[1]]**2 * d[2] for d in derivatives[6]], axis=0)
-        t3nondiag = np.sum([dtheta[d[0]] * dtheta[d[1]] * dtheta[d[2]] * d[3] for d in derivatives[7]], axis=0)
-        #t4diag = np.einsum('p,pmkb->mkb', dtheta**4, derivatives[7])
-        #t4semidiag1 = np.sum([dtheta[d[0]]**3 * dtheta[d[1]] * d[2] for d in derivatives[8]], axis=0)
-        #t4semidiag2 = np.sum([dtheta[d[0]]**2 * dtheta[d[1]]**2 * d[2] for d in derivatives[9]], axis=0)
-        #t4semidiag3 = np.sum([dtheta[d[0]]**2 * dtheta[d[1]] * dtheta[d[2]] * d[3] for d in derivatives[10]], axis=0)
-        # t4nondiag = np.sum([dtheta[d[0]] * dtheta[d[1]] * dtheta[d[2]] * dtheta[d[3]] * d[4] for d in derivatives[11]], axis=0)
-        # t5diag = np.einsum('p,pmkb->mkb', dtheta**5, derivatives[12])
-        allPS = (derivatives[0] + t1 + 0.5 * t2diag + t2nondiag # + t3nondiag)
-                + t3diag / 6. + t3semidiagx / 2. + t3semidiagy / 2. + t3nondiag)
-                # t4diag / 24.  + t4semidiag1 / 6. + t4semidiag2 / 4. + t4semidiag3 / 2. + t4nondiag)  # + t5diag / 120.)
-        return allPS
-
+        if multipole is 2:
+            if model == 1: 
+                priors = np.array([ 2., 2., 8., 2., 2. ])
+                b3, cct, cr1, ce2, sn = priors
+                print ('EFT priors: b3: %s, cct: %s, cr1(+cr2): %s, ce2: %s, shotnoise: %s (default)' % (b3, cct, cr1, ce2, sn) )
+            elif model == 2: 
+                priors = np.array([ 2., 2., 8., 2. ])
+                b3, cct, cr1, ce2 = priors
+                print ('EFT priors: b3: %s, cct: %s, cr1(+cr2): %s, ce2: %s (default)' % (b3, cct, cr1, ce2) )
+            elif model == 3: 
+                priors = np.array([ 2., 2., 8., 2., 2. ])#np.array([ 10., 4., 8., 4., 2. ])
+                b3, cct, cr1, ce2, ce1 = priors
+                print ('EFT priors: b3: %s, cct: %s, cr1(+cr2): %s, ce2: %s, ce1: %s (default)' % (b3, cct, cr1, ce2, ce1) )
+            elif model == 4: 
+                priors = np.array([ 2., 2., 8., 2., 2., 2. ])
+                b3, cct, cr1, ce2, ce1, sn = priors
+                print ('EFT priors: b3: %s, cct: %s, cr1(+cr2): %s, ce2: %s, ce1: %s, shotnoise: %s (default)' % (b3, cct, cr1, ce2, ce1, sn) )
+            elif model == 5:
+                priors = np.array([ 2., 2., 8. ])
+                b3, cct, cr1 = priors
+                print ('EFT priors: b3: %s, cct: %s, cr1(+cr2): %s (default)' % (b3, cct, cr1) )
+
+        if multipole is 3:
+            if model == 1: 
+                priors = np.array([ 2., 2., 4., 4., 2., 2. ])
+                b3, cct, cr1, cr2, ce2, sn = priors
+                print ('EFT priors: b3: %s, cct: %s, cr1: %s, cr2: %s, ce2: %s, shotnoise: %s (default)' % (b3, cct, cr1, cr2, ce2, sn) )
+            elif model == 2: 
+                priors = np.array([ 2., 2., 4., 4., 2. ])
+                b3, cct, cr1, cr2, ce2 = priors
+                print ('EFT priors: b3: %s, cct: %s, cr1: %s, cr2: %s, ce2: %s (default)' % (b3, cct, cr1, cr2, ce2) )
+            elif model == 3: 
+                priors = np.array([ 2., 2., 4., 4., 2., 2. ])#np.array([ 10., 4., 8., 4., 2. ])
+                b3, cct, cr1, cr2, ce2, ce1 = priors
+                print ('EFT priors: b3: %s, cct: %s, cr1: %s, cr2: %s, ce2: %s, ce1: %s (default)' % (b3, cct, cr1, cr2, ce2, ce1) )
+            elif model == 4: 
+                priors = np.array([ 2., 2., 4., 4., 2., 2., 2. ])
+                b3, cct, cr1, cr2, ce2, ce1, sn = priors
+                print ('EFT priors: b3: %s, cct: %s, cr1: %s, cr2: %s, ce2: %s, ce1: %s, shotnoise: %s (default)' % (b3, cct, cr1, cr2, ce2, ce1, sn) )
+            elif model == 5:
+                priors = np.array([ 2., 2., 4., 4. ])
+                b3, cct, cr1, cr2 = priors
+                print ('EFT priors: b3: %s, cct: %s, cr1: %s, cr2: %s (default)' % (b3, cct, cr1, cr2) )
+
+        priormat = np.diagflat(1./priors**2)
+
+        return priormat
