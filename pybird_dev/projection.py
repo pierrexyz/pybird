@@ -415,17 +415,22 @@ class Projection(object):
         res = np.array([np.trapz(integrand(pts) * pts**2, x=pts) for pts in self.points])
         return np.moveaxis(res, 0, -1) / self.binvol
 
-    def kbinning(self, bird):
+    def xbinning(self, bird):
         """
         Apply binning in k-space for linear-spaced data k-array
         """
         if self.co.with_cf:
-            if not bird.with_bias:
+            if bird.with_bias:
+                bird.fullCf = self.integrBinning(bird.fullCf)
+            else:
                 bird.C11l = self.integrBinning(bird.C11l)
                 bird.Cctl = self.integrBinning(bird.Cctl)
                 bird.Cloopl = self.integrBinning(bird.Cloopl)
+                if bird.with_stoch: bird.Cstl = self.integrBinning(bird.Cstl)
         else:
-            if not bird.with_bias:
+            if bird.with_bias:
+                bird.fullPs = self.integrBinning(bird.fullPs)
+            else:
                 bird.P11l = self.integrBinning(bird.P11l)
                 bird.Pctl = self.integrBinning(bird.Pctl)
                 bird.Ploopl = self.integrBinning(bird.Ploopl)
@@ -443,7 +448,7 @@ class Projection(object):
                 bird.C11l = interp1d(self.co.s, bird.C11l, axis=-1, kind='cubic', bounds_error=False)(self.xout)
                 bird.Cctl = interp1d(self.co.s, bird.Cctl, axis=-1, kind='cubic', bounds_error=False)(self.xout)
                 bird.Cloopl = interp1d(self.co.s, bird.Cloopl, axis=-1, kind='cubic', bounds_error=False)(self.xout)
-            
+                if bird.with_stoch: bird.Cstl = interp1d(self.co.s, bird.Cstl, axis=-1, kind='cubic', bounds_error=False)(self.xout)
         else:
             if bird.with_bias:
                 bird.fullPs = interp1d(self.co.k, bird.fullPs, axis=-1, kind='cubic', bounds_error=False)(self.xout)

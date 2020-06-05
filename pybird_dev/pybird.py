@@ -234,7 +234,7 @@ class Correlator(object):
                 if self.config["with_window"]: self.projection.Window(self.bird)
                 if self.config["with_fibercol"]: self.projection.fibcolWindow(self.bird)
                 if self.config["wedge"] is not 0: self.projection.Wedges(self.bird)
-                if self.config["with_binning"]: self.projection.kbinning(self.bird)
+                if self.config["with_binning"]: self.projection.xbinning(self.bird)
                 else: self.projection.xdata(self.bird)
 
         elif self.config["skycut"] > 1:
@@ -280,7 +280,7 @@ class Correlator(object):
                     if self.config["with_window"]: self.projection[i].Window(self.birds[i])
                     if self.config["with_fibercol"]: self.projection[i].fibcolWindow(self.birds[i])
                     if self.config["wedge"] is not 0: self.projection[i].Wedges(self.birds[i]) 
-                    if self.config["with_binning"]: self.projection[i].kbinning(self.birds[i])
+                    if self.config["with_binning"]: self.projection[i].xbinning(self.birds[i])
                     else: self.projection[i].xdata(self.birds[i])
 
     def cache(self, as_dict=True):
@@ -429,20 +429,23 @@ class Correlator(object):
                 if self.config["multipole"] >= 2: m = np.vstack([m, 2 * (f * ct[1+3] + b1 * ct[1]).reshape(-1) / self.config["km"]**2])
                 if self.config["multipole"] >= 3: m = np.vstack([m, 2 * (f * ct[2+3] + b1 * ct[2]).reshape(-1) / self.config["km"]**2])
                 if self.config["with_stoch"]:
-                    if model <= 4: m = np.vstack([m, Pst[2].reshape(-1) / self.config["km"]**2 / self.config["nd"]])
-                    if model == 1: m = np.vstack([m, Pst[0].reshape(-1) / self.config["nd"]])
-                    if model == 3: m = np.vstack([m, Pst[1].reshape(-1) / self.config["km"]**2 / self.config["nd"]])
-                    if model == 4: m = np.vstack([m, Pst[1].reshape(-1) / self.config["km"]**2 / self.config["nd"], Pst[0].reshape(-1) / self.config["nd"]])
+                    if "Cf" in self.config["output"]:
+                        if model == 5: m = np.vstack([m, Pst[0].reshape(-1)])
+                    elif "Pk" in self.config["output"]:
+                        if model <= 4: m = np.vstack([m, Pst[2].reshape(-1) / self.config["km"]**2 / self.config["nd"]])
+                        if model == 1: m = np.vstack([m, Pst[0].reshape(-1) / self.config["nd"]])
+                        if model == 3: m = np.vstack([m, Pst[1].reshape(-1) / self.config["km"]**2 / self.config["nd"]])
+                        if model == 4: m = np.vstack([m, Pst[1].reshape(-1) / self.config["km"]**2 / self.config["nd"], Pst[0].reshape(-1) / self.config["nd"]])
 
             return m
 
         if self.config["skycut"] == 1:
             if "Pk" in self.config["output"]: return marg(self.bird.Ploopl, self.bird.Pctl, b1=b1, f1=self.bird.f, Pst=self.bird.Pstl)
-            elif "Cf" in self.config["output"]: return marg(self.bird.Cloopl, self.bird.Cctl, b1=b1, f1=self.bird.f)
+            elif "Cf" in self.config["output"]: return marg(self.bird.Cloopl, self.bird.Cctl, b1=b1, f1=self.bird.f, Pst=self.bird.Cstl)
             elif "w" in self.config["output"]: return marg(self.bird.wloop, self.bird.wct, b1=b1, f1=self.bird.f)
         elif self.config["skycut"] > 1:
             if "Pk" in self.config["output"]: return [ marg(self.birds[i].Ploopl, self.birds[i].Pctl, b1=b1[i], f1=self.birds[i].f, Pst=self.birds[i].Pstl) for i in range(self.config["skycut"]) ]
-            elif "Cf" in self.config["output"]: return [ marg(self.birds[i].Cloopl, self.birds[i].Cctl, b1=b1[i], f1=self.birds[i].f) for i in range(self.config["skycut"]) ]
+            elif "Cf" in self.config["output"]: return [ marg(self.birds[i].Cloopl, self.birds[i].Cctl, b1=b1[i], f1=self.birds[i].f, Pst=self.birds[i].Cstl) for i in range(self.config["skycut"]) ]
             elif "w" in self.config["output"]: return [ marg(self.birds[i].wloop, self.birds[i].wct, b1=b1[i], f1=self.birds[i].f) for i in range(self.config["skycut"]) ]
 
     def __load_engines(self, only_common=False):
@@ -680,7 +683,7 @@ class Correlator(object):
         else:
             self.config["with_cf"] = False
 
-        if self.config["with_cf"]: self.config["with_stoch"] = False
+        # if self.config["with_cf"]: self.config["with_stoch"] = False
 
         if self.config["wedge"] is not 0: self.config["multipole"] = 3 # enforced
             

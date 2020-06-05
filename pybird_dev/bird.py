@@ -127,11 +127,16 @@ class Bird(object):
             self.bloop = np.empty(shape=(self.co.Nloop))
 
         if self.with_stoch:
-            self.bst = np.zeros(shape=(self.co.Nst))
-            self.Pstl = np.zeros(shape=(self.co.Nl, self.co.Nst, self.co.Nk))
-            self.Pstl[0,0] = self.co.k**0
-            self.Pstl[0,1] = self.co.k**2
-            self.Pstl[1,2] = self.co.k**2
+            if self.co.with_cf:
+                self.bst = np.zeros(shape=(1))
+                self.Cstl = np.zeros(shape=(self.co.Nl, 1, self.co.Ns))
+                self.Cstl[0,0] = self.co.s**0
+            else:
+                self.bst = np.zeros(shape=(self.co.Nst))
+                self.Pstl = np.zeros(shape=(self.co.Nl, self.co.Nst, self.co.Nk))
+                self.Pstl[0,0] = self.co.k**0
+                self.Pstl[0,1] = self.co.k**2
+                self.Pstl[1,2] = self.co.k**2
 
     def setcosmo(self, cosmo):
 
@@ -224,9 +229,12 @@ class Bird(object):
                 b1**2, b1 * b3, b1**2 * f, b1 * f, b3 * f, b1 * f**2, b1 * f**2, f**2, f**3, f**3])
 
         if self.with_stoch:
-            self.bst[0] = bias["ce0"] / self.co.nd
-            self.bst[1] = bias["ce1"] / self.co.km**2 / self.co.nd
-            self.bst[2] = bias["ce2"] / self.co.km**2 / self.co.nd
+            if self.co.with_cf:
+                self.bst[0] = bias["ce0"]
+            else:
+                self.bst[0] = bias["ce0"] / self.co.nd
+                self.bst[1] = bias["ce1"] / self.co.km**2 / self.co.nd
+                self.bst[2] = bias["ce2"] / self.co.km**2 / self.co.nd
 
     def setPs(self, bs, setfull=True):
         """ For option: which='full'. Given an array of EFT parameters, multiplies them accordingly to the power spectrum multipole terms and adds the resulting terms together per loop order
@@ -241,7 +249,7 @@ class Bird(object):
         self.Ps[1] = np.einsum('lb,bx->lx', self.b22, self.P22)
         for l in range(self.co.Nl): self.Ps[1, l] -= self.Ps[1, l, 0]
         self.Ps[1] += np.einsum('lb,bx->lx', self.b13, self.P13) + np.einsum('l,x,x->lx', self.bct, self.co.k**2, self.P11)
-        if self.with_stoch: self.Ps[1] += np.einsum('lb,lbx->lx', self.bst, self.Pstl)
+        if self.with_stoch: self.Ps[1] += np.einsum('b,lbx->lx', self.bst, self.Pstl)
         if setfull: self.setfullPs()
 
     def setCf(self, bs, setfull=True):
@@ -255,6 +263,7 @@ class Bird(object):
         self.setBias(bs)
         self.Cf[0] = np.einsum('l,lx->lx', self.b11, self.C11)
         self.Cf[1] = np.einsum('lb,lbx->lx', self.b22, self.C22l) + np.einsum('lb,lbx->lx', self.b13, self.C13l) + np.einsum('l,lx->lx', self.bct, self.Cct)
+        if self.with_stoch: self.Cf[1] += np.einsum('b,lbx->lx', self.bst, self.Cstl)
         if setfull: self.setfullCf()
 
     def setPsCf(self, bs, setfull=True):
@@ -271,11 +280,12 @@ class Bird(object):
         self.Ps[1] = np.einsum('lb,bx->lx', self.b22, self.P22)
         for l in range(self.co.Nl): self.Ps[1, l] -= self.Ps[1, l, 0]
         self.Ps[1] += np.einsum('lb,bx->lx', self.b13, self.P13) + np.einsum('l,x,x->lx', self.bct, self.co.k**2, self.P11)
-        if self.with_stoch: self.Ps[1] += np.einsum('lb,lbx->lx', self.bst, self.Pstl)
+        if self.with_stoch: self.Ps[1] += np.einsum('b,lbx->lx', self.bst, self.Pstl)
         if setfull: self.setfullPs()
 
         self.Cf[0] = np.einsum('l,lx->lx', self.b11, self.C11)
         self.Cf[1] = np.einsum('lb,lbx->lx', self.b22, self.C22l) + np.einsum('lb,lbx->lx', self.b13, self.C13l) + np.einsum('l,lx->lx', self.bct, self.Cct)
+        if self.with_stoch: self.Cf[1] += np.einsum('b,lbx->lx', self.bst, self.Cstl)
         if setfull: self.setfullCf()
 
     def setfullPs(self):
@@ -485,6 +495,9 @@ class Bird(object):
 
         Cf0 = np.einsum('b,lbx->lx', self.b11, self.C11l)
         Cf1 = np.einsum('b,lbx->lx', self.bloop, self.Cloopl) + np.einsum('b,lbx->lx', self.bct, self.Cctl)
+
+        if self.with_stoch: Cf1 += np.einsum('b,lbx->lx', self.bst, self.Cstl)
+
         self.fullCf = Cf0 + Cf1
 
     def subtractShotNoise(self):

@@ -3030,7 +3030,6 @@ class Likelihood_bird(Likelihood):
                     xmaski = np.argwhere((x <= xmax0 + (i+1)*dxmax) & (x >= xmin))[:,0] + (i+1)*Nx
                     xmask = np.concatenate((xmask, xmaski))
             else: 
-                print ('youhou new wedge')
                 def get_xmax(k0, k1, N=wedge):
                     a = ((k0 - k1)*(-1 + 2*N)**2)/(16.*(-1 + N)*N**3)
                     b = -(k0 - k1 + 4*k1*N - 4*k1*N**2)/(4.*(-1 + N)*N)
