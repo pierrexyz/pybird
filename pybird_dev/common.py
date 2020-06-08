@@ -57,14 +57,14 @@ class Common(object):
         self.with_cf = False
         if with_cf:
             self.with_cf = with_cf
-            kmax = 0.5
-            self.optiresum = True
+            kmax = 0.6
+            #self.optiresum = True
             slog = np.geomspace(1., 1000., 100)
             slin = np.arange(1./accboost, 200., 1./accboost)
             slogmask = np.where((slog > slin[-1]) | (slog < slin[0] ))[0]
             self.s = np.unique( np.sort( np.concatenate((slog[slogmask], slin)) ) )
         else:
-            if self.optiresum is True: self.s = np.arange(60., 200., 2.5/accboost)
+            if self.optiresum is True: self.s = np.arange(40., 200., 1./accboost)
             else: self.s = sbird
         self.Ns = self.s.shape[0]
         
@@ -82,10 +82,11 @@ class Common(object):
             self.Nk = self.k.shape[0]
 
         # for resummation
-        if self.Nl is 3 or self.kmax > 0.25: self.NIR = 16
+        if self.Nl is 3 or self.kmax > 0.25: self.NIR = 20#16#20#16
         else: self.NIR = 8
         
         if self.NIR is 16: self.Na = 3
+        elif self.NIR is 20: self.Na = 3
         elif self.NIR is 8: self.Na = 2
 
         self.Nn = self.NIR * self.Na * 2

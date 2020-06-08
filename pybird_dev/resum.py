@@ -4,7 +4,7 @@ from numpy import pi, cos, sin, log, exp, sqrt, trapz
 from scipy.interpolate import interp1d
 from fftlog import FFTLog, MPC, CoefWindow
 from common import co
-from resumfactor import Qa,  Qawithhex
+from resumfactor import Qa,  Qawithhex, Qawithhex20
 
 class Resum(object):
     """
@@ -101,7 +101,15 @@ class Resum(object):
         self.setMl()
         self.setsPow()
 
-        self.damping = CoefWindow(self.co.Nk-1, window=0.6, left=False, right=True)
+        #self.damping = CoefWindow(self.co.Nk-1, window=.2, left=False, right=True)
+        self.kl2 = self.co.k[self.co.k < 0.5]
+        Nkl2 = len(self.kl2)
+
+        self.damping = np.array([
+            CoefWindow(self.co.Nk-1, window=.25, left=False, right=True),
+            np.pad(CoefWindow(Nkl2-1, window=.25, left=False, right=True), (0,self.co.Nk-Nkl2), mode='constant'),
+            np.pad(CoefWindow(Nkl2-1, window=.25, left=False, right=True), (0,self.co.Nk-Nkl2), mode='constant')
+            ])
 
     def setXsPow(self):
         """ Multiply the coefficients with the s's to the powers of the FFTLog to evaluate the IR-filters X and Y. """
@@ -171,6 +179,7 @@ class Resum(object):
                     for u in range(self.co.Nn):
                         if self.co.NIR is 8: Q[a][l][lpr][u] = Qa[1 - a][2 * l][2 * lpr][u](f)
                         elif self.co.NIR is 16: Q[a][l][lpr][u] = Qawithhex[1 - a][2 * l][2 * lpr][u](f)
+                        elif self.co.NIR is 20: Q[a][l][lpr][u] = Qawithhex20[1 - a][2 * l][2 * lpr][u](f)
         return Q
 
     def setMl(self):
@@ -194,18 +203,18 @@ class Resum(object):
         if bird.with_bias:
             for a, IRa in enumerate(bird.fullIRPs): # this can be speedup x2 by doing FFTLog[lin+loop] instead of separately
                 for l, IRal in enumerate(IRa):
-                    bird.fullIRCf[a,l] = self.Ps2Cf(IRal * self.damping, l=l)
+                    bird.fullIRCf[a,l] = self.Ps2Cf(IRal * self.damping[l], l=l)
 
         else:
             for l, IRl in enumerate(bird.fullIRPs11):
                 for j, IRlj in enumerate(IRl):
-                    bird.fullIRCf11[l,j] = self.Ps2Cf(IRlj * self.damping, l=l)
+                    bird.fullIRCf11[l,j] = self.Ps2Cf(IRlj * self.damping[l], l=l)
             for l, IRl in enumerate(bird.fullIRPsct):
                 for j, IRlj in enumerate(IRl):
-                    bird.fullIRCfct[l,j] = self.Ps2Cf(IRlj * self.damping, l=l)
+                    bird.fullIRCfct[l,j] = self.Ps2Cf(IRlj * self.damping[l], l=l)
             for l, IRl in enumerate(bird.fullIRPsloop):
                 for j, IRlj in enumerate(IRl):
-                    bird.fullIRCfloop[l,j] = self.Ps2Cf(IRlj * self.damping, l=l)
+                    bird.fullIRCfloop[l,j] = self.Ps2Cf(IRlj * self.damping[l], l=l)
         
         
 

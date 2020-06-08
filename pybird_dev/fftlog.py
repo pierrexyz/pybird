@@ -27,8 +27,8 @@ def CoefWindow(N, window=1, left=True, right=True):
     theta_left = (n_l - n[0]) / float(n_left - n[0] - 1)
 
     W = np.ones(n.size)
-    if right: W[n[:] > n_right] = theta_right - 1 / (2 * pi) * sin(2 * pi * theta_right)
-    if left: W[n[:] < n_left] = theta_left - 1 / (2 * pi) * sin(2 * pi * theta_left)
+    if right: W[n[:] > n_right] = theta_right - 1 / (2. * pi) * sin(2 * pi * theta_right)
+    if left: W[n[:] < n_left] = theta_left - 1 / (2. * pi) * sin(2 * pi * theta_left)
 
     return W
 

@@ -163,15 +163,18 @@ class Bird(object):
                 self.z = cosmo["z"]
                 self.a = 1/(1.+self.z)
                 GF = GreenFunction(self.Omega0_m, w=self.w0)
-                self.f = GF.fplus(self.a)
+                # self.f = GF.fplus(self.a)
                 self.Y1 = GF.Y(self.a)
                 self.G1t = GF.mG1t(self.a)
                 self.V12t = GF.mV12t(self.a)
+                print (self.Y1, self.G1t, self.V12t)
             except:
                 print ("setting EdS time approximation")
                 self.Y1 = 0.
                 self.G1t = 3/7.
                 self.V12t = 1/7.
+
+        print (self.f, self.DA, self.H)
 
     def setBias(self, bias):
         """ Given an array of EFT parameters, set them among linear, loops and counter terms, and among multipoles
