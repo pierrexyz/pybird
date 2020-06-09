@@ -105,7 +105,7 @@ class Correlator(object):
                 description="mean galaxy density",
                 default=3e-4) ,
             "with_stoch": Option("with_stoch", bool, 
-                description="With stochastic terms. Automatically set to False for \'output\': \'xCf\', \'w\'.",
+                description="With stochastic terms.",
                    default=False) ,
             "with_bias": Option("with_bias", bool, 
                 description="Bias (in)dependent evalution. Automatically set to False for \'with_time\': False.",
@@ -163,6 +163,9 @@ class Correlator(object):
                 default=False) ,
             "with_fibercol": Option("with_fibercol", bool,
                 description="Apply fiber collision effective window corrections.",
+                default=False) ,
+            "with_nlo_bias": Option("with_nlo_bias", bool,
+                description="With next-to-leading bias.",
                 default=False) ,
             "with_assembly_bias": Option("with_assembly_bias", bool,
                 description="With assembly bias.",
@@ -429,13 +432,13 @@ class Correlator(object):
                 if self.config["multipole"] >= 2: m = np.vstack([m, 2 * (f * ct[1+3] + b1 * ct[1]).reshape(-1) / self.config["km"]**2])
                 if self.config["multipole"] >= 3: m = np.vstack([m, 2 * (f * ct[2+3] + b1 * ct[2]).reshape(-1) / self.config["km"]**2])
                 if self.config["with_stoch"]:
-                    if "Cf" in self.config["output"]:
-                        if model == 5: m = np.vstack([m, Pst[0].reshape(-1)])
-                    elif "Pk" in self.config["output"]:
-                        if model <= 4: m = np.vstack([m, Pst[2].reshape(-1) / self.config["km"]**2 / self.config["nd"]])
-                        if model == 1: m = np.vstack([m, Pst[0].reshape(-1) / self.config["nd"]])
-                        if model == 3: m = np.vstack([m, Pst[1].reshape(-1) / self.config["km"]**2 / self.config["nd"]])
-                        if model == 4: m = np.vstack([m, Pst[1].reshape(-1) / self.config["km"]**2 / self.config["nd"], Pst[0].reshape(-1) / self.config["nd"]])
+                    # if "Cf" in self.config["output"]:
+                    #     if model == 5: m = np.vstack([m, Pst[0].reshape(-1)])
+                    # elif "Pk" in self.config["output"]:
+                    if model <= 4: m = np.vstack([m, Pst[2].reshape(-1) ])
+                    if model == 1: m = np.vstack([m, Pst[0].reshape(-1) ])
+                    if model == 3: m = np.vstack([m, Pst[1].reshape(-1) ])
+                    if model == 4: m = np.vstack([m, Pst[1].reshape(-1) , Pst[0].reshape(-1) ])
 
             return m
 
@@ -621,29 +624,34 @@ class Correlator(object):
                 else: self.bias = { "b1": 1., "b2": 1., "b3": 1., "b4": 0., "cct": self.cosmo["bias"]["cct"], "cr1": self.cosmo["bias"]["cr1"], "cr2": self.cosmo["bias"]["cr2"], "ce0": 0., "ce1": 0., "ce2": 0. }
         else:
 
-            if self.config["with_assembly_bias"]: Nbq = 1
-            else: Nbq = 0
+            Nextra = 0
+            if self.config["with_nlo_bias"]: Nextra += 1
+            if self.config["with_assembly_bias"]: Nextra += 1
 
             if not self.config["with_stoch"]:
                 if self.config["multipole"] == 0:
-                    if len(self.cosmo["bias"]) is not 5+Nbq: raise Exception("Please specify a dict of 5 biases: \{ \'b1\', \'b2\', \'b3\', \'b4\', \'cct\' \}. ")
+                    if len(self.cosmo["bias"]) is not 5+Nextra: raise Exception("Please specify a dict of 5 biases: \{ \'b1\', \'b2\', \'b3\', \'b4\', \'cct\' \}. ")
                     else: self.bias = { "b1": self.cosmo["bias"]["b1"], "b2": self.cosmo["bias"]["b2"], "b3": self.cosmo["bias"]["b3"], "b4": self.cosmo["bias"]["b4"], "cct": self.cosmo["bias"]["cct"], "cr1": 0., "cr2": 0., "ce0": 0., "ce1": 0., "ce2": 0. }
                 elif self.config["multipole"] == 2:
-                    if len(self.cosmo["bias"]) is not 6+Nbq: raise Exception("Please specify a dict of 6 biases: \{ \'b1\', \'b2\', \'b3\', \'b4\', \'cct\', \'cr1\' \}. ")
+                    if len(self.cosmo["bias"]) is not 6+Nextra: raise Exception("Please specify a dict of 6 biases: \{ \'b1\', \'b2\', \'b3\', \'b4\', \'cct\', \'cr1\' \}. ")
                     else: self.bias = { "b1": self.cosmo["bias"]["b1"], "b2": self.cosmo["bias"]["b2"], "b3": self.cosmo["bias"]["b3"], "b4": self.cosmo["bias"]["b4"], "cct": self.cosmo["bias"]["cct"], "cr1": self.cosmo["bias"]["cr1"], "cr2": 0., "ce0": 0., "ce1": 0., "ce2": 0. }
                 elif self.config["multipole"] == 3:
-                    if len(self.cosmo["bias"]) is not 7+Nbq: raise Exception("Please specify a dict of 7 biases: \{ \'b1\', \'b2\', \'b3\', \'b4\', \'cct\', \'cr1\', \'cr2\' \}. ")
+                    if len(self.cosmo["bias"]) is not 7+Nextra: raise Exception("Please specify a dict of 7 biases: \{ \'b1\', \'b2\', \'b3\', \'b4\', \'cct\', \'cr1\', \'cr2\' \}. ")
                     else: self.bias = { "b1": self.cosmo["bias"]["b1"], "b2": self.cosmo["bias"]["b2"], "b3": self.cosmo["bias"]["b3"], "b4": self.cosmo["bias"]["b4"], "cct": self.cosmo["bias"]["cct"], "cr1": self.cosmo["bias"]["cr1"], "cr2": self.cosmo["bias"]["cr2"], "ce0": 0., "ce1": 0., "ce2": 0. }
             else:
                 if self.config["multipole"] == 0:
-                    if len(self.cosmo["bias"]) is not 6+Nbq: raise Exception("Please specify a dict of 6 biases: \{ \'b1\', \'b2\', \'b3\', \'b4\', \'cct\', \'ce0\' \}. ")
+                    if len(self.cosmo["bias"]) is not 6+Nextra: raise Exception("Please specify a dict of 6 biases: \{ \'b1\', \'b2\', \'b3\', \'b4\', \'cct\', \'ce0\' \}. ")
                     else: self.bias = { "b1": self.cosmo["bias"]["b1"], "b2": self.cosmo["bias"]["b2"], "b3": self.cosmo["bias"]["b3"], "b4": self.cosmo["bias"]["b4"], "cct": self.cosmo["bias"]["cct"], "cr1": 0., "cr2": 0., "ce0": self.cosmo["bias"]["ce0"], "ce1": 0., "ce2": 0. }
                 elif self.config["multipole"] == 2:
-                    if len(self.cosmo["bias"]) is not 9+Nbq: raise Exception("Please specify a dict of 9 biases: \{ \'b1\', \'b2\', \'b3\', \'b4\', \'cct\', \'cr1\', \'ce0\', \'ce1\', \'ce2\'  \}. ")
+                    if len(self.cosmo["bias"]) is not 9+Nextra: raise Exception("Please specify a dict of 9 biases: \{ \'b1\', \'b2\', \'b3\', \'b4\', \'cct\', \'cr1\', \'ce0\', \'ce1\', \'ce2\'  \}. ")
                     else: self.bias = { "b1": self.cosmo["bias"]["b1"], "b2": self.cosmo["bias"]["b2"], "b3": self.cosmo["bias"]["b3"], "b4": self.cosmo["bias"]["b4"], "cct": self.cosmo["bias"]["cct"], "cr1": self.cosmo["bias"]["cr1"], "cr2": 0., "ce0": self.cosmo["bias"]["ce0"], "ce1": self.cosmo["bias"]["ce1"], "ce2": self.cosmo["bias"]["ce2"] }
                 elif self.config["multipole"] == 3:
-                    if len(self.cosmo["bias"]) is not 10+Nbq: raise Exception("Please specify a dict of 10 biases: \{ \'b1\', \'b2\', \'b3\', \'b4\', \'cct\', \'cr1\', \'cr2\', \'ce0\', \'ce1\', \'ce2\' \}. ")
+                    if len(self.cosmo["bias"]) is not 10+Nextra: raise Exception("Please specify a dict of 10 biases: \{ \'b1\', \'b2\', \'b3\', \'b4\', \'cct\', \'cr1\', \'cr2\', \'ce0\', \'ce1\', \'ce2\' \}. ")
                     else: self.bias = { "b1": self.cosmo["bias"]["b1"], "b2": self.cosmo["bias"]["b2"], "b3": self.cosmo["bias"]["b3"], "b4": self.cosmo["bias"]["b4"], "cct": self.cosmo["bias"]["cct"], "cr1": self.cosmo["bias"]["cr1"], "cr2": self.cosmo["bias"]["cr2"], "ce0": self.cosmo["bias"]["ce0"], "ce1": self.cosmo["bias"]["ce1"], "ce2": self.cosmo["bias"]["ce2"] }
+
+            if self.config["with_nlo_bias"]: 
+                try: self.bias["bnlo"] = self.cosmo["bias"]["bnlo"]
+                except: raise Exception ("Please specify the next-to-leading bias \'bnlo\'.  ")
 
             if self.config["with_assembly_bias"]: 
                 try: self.bias["bq"] = self.cosmo["bias"]["bq"]

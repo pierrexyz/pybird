@@ -146,6 +146,17 @@ class NonLinear(object):
             for u, n1 in enumerate(-0.5 * self.fft.Pow - 1.):
                 self.Mcfct[l, u] = 1j**(2*l) * MPC(2 * l, n1)
 
+    def setMcfnlo(self):
+        """ Compute the next-to-leading counterterm correlation function matrices. """
+        self.Mcfct = np.empty(shape=(self.co.Nl, self.fft.Pow.shape[0]), dtype='complex')
+        for l in range(self.co.Nl):
+            for u, n1 in enumerate(-0.5 * self.fft.Pow - 2.): ### Check this !
+                self.Mcfnlo[l, u] = 1j**(2*l) * MPC(2 * l, n1)
+
+    def makeCnlo(self, CoefsPow, bird):
+        """ Perform the next-to-leading counterterm correlation function matrix multiplications """
+        bird.Cnlol = self.co.s**-4 * np.real(np.einsum('ns,ln->ls', CoefsPow, self.Mcfct))
+
     def setkPow(self):
         """ Compute the k's to the powers of the FFTLog to evaluate the loop power spectrum. Called at the instantiation of the class. """
         self.kPow = exp(np.einsum('n,k->nk', self.fft.Pow, log(self.co.k)))
