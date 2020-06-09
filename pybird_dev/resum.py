@@ -105,11 +105,17 @@ class Resum(object):
         self.kl2 = self.co.k[self.co.k < 0.5]
         Nkl2 = len(self.kl2)
 
-        self.damping = np.array([
+        self.kl4 = self.co.k[self.co.k < 0.4]
+        Nkl4 = len(self.kl4)
+
+        self.dampPs = np.array([
             CoefWindow(self.co.Nk-1, window=.25, left=False, right=True),
             np.pad(CoefWindow(Nkl2-1, window=.25, left=False, right=True), (0,self.co.Nk-Nkl2), mode='constant'),
-            np.pad(CoefWindow(Nkl2-1, window=.25, left=False, right=True), (0,self.co.Nk-Nkl2), mode='constant')
+            np.pad(CoefWindow(Nkl4-1, window=.25, left=False, right=True), (0,self.co.Nk-Nkl4), mode='constant')
             ])
+
+        self.scut = self.co.s[self.co.s < 70.]
+        self.dampCf = np.pad(CoefWindow(self.co.Ns-len(self.scut)-1, window=.25, left=True, right=True), (len(self.scut),0), mode='constant')
 
     def setXsPow(self):
         """ Multiply the coefficients with the s's to the powers of the FFTLog to evaluate the IR-filters X and Y. """
@@ -193,9 +199,9 @@ class Resum(object):
         self.sPow = exp(np.einsum('n,s->ns', -self.Cfft.Pow - 3., log(self.co.s)))
 
     def Ps2Cf(self, P, l=0):
-        Coef = self.Cfft.Coef(self.co.k, P, extrap='padding', window=None)
-        CoefsPow = np.einsum('n,ns->ns', Coef, self.sPow)
-        return np.real(np.einsum('ns,n->s', CoefsPow, self.Ml[l]))
+        Coef = self.Cfft.Coef(self.co.k, P * self.dampPs[l], extrap='padding', window=None)
+        CoefsPow = np.einsum('n,ns->ns', Coef, self.sPow) 
+        return np.real(np.einsum('ns,n->s', CoefsPow, self.Ml[l])) * self.dampCf
 
     def IRCf(self, bird, window=None):
         """ Compute the IR corrections in configuration space by spherical Bessel transforming the IR corrections in Fourier space.  """
@@ -203,20 +209,17 @@ class Resum(object):
         if bird.with_bias:
             for a, IRa in enumerate(bird.fullIRPs): # this can be speedup x2 by doing FFTLog[lin+loop] instead of separately
                 for l, IRal in enumerate(IRa):
-                    bird.fullIRCf[a,l] = self.Ps2Cf(IRal * self.damping[l], l=l)
-
+                    bird.fullIRCf[a,l] = self.Ps2Cf(IRal, l=l)
         else:
             for l, IRl in enumerate(bird.fullIRPs11):
                 for j, IRlj in enumerate(IRl):
-                    bird.fullIRCf11[l,j] = self.Ps2Cf(IRlj * self.damping[l], l=l)
+                    bird.fullIRCf11[l,j] = self.Ps2Cf(IRlj, l=l)
             for l, IRl in enumerate(bird.fullIRPsct):
                 for j, IRlj in enumerate(IRl):
-                    bird.fullIRCfct[l,j] = self.Ps2Cf(IRlj * self.damping[l], l=l)
+                    bird.fullIRCfct[l,j] = self.Ps2Cf(IRlj, l=l)
             for l, IRl in enumerate(bird.fullIRPsloop):
                 for j, IRlj in enumerate(IRl):
-                    bird.fullIRCfloop[l,j] = self.Ps2Cf(IRlj * self.damping[l], l=l)
-        
-        
+                    bird.fullIRCfloop[l,j] = self.Ps2Cf(IRlj, l=l)
 
     def PsCf(self, bird, makeIR=True, makeQ=True, setPs=True, setCf=True, window=None):
 
@@ -257,7 +260,3 @@ class Resum(object):
                     for j, xy in enumerate(XpYp):
                         IRcorrUnsorted = np.real((-1j)**(2*l)) * self.k2p[j] * self.IRn(xy * cli, window=window)
                         for v in range(self.co.Na): bird.IRPsloop[l, i, j*self.co.Na + v, self.Nlow:] = IRcorrUnsorted[v]
-
-        
-
-

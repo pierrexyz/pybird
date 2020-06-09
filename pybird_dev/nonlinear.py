@@ -47,7 +47,7 @@ class NonLinear(object):
 
         self.co = co
 
-        self.fftsettings = dict(Nmax=NFFT, xmin=1.5e-5, xmax=1000., bias=-1.6)
+        self.fftsettings = dict(Nmax=NFFT, xmin=1.e-4, xmax=100., bias=-1.6)
 
         self.fft = FFTLog(**self.fftsettings)
 

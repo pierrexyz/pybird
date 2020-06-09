@@ -59,7 +59,7 @@ class Common(object):
             self.with_cf = with_cf
             kmax = 0.6
             #self.optiresum = True
-            slog = np.geomspace(1., 1000., 100)
+            slog = np.geomspace(1., 1000., 100) ### Do not change the min max ; the damping windows in the FFTLog of the IR-corrections are depending on those
             slin = np.arange(1./accboost, 200., 1./accboost)
             slogmask = np.where((slog > slin[-1]) | (slog < slin[0] ))[0]
             self.s = np.unique( np.sort( np.concatenate((slog[slogmask], slin)) ) )
