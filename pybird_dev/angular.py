@@ -88,3 +88,8 @@ class Angular(object):
         bird.wlin = np.trapz(np.trapz(C11, x=z2, axis=-1), x=z, axis=-1)
         bird.wct = np.trapz(np.trapz(Cct, x=z2, axis=-1), x=z, axis=-1)
         bird.wloop = np.trapz(np.trapz(Cloop, x=z2, axis=-1), x=z, axis=-1)
+
+        if bird.with_nlo_bias:
+            Cnlol = interp1d(self.co.s, bird.Cnlol, axis=-1, kind='cubic', bounds_error=False, fill_value='extrapolate')(s)
+            Cnlo = np.einsum('l...,l...,...->...', L, Cnlol, Dp2 * np2)
+            bird.wnlo = np.trapz(np.trapz(Cnlo, x=z2, axis=-1), x=z, axis=-1)

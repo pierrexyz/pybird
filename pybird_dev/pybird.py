@@ -223,7 +223,7 @@ class Correlator(object):
         self.__is_cosmo_conflict()
 
         if self.config["skycut"] == 1:
-            self.bird = Bird(self.cosmo, with_bias=self.config["with_bias"], with_stoch=self.config["with_stoch"], with_assembly_bias=self.config["with_assembly_bias"], co=self.co)
+            self.bird = Bird(self.cosmo, with_bias=self.config["with_bias"], with_stoch=self.config["with_stoch"], with_nlo_bias=self.config["with_nlo_bias"], with_assembly_bias=self.config["with_assembly_bias"], co=self.co)
             self.nonlinear.PsCf(self.bird)
             if self.config["with_bias"]: self.bird.setPsCf(self.bias)
             else: self.bird.setPsCfl()
@@ -256,7 +256,7 @@ class Correlator(object):
                     cosmoi["H"] = self.cosmo["H"][i]
 
                 if i is 0: 
-                    self.bird = Bird(cosmoi, with_bias=False, with_stoch=self.config["with_stoch"], with_assembly_bias=self.config["with_assembly_bias"], co=self.co)
+                    self.bird = Bird(cosmoi, with_bias=False, with_stoch=self.config["with_stoch"], with_nlo_bias=self.config["with_nlo_bias"], with_assembly_bias=self.config["with_assembly_bias"], co=self.co)
                     self.nonlinear.PsCf(self.bird)
                     self.bird.setPsCfl()
                     if self.config["with_resum"]: self.resum.Ps(self.bird, makeIR=True, makeQ=True, setPs=False)
@@ -298,14 +298,17 @@ class Correlator(object):
                     correlator_cache["loop"] = self.bird.Ploopl
                     correlator_cache["ct"] = self.bird.Pctl
                     if self.config["with_stoch"]: correlator_cache["st"] = self.bird.Pstl
+                    if self.config["with_nlo_bias"]: correlator_cache["nlo"] = self.bird.Pnlol
                 elif "Cf" in self.config["output"]: 
                     correlator_cache["lin"] = self.bird.C11l
                     correlator_cache["loop"] = self.bird.Cloopl
                     correlator_cache["ct"] = self.bird.Cctl
+                    if self.config["with_nlo_bias"]: correlator_cache["nlo"] = self.bird.Cnlol
                 elif "w" in self.config["output"]:
                     correlator_cache["lin"] = self.bird.wlin
                     correlator_cache["loop"] = self.bird.wloop
                     correlator_cache["ct"] = self.bird.wct
+                    if self.config["with_nlo_bias"]: correlator_cache["nlo"] = self.bird.wnlo
                 return correlator_cache
 
             else: return self.bird
@@ -320,14 +323,17 @@ class Correlator(object):
                     correlator_cache["loop"] = [self.birds[i].Ploopl for i in range(self.config["skycut"])]
                     correlator_cache["ct"] = [self.birds[i].Pctl for i in range(self.config["skycut"])]
                     if self.config["with_stoch"]: correlator_cache["st"] = [self.birds[i].Pstl for i in range(self.config["skycut"])]
+                    if self.config["with_nlo_bias"]: correlator_cache["nlo"] = [self.birds[i].Pnlol for i in range(self.config["skycut"])]
                 elif "Cf" in self.config["output"]: 
                     correlator_cache["lin"] = [self.birds[i].C11l for i in range(self.config["skycut"])]
                     correlator_cache["loop"] = [self.birds[i].Cloopl for i in range(self.config["skycut"])]
                     correlator_cache["ct"] = [self.birds[i].Cctl for i in range(self.config["skycut"])]
+                    if self.config["with_nlo_bias"]: correlator_cache["nlo"] = [self.birds[i].Cnlol for i in range(self.config["skycut"])]
                 elif "w" in self.config["output"]:
                     correlator_cache["lin"] = [self.birds[i].wlin for i in range(self.config["skycut"])]
                     correlator_cache["loop"] = [self.birds[i].wloop for i in range(self.config["skycut"])]
                     correlator_cache["ct"] = [self.birds[i].wct for i in range(self.config["skycut"])]
+                    if self.config["with_nlo_bias"]: correlator_cache["nlo"] = [self.birds[i].wnlo for i in range(self.config["skycut"])]
                 return correlator_cache
 
             else: return self.birds
@@ -340,20 +346,23 @@ class Correlator(object):
 
             if as_dict:
                 self.cosmo["f"] = correlator_cache["f"]
-                self.bird = Bird(self.cosmo, with_bias=False, with_stoch=self.config["with_stoch"], co=self.co)
+                self.bird = Bird(self.cosmo, with_bias=False, with_stoch=self.config["with_stoch"], with_nlo_bias=self.config["with_nlo_bias"], co=self.co)
                 if "Pk" in self.config["output"]: 
                     self.bird.P11l = correlator_cache["lin"] 
                     self.bird.Ploopl = correlator_cache["loop"]
                     self.bird.Pctl = correlator_cache["ct"]
                     if self.config["with_stoch"]: self.bird.Pstl = correlator_cache["st"]
+                    if self.config["with_nlo_bias"]: self.bird.Pnlol = correlator_cache["nlo"]
                 elif "Cf" in self.config["output"]: 
                     self.bird.C11l = correlator_cache["lin"]
                     self.bird.Cloopl = correlator_cache["loop"]
                     self.bird.Cctl = correlator_cache["ct"]
+                    if self.config["with_nlo_bias"]: self.bird.Cnlol = correlator_cache["nlo"]
                 elif "w" in self.config["output"]:
                     self.bird.wlin = correlator_cache["lin"]
                     self.bird.wloop = correlator_cache["loop"]
                     self.bird.wct = correlator_cache["ct"]
+                    if self.config["with_nlo_bias"]: self.bird.wnlo = correlator_cache["nlo"]
 
             else: self.bird = correlator_cache
 
@@ -363,20 +372,23 @@ class Correlator(object):
                 self.birds = []
                 for i in range(self.config["skycut"]):
                     self.cosmo["f"] = correlator_cache["f"][i]
-                    self.bird = Bird(self.cosmo, with_bias=False, with_stoch=self.config["with_stoch"], co=self.co)
+                    self.bird = Bird(self.cosmo, with_bias=False, with_stoch=self.config["with_stoch"], with_nlo_bias=self.config["with_nlo_bias"], co=self.co)
                     if "Pk" in self.config["output"]: 
                         self.bird.P11l = correlator_cache["lin"][i]
                         self.bird.Ploopl = correlator_cache["loop"][i]
                         self.bird.Pctl = correlator_cache["ct"][i]
                         if self.config["with_stoch"]: self.bird.Pstl = correlator_cache["st"][i]
+                        if self.config["with_nlo_bias"]: self.bird.Pnlol = correlator_cache["nlo"][i]
                     elif "Cf" in self.config["output"]: 
                         self.bird.C11l = correlator_cache["lin"][i]
                         self.bird.Cloopl = correlator_cache["loop"][i]
                         self.bird.Cctl = correlator_cache["ct"][i]
+                        if self.config["with_nlo_bias"]: self.bird.Cnlol = correlator_cache["nlo"][i]
                     elif "w" in self.config["output"]:
                         self.bird.wlin = correlator_cache["lin"][i]
                         self.bird.wloop = correlator_cache["loop"][i]
                         self.bird.wct = correlator_cache["ct"][i]
+                        if self.config["with_nlo_bias"]: self.bird.wnlo = correlator_cache["nlo"][i]
                     self.birds.append(self.bird)
 
             else: self.birds = correlator_cache
@@ -629,7 +641,7 @@ class Correlator(object):
             if self.config["with_assembly_bias"]: Nextra += 1
 
             if not self.config["with_stoch"]:
-                if self.config["multipole"] == 0:
+                if self.config["multipole"] == 0 or "w" in self.config["output"]:
                     if len(self.cosmo["bias"]) is not 5+Nextra: raise Exception("Please specify a dict of 5 biases: \{ \'b1\', \'b2\', \'b3\', \'b4\', \'cct\' \}. ")
                     else: self.bias = { "b1": self.cosmo["bias"]["b1"], "b2": self.cosmo["bias"]["b2"], "b3": self.cosmo["bias"]["b3"], "b4": self.cosmo["bias"]["b4"], "cct": self.cosmo["bias"]["cct"], "cr1": 0., "cr2": 0., "ce0": 0., "ce1": 0., "ce2": 0. }
                 elif self.config["multipole"] == 2:

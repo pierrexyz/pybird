@@ -427,6 +427,7 @@ class Projection(object):
                 bird.Cctl = self.integrBinning(bird.Cctl)
                 bird.Cloopl = self.integrBinning(bird.Cloopl)
                 if bird.with_stoch: bird.Cstl = self.integrBinning(bird.Cstl)
+                if bird.with_nlo_bias: bird.Cnlol = self.integrBinning(bird.Cnlol)
         else:
             if bird.with_bias:
                 bird.fullPs = self.integrBinning(bird.fullPs)
@@ -435,6 +436,7 @@ class Projection(object):
                 bird.Pctl = self.integrBinning(bird.Pctl)
                 bird.Ploopl = self.integrBinning(bird.Ploopl)
                 if bird.with_stoch: bird.Pstl = self.integrBinning(bird.Pstl)
+                if bird.with_nlo_bias: bird.Pnlol = self.integrBinning(bird.Pnlol)
 
 
     def xdata(self, bird):
@@ -449,6 +451,7 @@ class Projection(object):
                 bird.Cctl = interp1d(self.co.s, bird.Cctl, axis=-1, kind='cubic', bounds_error=False)(self.xout)
                 bird.Cloopl = interp1d(self.co.s, bird.Cloopl, axis=-1, kind='cubic', bounds_error=False)(self.xout)
                 if bird.with_stoch: bird.Cstl = interp1d(self.co.s, bird.Cstl, axis=-1, kind='cubic', bounds_error=False)(self.xout)
+                if bird.with_nlo_bias: bird.Cnlol = interp1d(self.co.s, bird.Cnlol, axis=-1, kind='cubic', bounds_error=False)(self.xout)
         else:
             if bird.with_bias:
                 bird.fullPs = interp1d(self.co.k, bird.fullPs, axis=-1, kind='cubic', bounds_error=False)(self.xout)
@@ -457,7 +460,7 @@ class Projection(object):
                 bird.Pctl = interp1d(self.co.k, bird.Pctl, axis=-1, kind='cubic', bounds_error=False)(self.xout)
                 bird.Ploopl = interp1d(self.co.k, bird.Ploopl, axis=-1, kind='cubic', bounds_error=False)(self.xout)
                 if bird.with_stoch: bird.Pstl = interp1d(self.co.k, bird.Pstl, kind='cubic', bounds_error=False)(self.xout)
-            
+                if bird.with_nlo_bias: bird.Pnlol = interp1d(self.co.k, bird.Pnlol, axis=-1, kind='cubic', bounds_error=False)(self.xout)
 
     def IntegralLegendre(self, l, a, b):
         if l == 0: return 1.
@@ -482,13 +485,22 @@ class Projection(object):
         """
         Produce wedges
         """
-        if bird.with_bias:
-            bird.fullPs = self.integrWedges(bird.fullPs, many=False)
+        if self.cf:
+            if bird.with_bias:
+                bird.fullCf = self.integrWedges(bird.fullCf, many=False)
+            else:
+                bird.C11l = self.integrWedges(bird.C11l, many=True)
+                bird.Cctl = self.integrWedges(bird.Cctl, many=True)
+                bird.Cloopl = self.integrWedges(bird.Cloopl, many=True)
+                if bird.with_stoch: bird.Cstl = self.integrWedges(bird.Cstl, many=True)
         else:
-            bird.P11l = self.integrWedges(bird.P11l, many=True)
-            bird.Pctl = self.integrWedges(bird.Pctl, many=True)
-            bird.Ploopl = self.integrWedges(bird.Ploopl, many=True)
-            if bird.with_stoch: bird.Pstl = self.integrWedges(bird.Pstl, many=True)
+            if bird.with_bias:
+                bird.fullPs = self.integrWedges(bird.fullPs, many=False)
+            else:
+                bird.P11l = self.integrWedges(bird.P11l, many=True)
+                bird.Pctl = self.integrWedges(bird.Pctl, many=True)
+                bird.Ploopl = self.integrWedges(bird.Ploopl, many=True)
+                if bird.with_stoch: bird.Pstl = self.integrWedges(bird.Pstl, many=True)
 
     def Wedges_external(self, P):
         return self.integrWedges(P, many=False)

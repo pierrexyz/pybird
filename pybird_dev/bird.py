@@ -83,6 +83,12 @@ class Bird(object):
         self.Cct = np.empty(shape=(self.co.Nl, self.co.Ns))
         self.Cf = np.empty(shape=(2, self.co.Nl, self.co.Ns))
 
+        if self.with_nlo_bias:
+            self.bnlo = np.zeros(shape=(self.co.Nl))
+            self.Cnlo = np.empty(shape=(self.co.Nl, self.co.Ns))
+            self.Cnlol = np.empty(shape=(self.co.Nl, 1, self.co.Ns))
+            self.Pnlol = np.empty(shape=(self.co.Nl, 1, self.co.Nk))
+
         if not with_bias:
             self.Ploopl = np.empty(shape=(self.co.Nl, self.co.Nloop, self.co.Nk))
             self.P11l = np.empty(shape=(self.co.Nl, self.co.N11, self.co.Nk))
@@ -126,11 +132,6 @@ class Bird(object):
             self.b11 = np.empty(shape=(self.co.N11))
             self.bct = np.empty(shape=(self.co.Nct))
             self.bloop = np.empty(shape=(self.co.Nloop))
-
-        if self.with_nlo_bias:
-            self.bnlo = np.zeros(shape=(1))
-            self.Pnlol = np.zeros(shape=(self.co.Nl, 1, self.co.Nk))
-            self.Cnlol = np.zeros(shape=(self.co.Nl, 1, self.co.Ns))
 
         if self.with_stoch:
             if self.co.with_cf:
@@ -208,7 +209,7 @@ class Bird(object):
             self.bst[1] = bias["ce1"] 
             self.bst[2] = bias["ce2"]
 
-        if self.with_nlo_bias: self.bnlo[0] = bias["bnlo"] / self.co.km**4
+        if self.with_nlo_bias: self.bnlo[0] = 2. * b1**2 * bias["bnlo"] / self.co.km**4
 
         if self.with_assembly_bias: bq = bias["bq"]
 
@@ -260,7 +261,7 @@ class Bird(object):
         for l in range(self.co.Nl): self.Ps[1, l] -= self.Ps[1, l, 0]
         self.Ps[1] += np.einsum('lb,bx->lx', self.b13, self.P13) + np.einsum('l,x,x->lx', self.bct, self.co.k**2, self.P11)
         if self.with_stoch: self.Ps[1] += np.einsum('b,lbx->lx', self.bst, self.Pstl)
-        if self.with_nlo_bias: self.Ps[1] += np.einsum('b,lbx->lx', self.bnlo, self.Pnlol)
+        if self.with_nlo_bias: self.Ps[1] += np.einsum('l,x,x->lx', self.bnlo, self.co.k**4, self.P11)
         if setfull: self.setfullPs()
 
     def setCf(self, bs, setfull=True):
@@ -275,7 +276,7 @@ class Bird(object):
         self.Cf[0] = np.einsum('l,lx->lx', self.b11, self.C11)
         self.Cf[1] = np.einsum('lb,lbx->lx', self.b22, self.C22l) + np.einsum('lb,lbx->lx', self.b13, self.C13l) + np.einsum('l,lx->lx', self.bct, self.Cct)
         if self.with_stoch: self.Cf[1] += np.einsum('b,lbx->lx', self.bst, self.Cstl)
-        if self.with_nlo_bias: self.Cf[1] += np.einsum('b,lbx->lx', self.bnlo, self.Cnlol)
+        if self.with_nlo_bias: self.Cf[1] += np.einsum('l,lx->lx', self.bnlo, self.Cnlo)
         if setfull: self.setfullCf()
 
     def setPsCf(self, bs, setfull=True):
@@ -293,13 +294,13 @@ class Bird(object):
         for l in range(self.co.Nl): self.Ps[1, l] -= self.Ps[1, l, 0]
         self.Ps[1] += np.einsum('lb,bx->lx', self.b13, self.P13) + np.einsum('l,x,x->lx', self.bct, self.co.k**2, self.P11)
         if self.with_stoch: self.Ps[1] += np.einsum('b,lbx->lx', self.bst, self.Pstl)
-        if self.with_nlo_bias: self.Ps[1] += np.einsum('b,lbx->lx', self.bnlo, self.Pnlol)
+        if self.with_nlo_bias: self.Ps[1] += np.einsum('l,x,x->lx', self.bnlo, self.co.k**4, self.P11)
         if setfull: self.setfullPs()
 
         self.Cf[0] = np.einsum('l,lx->lx', self.b11, self.C11)
         self.Cf[1] = np.einsum('lb,lbx->lx', self.b22, self.C22l) + np.einsum('lb,lbx->lx', self.b13, self.C13l) + np.einsum('l,lx->lx', self.bct, self.Cct)
         if self.with_stoch: self.Cf[1] += np.einsum('b,lbx->lx', self.bst, self.Cstl)
-        if self.with_nlo_bias: self.Cf[1] += np.einsum('b,lbx->lx', self.bnlo, self.Cnlol)
+        if self.with_nlo_bias: self.Cf[1] += np.einsum('l,lx->lx', self.bnlo, self.Cnlo)
         if setfull: self.setfullCf()
 
     def setfullPs(self):
@@ -321,6 +322,10 @@ class Bird(object):
         self.Cctl = np.einsum('lx,ln->lnx', self.Cct, self.co.lct)
         self.C22l = np.einsum('lnx,ln->lnx', self.C22l, self.co.l22)
         self.C13l = np.einsum('lnx,ln->lnx', self.C13l, self.co.l13)
+
+        if self.with_nlo_bias:
+            self.Pnlol = np.einsum('x,x,ln->lnx', self.co.k**4, self.P11, np.array([[1.], [0], [0]]))
+            self.Cnlol = np.einsum('lx,ln->lnx', self.Cnlo, np.array([[1.], [0], [0]]))
 
         self.reducePsCfl()
 
@@ -494,7 +499,7 @@ class Bird(object):
         Ps1 = np.einsum('b,lbx->lx', self.bloop, self.Ploopl) + np.einsum('b,lbx->lx', self.bct, self.Pctl)
 
         if self.with_stoch: Ps1 += np.einsum('b,lbx->lx', self.bst, self.Pstl)
-        if self.with_nlo_bias: Ps1 += np.einsum('b,lbx->lx', self.bnlo, self.Pnlol)
+        if self.with_nlo_bias: Ps1 += np.einsum('l,lbx->lx', self.bnlo, self.Pnlol)
 
         self.fullPs = Ps0 + Ps1
 
@@ -512,7 +517,7 @@ class Bird(object):
         Cf1 = np.einsum('b,lbx->lx', self.bloop, self.Cloopl) + np.einsum('b,lbx->lx', self.bct, self.Cctl)
 
         if self.with_stoch: Cf1 += np.einsum('b,lbx->lx', self.bst, self.Cstl)
-        if self.with_nlo_bias: Cf1 += np.einsum('b,lbx->lx', self.bnlo, self.Cnlol)
+        if self.with_nlo_bias: Cf1 += np.einsum('l,lbx->lx', self.bnlo, self.Cnlol)
 
         self.fullCf = Cf0 + Cf1
 
@@ -595,4 +600,5 @@ class Bird(object):
         
         self.setBias(bs)
         self.w = np.einsum('n,nx->x', self.b11, self.wlin) + np.einsum('n,nx->x', self.bct, self.wct) + np.einsum('n,nx->x', self.bloop, self.wloop)
+        if self.with_nlo_bias: self.w += np.einsum('n,nx->x', self.bnlo, self.wnlo)
 

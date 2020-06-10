@@ -47,6 +47,7 @@ class NonLinear(object):
 
         self.co = co
 
+        # self.fftsettings = dict(Nmax=NFFT, xmin=1.5e-5, xmax=1000., bias=-1.6) if increase boundaries, might want to increase NFFT = 384 
         self.fftsettings = dict(Nmax=NFFT, xmin=1.e-4, xmax=100., bias=-1.6)
 
         self.fft = FFTLog(**self.fftsettings)
@@ -59,7 +60,7 @@ class NonLinear(object):
                     print ('Loaded loop matrices do not correspond to asked FFTLog configuration. \n Computing new matrices.')
                     load = False
                 else:
-                    self.M22, self.M13, self.Mcf11, self.Mcf22, self.Mcf13, self.Mcfct = L['M22'], L['M13'], L['Mcf11'], L['Mcf22'], L['Mcf13'], L['Mcfct']
+                    self.M22, self.M13, self.Mcf11, self.Mcf22, self.Mcf13, self.Mcfct = L['M22'], L['M13'], L['Mcf11'], L['Mcf22'], L['Mcf13'], L['Mcfct']#, L['Mcfnlo']
                     save = False
             except:
                 print ('Can\'t load loop matrices at %s. \n Computing new matrices.' % path)
@@ -73,13 +74,14 @@ class NonLinear(object):
             self.setMcf22()
             self.setMcf13()
             self.setMcfct()
+            #self.setMcfnlo()
 
         if save is True:
             try:
                 if self.co.exact_time: np.savez(os.path.join(path, 'pyegg%s_nl%s_exact_time.npz') % (NFFT, self.co.Nl), Pow=self.fft.Pow,
-                         M22=self.M22, M13=self.M13, Mcf11=self.Mcf11, Mcf22=self.Mcf22, Mcf13=self.Mcf13, Mcfct=self.Mcfct)
+                         M22=self.M22, M13=self.M13, Mcf11=self.Mcf11, Mcf22=self.Mcf22, Mcf13=self.Mcf13, Mcfct=self.Mcfct)#, Mcfnlo=self.Mcfnlo)
                 else: np.savez(os.path.join(path, 'pyegg%s_nl%s.npz') % (NFFT, self.co.Nl), Pow=self.fft.Pow,
-                         M22=self.M22, M13=self.M13, Mcf11=self.Mcf11, Mcf22=self.Mcf22, Mcf13=self.Mcf13, Mcfct=self.Mcfct)
+                         M22=self.M22, M13=self.M13, Mcf11=self.Mcf11, Mcf22=self.Mcf22, Mcf13=self.Mcf13, Mcfct=self.Mcfct)#, Mcfnlo=self.Mcfnlo)
             except:
                 print ('Can\'t save loop matrices at %s.' % path)
 
@@ -146,16 +148,16 @@ class NonLinear(object):
             for u, n1 in enumerate(-0.5 * self.fft.Pow - 1.):
                 self.Mcfct[l, u] = 1j**(2*l) * MPC(2 * l, n1)
 
-    def setMcfnlo(self):
-        """ Compute the next-to-leading counterterm correlation function matrices. """
-        self.Mcfct = np.empty(shape=(self.co.Nl, self.fft.Pow.shape[0]), dtype='complex')
-        for l in range(self.co.Nl):
-            for u, n1 in enumerate(-0.5 * self.fft.Pow - 2.): ### Check this !
-                self.Mcfnlo[l, u] = 1j**(2*l) * MPC(2 * l, n1)
+    # def setMcfnlo(self):
+    #     """ Compute the next-to-leading counterterm correlation function matrices. """
+    #     self.Mcfnlo = np.empty(shape=(self.co.Nl, self.fft.Pow.shape[0]), dtype='complex')
+    #     for l in range(self.co.Nl):
+    #         for u, n1 in enumerate(-0.5 * self.fft.Pow - 2.):
+    #             self.Mcfnlo[l, u] = 1j**(2*l) * MPC(2 * l, n1)
 
     def makeCnlo(self, CoefsPow, bird):
         """ Perform the next-to-leading counterterm correlation function matrix multiplications """
-        bird.Cnlol = self.co.s**-4 * np.real(np.einsum('ns,ln->ls', CoefsPow, self.Mcfct))
+        bird.Cnlo = self.co.s**-4 * np.real(np.einsum('ns,ln->ls', CoefsPow, self.Mcfct)) ### Approximation
 
     def setkPow(self):
         """ Compute the k's to the powers of the FFTLog to evaluate the loop power spectrum. Called at the instantiation of the class. """
@@ -235,6 +237,8 @@ class NonLinear(object):
         self.makeC22l(coefsPow, bird)
         self.makeC13l(coefsPow, bird)
 
+        if bird.with_nlo_bias: self.makeCnlo(coefsPow, bird)
+
     def PsCf(self, bird, window=None):
         """ Compute the loop power spectrum and correlation function given a Bird(). Perform the FFTLog and the matrix multiplications.
 
@@ -254,6 +258,8 @@ class NonLinear(object):
         self.makeCct(coefsPow, bird)
         self.makeC22l(coefsPow, bird)
         self.makeC13l(coefsPow, bird)
+
+        if bird.with_nlo_bias: self.makeCnlo(coefsPow, bird)
 
 
 
