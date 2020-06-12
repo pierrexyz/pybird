@@ -47,15 +47,18 @@ class NonLinear(object):
 
         self.co = co
 
-        # self.fftsettings = dict(Nmax=NFFT, xmin=1.5e-5, xmax=1000., bias=-1.6) if increase boundaries, might want to increase NFFT = 384 
-        self.fftsettings = dict(Nmax=NFFT, xmin=1.e-4, xmax=100., bias=-1.6)
+        if self.co.with_cf: self.fftsettings = dict(Nmax=NFFT, xmin=1.e-4, xmax=100., bias=-1.6)
+        else: self.fftsettings = dict(Nmax=NFFT, xmin=1.5e-5, xmax=1000., bias=-1.6)
 
         self.fft = FFTLog(**self.fftsettings)
 
+        if self.co.with_cf: self.pyegg = os.path.join(path, 'pyegg%s_cf_nl%s.npz') % (NFFT, self.co.Nl)
+        elif self.co.exact_time: self.pyegg = os.path.join(path, 'pyegg%s_nl%s_exact_time.npz') % (NFFT, self.co.Nl)
+        else: self.pyegg = os.path.join(path, 'pyegg%s_nl%s.npz') % (NFFT, self.co.Nl)
+
         if load is True:
             try:
-                if self.co.exact_time: L = np.load(os.path.join(path, 'pyegg%s_nl%s_exact_time.npz') % (NFFT, self.co.Nl) )
-                else: L = np.load(os.path.join(path, 'pyegg%s_nl%s.npz') % (NFFT, self.co.Nl) )
+                L = np.load( self.pyegg )
                 if (self.fft.Pow - L['Pow']).any():
                     print ('Loaded loop matrices do not correspond to asked FFTLog configuration. \n Computing new matrices.')
                     load = False
@@ -77,13 +80,8 @@ class NonLinear(object):
             #self.setMcfnlo()
 
         if save is True:
-            try:
-                if self.co.exact_time: np.savez(os.path.join(path, 'pyegg%s_nl%s_exact_time.npz') % (NFFT, self.co.Nl), Pow=self.fft.Pow,
-                         M22=self.M22, M13=self.M13, Mcf11=self.Mcf11, Mcf22=self.Mcf22, Mcf13=self.Mcf13, Mcfct=self.Mcfct)#, Mcfnlo=self.Mcfnlo)
-                else: np.savez(os.path.join(path, 'pyegg%s_nl%s.npz') % (NFFT, self.co.Nl), Pow=self.fft.Pow,
-                         M22=self.M22, M13=self.M13, Mcf11=self.Mcf11, Mcf22=self.Mcf22, Mcf13=self.Mcf13, Mcfct=self.Mcfct)#, Mcfnlo=self.Mcfnlo)
-            except:
-                print ('Can\'t save loop matrices at %s.' % path)
+            try: np.savez(self.pyegg, Pow=self.fft.Pow, M22=self.M22, M13=self.M13, Mcf11=self.Mcf11, Mcf22=self.Mcf22, Mcf13=self.Mcf13, Mcfct=self.Mcfct)#, Mcfnlo=self.Mcfnlo)
+            except: print ('Can\'t save loop matrices at %s.' % path)
 
         self.setkPow()
         self.setsPow()
@@ -378,6 +376,61 @@ M22e = {
     35: lambda n1, n2: ((-3 + 2*n1 + 2*n2)*(-1 + 2*n1 + 2*n2))/(n1*(1 + n1)*n2*(1 + n2)),
 }
 
+M13q = {
+    0: lambda n1: -(1/(1 + n1)),
+    1: lambda n1: -(1/(1 + n1)),
+    2: lambda n1: 1.125,
+    3: lambda n1: 2.25,
+    4: lambda n1: 1.125,
+    5: lambda n1: 5.25,
+    6: lambda n1: 10.5,
+    7: lambda n1: 5.25,
+    8: lambda n1: 5.25,
+    9: lambda n1: -21/(4 + 4*n1),
+    10: lambda n1: (21 + 42*n1)/(4 + 4*n1),
+    11: lambda n1: -21/(4 + 4*n1),
+    12: lambda n1: (21*n1)/(4 + 4*n1),
+    13: lambda n1: -21/(1 + n1),
+    14: lambda n1: -21/(1 + n1),
+}
 
+M22q = {
+    0: lambda n1, n2: (2*(48 - 2*n1*(1 + 10*n1) - 2*n2 + 3*n1*(17 + 7*n1)*n2 + (-20 + 7*n1*(3 + 7*n1))*n2**2))/(49.*n1*(1 + n1)*n2*(1 + n2)),
+    1: lambda n1, n2: (4*(3 - 2*n2 + n1*(-2 + 7*n2)))/(7.*n1*n2),
+    2: lambda n1, n2: 2,
+    3: lambda n1, n2: ((-3 + 2*n1 + 2*n2)*(2 + n2*(4 + 5*n2) + n1**2*(5 + 7*n2) + n1*(4 + n2*(10 + 7*n2))))/(7.*n1*(1 + n1)*n2*(1 + n2)),
+    4: lambda n1, n2: ((n1 + n2)*(-3 + 2*n1 + 2*n2))/(n1*n2),
+    5: lambda n1, n2: ((-3 + 2*n1 + 2*n2)*(-1 + 2*n1 + 2*n2)*(2 + (-1 + n1)*n1*(1 + 2*n1) - n2 - 2*n1*(1 + n1)*n2 - (1 + 2*n1)*n2**2 + 2*n2**3))/(8.*n1*(1 + n1)*(-1 + 2*n1)*n2*(1 + n2)*(-1 + 2*n2)),
+    6: lambda n1, n2: ((1 + n1 + n2)*(2 + n1 + n2)*(-3 + 2*n1 + 2*n2)*(-1 + 2*n1 + 2*n2))/(8.*n1*(1 + n1)*n2*(1 + n2)),
+    7: lambda n1, n2: -((-3 + 2*n1 + 2*n2)*(9 + 3*n1 + 3*n2 + 7*n1*n2))/(14.*n1*(1 + n1)*n2*(1 + n2)),
+    8: lambda n1, n2: ((-3 + 2*n1 + 2*n2)*(-1 + 2*n1 + 2*n2)*(5 + 5*n1 + 5*n2 + 7*n1*n2))/(14.*n1*(1 + n1)*n2*(1 + n2)),
+    9: lambda n1, n2: (3 - 2*n1 - 2*n2)/(2.*n1*n2),
+    10: lambda n1, n2: ((-3 + 2*n1 + 2*n2)*(-1 + 2*n1 + 2*n2))/(2.*n1*n2),
+    11: lambda n1, n2: ((-3 + 2*n1 + 2*n2)*(-1 + 2*n1 + 2*n2)*(2 + n1 + 4*n1**3 + n2 - 8*n1**2*n2 + 4*n2**3 - 8*n1*n2*(1 + n2)))/(8.*n1*(1 + n1)*(-1 + 2*n1)*n2*(1 + n2)*(-1 + 2*n2)),
+    12: lambda n1, n2: ((2 + n1 + n2)*(-3 + 2*n1 + 2*n2)*(-1 + 2*n1 + 2*n2)*(1 + 2*n1 + 2*n2))/(8.*n1*(1 + n1)*n2*(1 + n2)),
+    13: lambda n1, n2: (3*(-3 + 2*n1 + 2*n2)*(-1 + 2*n1 + 2*n2))/(32.*n1*(1 + n1)*n2*(1 + n2)),
+    14: lambda n1, n2: ((-3 + 2*n1 + 2*n2)*(-1 + 2*n1 + 2*n2)*(1 + 2*n1 + 2*n2)*(1 + 2*(n1**2 - 4*n1*n2 + n2**2)))/(16.*n1*(1 + n1)*(-1 + 2*n1)*n2*(1 + n2)*(-1 + 2*n2)),
+    15: lambda n1, n2: ((-3 + 2*n1 + 2*n2)*(-1 + 2*n1 + 2*n2)*(1 + 2*n1 + 2*n2)*(3 + 2*n1 + 2*n2))/(32.*n1*(1 + n1)*n2*(1 + n2)),
+    16: lambda n1, n2: (n1**2*(1 - 11*n2) + 2*n1**3*(5 + 7*n2) + (-3 + 2*n2)*(6 + n2*(8 + 5*n2)) + n1*(-12 + n2*(-38 + n2*(-11 + 14*n2))))/(7.*n1*(1 + n1)*n2*(1 + n2)),
+    17: lambda n1, n2: (-3 + 2*n1)/n2 + (-3 + 2*n2)/n1,
+    18: lambda n1, n2: ((-3 + 2*n1 + 2*n2)*(-2 + 3*n2 + 4*n1**4*n2 + (3 - 2*n2)*n2**2 + 2*n1**3*(-1 + n2)*(1 + 2*n2) + n1*(1 + 2*n2)*(3 + 2*(-2 + n2)*n2*(1 + n2)) + n1**2*(3 + 2*n2*(-5 + 2*(-1 + n2)*n2))))/(2.*n1*(1 + n1)*(-1 + 2*n1)*n2*(1 + n2)*(-1 + 2*n2)),
+    19: lambda n1, n2: ((-2 + n1 + n2)*(-3 + 2*n1 + 2*n2)*(8 + 5*n2 + n1*(5 + 7*n2)))/(7.*n1*(1 + n1)*n2*(1 + n2)),
+    20: lambda n1, n2: ((-2 + n1 + n2)*(-3 + 2*n1 + 2*n2))/(n1*n2),
+    21: lambda n1, n2: ((-3 + 2*n1 + 2*n2)*(6 + n1 - 2*n1**2 + n2 - 2*n2**2))/(8.*n1*(1 + n1)*n2*(1 + n2)),
+    22: lambda n1, n2: ((-3 + 2*n1 + 2*n2)*(-1 + 2*n1 + 2*n2)*(2 + (11 - 6*n1)*n1 + 11*n2 + 4*(-2 + n1)*n1*(5 + 4*n1)*n2 + 2*(-3 - 6*n1 + 8*n1**2)*n2**2 + 16*n1*n2**3))/(8.*n1*(1 + n1)*(-1 + 2*n1)*n2*(1 + n2)*(-1 + 2*n2)),
+    23: lambda n1, n2: -((-2 + n1 + n2)*(-3 + 2*n1 + 2*n2)*(-1 + 2*n1 + 2*n2))/(8.*n1*(1 + n1)*n2*(1 + n2)),
+    24: lambda n1, n2: ((-2 + n1 + n2)*(-3 + 2*n1 + 2*n2)*(-1 + 2*n1 + 2*n2)*(1 + 2*n1 + 2*n2)*(-1 + 4*n1*n2))/(8.*n1*(1 + n1)*(-1 + 2*n1)*n2*(1 + n2)*(-1 + 2*n2)),
+    25: lambda n1, n2: (6 + n1*(1 + 2*n1)*(-7 + n1 + 2*n1**2) - 7*n2 + 2*n1*(-3 + n1*(19 + n1*(-5 + 4*(-3 + n1)*n1)))*n2 + (-13 + 2*n1*(19 + 6*n1 - 4*n1**2))*n2**2 + 2*(2 + n1*(-5 - 4*n1 + 8*n1**2))*n2**3 + 4*(1 - 6*n1)*n2**4 + 8*n1*n2**5)/(4.*n1*(1 + n1)*(-1 + 2*n1)*n2*(1 + n2)*(-1 + 2*n2)),
+    26: lambda n1, n2: ((-2 + n1 + n2)*(-3 + 2*n1 + 2*n2)*(-2 + n1*(3 + 2*n1) + 3*n2 + 2*n1*(-4 + n1*(-1 + 2*n1))*n2 - 2*(-1 + n1)*n2**2 + 4*n1*n2**3))/(2.*n1*(1 + n1)*(-1 + 2*n1)*n2*(1 + n2)*(-1 + 2*n2)),
+    27: lambda n1, n2: ((-2 + n1 + n2)*(-1 + n1 + n2)*(-3 + 2*n1 + 2*n2)*(-1 + 2*n1 + 2*n2)*(1 + 2*n1*n2))/(4.*n1*(1 + n1)*(-1 + 2*n1)*n2*(1 + n2)*(-1 + 2*n2)),
+    28: lambda n1, n2: ((-3 + 2*n1 + 2*n2)*(n1*(-1 + 2*n1) + (-2 + n2)*(3 + 2*n2)))/(2.*n1*(1 + n1)*n2*(1 + n2)),
+    29: lambda n1, n2: ((-2 + n1 + n2)*(-3 + 2*n1 + 2*n2)*(-1 + 2*n1 + 2*n2))/(2.*n1*(1 + n1)*n2*(1 + n2)),
+    30: lambda n1, n2: (2*(-3 + 2*n1 + 2*n2)*(9 + 3*n1 + 3*n2 + 7*n1*n2))/(7.*n1*(1 + n1)*n2*(1 + n2)),
+    31: lambda n1, n2: (-6 + 4*n1 + 4*n2)/(n1*n2),
+    32: lambda n1, n2: ((2 + n1 + n2)*(-3 + 2*n1 + 2*n2)*(-1 + 2*n1 + 2*n2))/(2.*n1*(1 + n1)*n2*(1 + n2)),
+    33: lambda n1, n2: -((-3 + 2*n1 + 2*n2)*(-1 + 2*n1 + 2*n2))/(2.*n1*(1 + n1)*n2*(1 + n2)),
+    34: lambda n1, n2: ((1 + n1 + n2)*(-3 + 2*n1 + 2*n2)*(-1 + 2*n1 + 2*n2))/(2.*n1*(1 + n1)*n2*(1 + n2)),
+    35: lambda n1, n2: ((-3 + 2*n1 + 2*n2)*(-1 + 2*n1 + 2*n2))/(n1*(1 + n1)*n2*(1 + n2)),
+}
 
 

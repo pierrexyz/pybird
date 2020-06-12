@@ -11,21 +11,22 @@ from angular import Angular
 from greenfunction import GreenFunction
 
 
-import importlib, sys
-importlib.reload(sys.modules['common'])
-importlib.reload(sys.modules['bird'])
-importlib.reload(sys.modules['nonlinear'])
-importlib.reload(sys.modules['resum'])
-importlib.reload(sys.modules['projection'])
-importlib.reload(sys.modules['angular'])
-importlib.reload(sys.modules['greenfunction'])
+# import importlib, sys
+# importlib.reload(sys.modules['common'])
+# importlib.reload(sys.modules['bird'])
+# importlib.reload(sys.modules['nonlinear'])
+# importlib.reload(sys.modules['resum'])
+# importlib.reload(sys.modules['projection'])
+# importlib.reload(sys.modules['angular'])
+# importlib.reload(sys.modules['greenfunction'])
 
-from common import Common, co
-from bird import Bird
-from nonlinear import NonLinear
-from resum import Resum
-from projection import Projection
-from angular import Angular
+# from common import Common, co
+# from bird import Bird
+# from nonlinear import NonLinear
+# from resum import Resum
+# from projection import Projection
+# from angular import Angular
+# from greenfunction import GreenFunction
 
 class Correlator(object):
     
@@ -170,6 +171,9 @@ class Correlator(object):
             "with_assembly_bias": Option("with_assembly_bias", bool,
                 description="With assembly bias.",
                 default=False) ,
+            "with_quintessence": Option("with_quintessence", bool,
+                description="Clustering quintessence. Automatically set \'with_exact_time\' to True.",
+                default=False) ,
         }
         
         if config_dict is not None: self.set(config_dict, load_engines=load_engines)
@@ -250,6 +254,7 @@ class Correlator(object):
 
                 cosmoi["f"] = self.cosmo["f"][i]
                 cosmoi["D"] = self.cosmo["D"][i]
+                cosmoi["z"] = self.config["z"][i]
 
                 if self.config["with_AP"] and not self.config["with_redshift_bin"]:
                     cosmoi["DA"] = self.cosmo["DA"][i]
@@ -790,6 +795,8 @@ class Correlator(object):
         else:
             self.config["zz"] = None
             self.config["nz"] = None 
+
+        if self.config["with_quintessence"]: self.config["with_exact_time"] = True
 
 
     def setcosmo(self, cosmo_dict, module='class'):

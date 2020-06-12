@@ -26,7 +26,7 @@ class Common(object):
         The maximum multipole to calculate (default 2)
     """
 
-    def __init__(self, Nl=2, kmin=0.001, kmax=0.25, km=1., nd=3e-4, with_cf=False, with_time=True, accboost=1., optiresum=False, orderresum=16, exact_time=False):
+    def __init__(self, Nl=2, kmin=0.001, kmax=0.25, km=1., nd=3e-4, with_cf=False, with_time=True, accboost=1., optiresum=False, orderresum=16, exact_time=False, quintessence=False):
         
         self.nd = nd
         self.km = km
@@ -34,6 +34,7 @@ class Common(object):
         self.optiresum = optiresum
         self.with_time = with_time
         self.exact_time = exact_time
+        self.quintessence = quintessence
 
         if Nl is 0: self.Nl = 1
         elif Nl > 0: self.Nl = Nl
@@ -41,6 +42,9 @@ class Common(object):
         self.Nct = 6
 
         if self.exact_time:
+            self.N22 = 36  # number of 22-loops
+            self.N13 = 15  # number of 13-loops
+        elif self.quintessence:
             self.N22 = 36  # number of 22-loops
             self.N13 = 15  # number of 13-loops
         else:
@@ -82,7 +86,8 @@ class Common(object):
             self.Nk = self.k.shape[0]
 
         # for resummation
-        if self.Nl is 3 or self.kmax > 0.25: self.NIR = 20#16#20#16
+        if self.with_cf: self.NIR = 20
+        elif self.Nl is 3 or self.kmax > 0.25: self.NIR = 16
         else: self.NIR = 8
         
         if self.NIR is 16: self.Na = 3

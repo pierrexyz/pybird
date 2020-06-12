@@ -167,23 +167,28 @@ class Bird(object):
         self.H = cosmo["H"]
 
         if self.co.exact_time:
-            try:
-                try: self.w0 = cosmo["w0_fld"]
-                except: self.w0 = None
-                self.Omega0_m = cosmo["Omega0_m"]
-                self.z = cosmo["z"]
-                self.a = 1/(1.+self.z)
-                GF = GreenFunction(self.Omega0_m, w=self.w0)
-                # self.f = GF.fplus(self.a)
-                self.Y1 = GF.Y(self.a)
-                self.G1t = GF.mG1t(self.a)
-                self.V12t = GF.mV12t(self.a)
-                # print (self.Y1, self.G1t, self.V12t)
-            except:
-                print ("setting EdS time approximation")
-                self.Y1 = 0.
-                self.G1t = 3/7.
-                self.V12t = 1/7.
+            #try:
+            try: self.w0 = cosmo["w0_fld"]
+            except: self.w0 = None
+            self.Omega0_m = cosmo["Omega0_m"]
+            self.z = cosmo["z"]
+            #print (self.z, self.Omega0_m)
+            self.a = 1/(1.+self.z)
+            GF = GreenFunction(self.Omega0_m, w=self.w0, quintessence=self.co.quintessence)
+            self.Y1 = GF.Y(self.a)
+            self.G1t = GF.mG1t(self.a)
+            self.V12t = GF.mV12t(self.a)
+            if self.co.quintessence: 
+                self.G1 = GF.G(self.a)
+                self.f = GF.fplus(self.a)
+            else: self.G1 = 1.
+            # print (self.Y1, self.G1t, self.V12t, self.G1, self.f, GF.fplus(self.a))
+            # except:
+            #     print ("setting EdS time approximation")
+            #     self.Y1 = 0.
+            #     self.G1t = 3/7.
+            #     self.V12t = 1/7.
+            #     self.G1 = 1.
 
     def setBias(self, bias):
         """ Given an array of EFT parameters, set them among linear, loops and counter terms, and among multipoles
@@ -223,12 +228,15 @@ class Bird(object):
                 
                 if self.co.exact_time:
                     ## EdS: Y1 = 0., G1t = 3/7., V12t = 1/7.
+                    G1 = self.G1
                     Y1 = self.Y1
                     G1t = self.G1t
                     V12t = self.V12t
-                    self.b22[i] = np.array([b1**2*mu[0][l], b1*b2*mu[0][l], b1*b4*mu[0][l], b2**2*mu[0][l], b2*b4*mu[0][l], b4**2*mu[0][l], b1**2*f*mu[2][l], b1*b2*f*mu[2][l], b1*b4*f*mu[2][l], b1*f*mu[2][l], b2*f*mu[2][l], b4*f*mu[2][l], b1**2*f**2*mu[2][l], b1**2*f**2*mu[4][l], b1*f**2*mu[2][l], b1*f**2*mu[4][l], b2*f**2*mu[2][l], b2*f**2*mu[4][l], b4*f**2*mu[2][l], b4*f**2*mu[4][l], f**2*mu[4][l], b1*f**3*mu[4][l], b1*f**3*mu[6][l], f**3*mu[4][l], f**3*mu[6][l], f**4*mu[4][l], f**4*mu[6][l], f**4*mu[8][l], b1*f*G1t*mu[2][l], b2*f*G1t*mu[2][l], b4*f*G1t*mu[2][l], b1*f**2*G1t*mu[4][l], f**2*G1t*mu[4][l], f**3*G1t*mu[4][l], f**3*G1t*mu[6][l], f**2*G1t**2*mu[4][l] ])
-                    self.b13[i] = np.array([b1**2*mu[0][l], b1*b3*mu[0][l], b1*f*mu[2][l], b3*f*mu[2][l], f**2*mu[4][l], b1**2*Y1*mu[0][l], b1*f*mu[2][l]*Y1, f**2*mu[4][l]*Y1, b1**2*f*G1t*mu[2][l], b1*f**2*G1t*mu[2][l], b1*f**2*G1t*mu[4][l], f**3*G1t*mu[4][l], f**3*G1t*mu[6][l], b1*f*mu[2][l]*V12t, f**2*mu[4][l]*V12t])
-
+                    self.b22[i] = np.array([ b1**2*G1**2*mu[0][l], b1*b2*G1*mu[0][l], b1*b4*G1*mu[0][l], b2**2*mu[0][l], b2*b4*mu[0][l], b4**2*mu[0][l], b1**2*f*G1*mu[2][l], b1*b2*f*mu[2][l], b1*b4*f*mu[2][l], b1*f*G1**2*mu[2][l], b2*f*G1*mu[2][l], b4*f*G1*mu[2][l], b1**2*f**2*mu[2][l], b1**2*f**2*mu[4][l], b1*f**2*G1*mu[2][l], b1*f**2*G1*mu[4][l], b2*f**2*mu[2][l], b2*f**2*mu[4][l], b4*f**2*mu[2][l], b4*f**2*mu[4][l], f**2*G1**2*mu[4][l], b1*f**3*mu[4][l], b1*f**3*mu[6][l], f**3*G1*mu[4][l], f**3*G1*mu[6][l], f**4*mu[4][l], f**4*mu[6][l], f**4*mu[8][l], b1*f*G1*G1t*mu[2][l], b2*f*G1t*mu[2][l], b4*f*G1t*mu[2][l], b1*f**2*G1t*mu[4][l], f**2*G1*G1t*mu[4][l], f**3*G1t*mu[4][l], f**3*G1t*mu[6][l], f**2*G1t**2*mu[4][l] ])
+                    self.b13[i] = np.array([ b1**2*G1**2*mu[0][l], b1*b3*mu[0][l], b1*f*G1**2*mu[2][l], b3*f*mu[2][l], f**2*G1**2*mu[4][l], b1**2*Y1*mu[0][l], b1*f*mu[2][l]*Y1, f**2*mu[4][l]*Y1, b1**2*f*G1t*mu[2][l], b1*f**2*G1t*mu[2][l], b1*f**2*G1t*mu[4][l], f**3*G1t*mu[4][l], f**3*G1t*mu[6][l], b1*f*mu[2][l]*V12t, f**2*mu[4][l]*V12t ])
+                    # similar to above but with G1 = 1
+                    # self.b22[i] = np.array([b1**2*mu[0][l], b1*b2*mu[0][l], b1*b4*mu[0][l], b2**2*mu[0][l], b2*b4*mu[0][l], b4**2*mu[0][l], b1**2*f*mu[2][l], b1*b2*f*mu[2][l], b1*b4*f*mu[2][l], b1*f*mu[2][l], b2*f*mu[2][l], b4*f*mu[2][l], b1**2*f**2*mu[2][l], b1**2*f**2*mu[4][l], b1*f**2*mu[2][l], b1*f**2*mu[4][l], b2*f**2*mu[2][l], b2*f**2*mu[4][l], b4*f**2*mu[2][l], b4*f**2*mu[4][l], f**2*mu[4][l], b1*f**3*mu[4][l], b1*f**3*mu[6][l], f**3*mu[4][l], f**3*mu[6][l], f**4*mu[4][l], f**4*mu[6][l], f**4*mu[8][l], b1*f*G1t*mu[2][l], b2*f*G1t*mu[2][l], b4*f*G1t*mu[2][l], b1*f**2*G1t*mu[4][l], f**2*G1t*mu[4][l], f**3*G1t*mu[4][l], f**3*G1t*mu[6][l], f**2*G1t**2*mu[4][l] ])
+                    # self.b13[i] = np.array([b1**2*mu[0][l], b1*b3*mu[0][l], b1*f*mu[2][l], b3*f*mu[2][l], f**2*mu[4][l], b1**2*Y1*mu[0][l], b1*f*mu[2][l]*Y1, f**2*mu[4][l]*Y1, b1**2*f*G1t*mu[2][l], b1*f**2*G1t*mu[2][l], b1*f**2*G1t*mu[4][l], f**3*G1t*mu[4][l], f**3*G1t*mu[6][l], b1*f*mu[2][l]*V12t, f**2*mu[4][l]*V12t])
                 else:
                     self.b22[i] = np.array([b1**2 * mu[0][l], b1 * b2 * mu[0][l], b1 * b4 * mu[0][l], b2**2 * mu[0][l], b2 * b4 * mu[0][l], b4**2 * mu[0][l], b1**2 * f * mu[2][l], b1 * b2 * f * mu[2][l], b1 * b4 * f * mu[2][l], b1 * f * mu[2][l], b2 * f * mu[2][l], b4 * f * mu[2][l], b1**2 * f**2 * mu[2][l], b1**2 * f**2 * mu[4][l], b1 * f**2 * mu[2][l], b1 * f**2 * mu[4][l], b2 * f**2 * mu[2][l], b2 * f**2 * mu[4][l], b4 * f**2 * mu[2][l], b4 * f**2 * mu[4][l], f**2 * mu[4][l], b1 * f**3 * mu[4][l], b1 * f**3 * mu[6][l], f**3 * mu[4][l], f**3 * mu[6][l], f**4 * mu[4][l], f**4 * mu[6][l], f**4 * mu[8][l]])
                     self.b13[i] = np.array([b1**2 * mu[0][l], b1 * b3 * mu[0][l], b1**2 * f * mu[2][l], b1 * f * mu[2][l], b3 * f * mu[2][l], b1 * f**2 * mu[2][l], b1 * f**2 * mu[4][l], f**2 * mu[4][l], f**3 * mu[4][l], f**3 * mu[6][l]])
@@ -344,44 +352,44 @@ class Bird(object):
                 f1 = self.f
 
                 ## EdS: Y1 = 0., G1t = 3/7., V12t = 1/7.
+                G1 = self.G1
                 Y1 = self.Y1
                 G1t = self.G1t
                 V12t = self.V12t
 
-                self.Ploopl[:, 0] = f1**2 * self.P22l[:, 20] + f1**3 * self.P22l[:, 23] + f1**3 * self.P22l[:, 24] + f1**4 * self.P22l[:, 25] + f1**4 * self.P22l[:, 26] + f1**4 * self.P22l[:, 27] + \
-                    G1t * f1**2 * self.P22l[:, 32] + G1t * f1**3 * self.P22l[:, 33] + G1t * f1**3 * self.P22l[:, 34] + G1t**2 * f1**2 * self.P22l[:, 35] + \
-                    f1**2 * self.P13l[:, 4] + Y1 * f1**2 * self.P13l[:, 7] + G1t * f1**3 * self.P13l[:, 11] + G1t * f1**3 * self.P13l[:, 12] + V12t * f1**2 * self.P13l[:, 14] # *1
-                self.Ploopl[:, 1] = f1 * self.P22l[:, 9] + f1**2 * self.P22l[:, 14] + f1**2 * self.P22l[:, 15] + f1**3 * self.P22l[:, 21] + f1**3 * self.P22l[:, 22] + G1t * f1 * self.P22l[:, 28] + G1t * f1**2 * self.P22l[:, 31] + \
-                    f1 * self.P13l[:, 2] + Y1 * f1 * self.P13l[:, 6] + G1t * f1**2 * self.P13l[:, 9] + G1t * f1**2 * self.P13l[:, 10] + V12t * f1 * self.P13l[:, 13] # *b1
-                self.Ploopl[:, 2] = f1 * self.P22l[:, 10] + f1**2 * self.P22l[:, 16] + f1**2 * self.P22l[:, 17] + G1t * f1 * self.P22l[:, 29] # *b2
+                self.Ploopl[:, 0] = G1**2 * f1**2 * self.P22l[:, 20] + G1 * f1**3 * self.P22l[:, 23] + G1 * f1**3 * self.P22l[:, 24] + f1**4 * self.P22l[:, 25] + f1**4 * self.P22l[:, 26] + f1**4 * self.P22l[:, 27] + \
+                    G1 * G1t * f1**2 * self.P22l[:, 32] + G1t * f1**3 * self.P22l[:, 33] + G1t * f1**3 * self.P22l[:, 34] + G1t**2 * f1**2 * self.P22l[:, 35] + \
+                    G1**2 * f1**2 * self.P13l[:, 4] + Y1 * f1**2 * self.P13l[:, 7] + G1t * f1**3 * self.P13l[:, 11] + G1t * f1**3 * self.P13l[:, 12] + V12t * f1**2 * self.P13l[:, 14] # *1
+                self.Ploopl[:, 1] = G1**2 * f1 * self.P22l[:, 9] + G1 * f1**2 * self.P22l[:, 14] + G1 * f1**2 * self.P22l[:, 15] + f1**3 * self.P22l[:, 21] + f1**3 * self.P22l[:, 22] + G1 * G1t * f1 * self.P22l[:, 28] + G1t * f1**2 * self.P22l[:, 31] + \
+                    G1**2 * f1 * self.P13l[:, 2] + Y1 * f1 * self.P13l[:, 6] + G1t * f1**2 * self.P13l[:, 9] + G1t * f1**2 * self.P13l[:, 10] + V12t * f1 * self.P13l[:, 13] # *b1
+                self.Ploopl[:, 2] = G1 * f1 * self.P22l[:, 10] + f1**2 * self.P22l[:, 16] + f1**2 * self.P22l[:, 17] + G1t * f1 * self.P22l[:, 29] # *b2
                 self.Ploopl[:, 3] = f1 * self.P13l[:, 3] # *b3
-                self.Ploopl[:, 4] = f1 * self.P22l[:, 11] + f1**2 * self.P22l[:, 18] + f1**2 * self.P22l[:, 19] + G1t * f1 * self.P22l[:, 30] # *b4
-                self.Ploopl[:, 5] = self.P22l[:, 0] + f1 * self.P22l[:, 6] + f1**2 * self.P22l[:, 12] + f1**2 * self.P22l[:, 13] + self.P13l[:, 0] + Y1 * self.P13l[:, 5] + G1t * f1 * self.P13l[:, 8]  # *b1*b1
-                self.Ploopl[:, 6] = self.P22l[:, 1] + f1 * self.P22l[:, 7]  # *b1*b2
+                self.Ploopl[:, 4] = G1 * f1 * self.P22l[:, 11] + f1**2 * self.P22l[:, 18] + f1**2 * self.P22l[:, 19] + G1t * f1 * self.P22l[:, 30] # *b4
+                self.Ploopl[:, 5] = G1**2 * self.P22l[:, 0] + G1 * f1 * self.P22l[:, 6] + f1**2 * self.P22l[:, 12] + f1**2 * self.P22l[:, 13] + G1**2 * self.P13l[:, 0] + Y1 * self.P13l[:, 5] + G1t * f1 * self.P13l[:, 8]  # *b1*b1
+                self.Ploopl[:, 6] = G1 * self.P22l[:, 1] + f1 * self.P22l[:, 7]  # *b1*b2
                 self.Ploopl[:, 7] = self.P13l[:, 1]  # *b1*b3
-                self.Ploopl[:, 8] = self.P22l[:, 2] + f1 * self.P22l[:, 8]  # *b1*b4
+                self.Ploopl[:, 8] = G1 * self.P22l[:, 2] + f1 * self.P22l[:, 8]  # *b1*b4
                 self.Ploopl[:, 9] = self.P22l[:, 3]  # *b2*b2
                 self.Ploopl[:, 10] = self.P22l[:, 4]  # *b2*b4
                 self.Ploopl[:, 11] = self.P22l[:, 5]  # *b4*b4
 
-                self.Cloopl[:, 0] = f1**2 * self.C22l[:, 20] + f1**3 * self.C22l[:, 23] + f1**3 * self.C22l[:, 24] + f1**4 * self.C22l[:, 25] + f1**4 * self.C22l[:, 26] + f1**4 * self.C22l[:, 27] + \
-                    G1t * f1**2 * self.C22l[:, 32] + G1t * f1**3 * self.C22l[:, 33] + G1t * f1**3 * self.C22l[:, 34] + G1t**2 * f1**2 * self.C22l[:, 35] + \
-                    f1**2 * self.C13l[:, 4] + Y1 * f1**2 * self.C13l[:, 7] + G1t * f1**3 * self.C13l[:, 11] + G1t * f1**3 * self.C13l[:, 12] + V12t * f1**2 * self.C13l[:, 14] # *1
-                self.Cloopl[:, 1] = f1 * self.C22l[:, 9] + f1**2 * self.C22l[:, 14] + f1**2 * self.C22l[:, 15] + f1**3 * self.C22l[:, 21] + f1**3 * self.C22l[:, 22] + G1t * f1 * self.C22l[:, 28] + G1t * f1**2 * self.C22l[:, 31] + \
-                    f1 * self.C13l[:, 2] + Y1 * f1 * self.C13l[:, 6] + G1t * f1**2 * self.C13l[:, 9] + G1t * f1**2 * self.C13l[:, 10] + V12t * f1 * self.C13l[:, 13] # *b1
-                self.Cloopl[:, 2] = f1 * self.C22l[:, 10] + f1**2 * self.C22l[:, 16] + f1**2 * self.C22l[:, 17] + G1t * f1 * self.C22l[:, 29] # *b2
+                self.Cloopl[:, 0] = G1**2 * f1**2 * self.C22l[:, 20] + G1 * f1**3 * self.C22l[:, 23] + G1 * f1**3 * self.C22l[:, 24] + f1**4 * self.C22l[:, 25] + f1**4 * self.C22l[:, 26] + f1**4 * self.C22l[:, 27] + \
+                    G1 * G1t * f1**2 * self.C22l[:, 32] + G1t * f1**3 * self.C22l[:, 33] + G1t * f1**3 * self.C22l[:, 34] + G1t**2 * f1**2 * self.C22l[:, 35] + \
+                    G1**2 * f1**2 * self.C13l[:, 4] + Y1 * f1**2 * self.C13l[:, 7] + G1t * f1**3 * self.C13l[:, 11] + G1t * f1**3 * self.C13l[:, 12] + V12t * f1**2 * self.C13l[:, 14] # *1
+                self.Cloopl[:, 1] = G1**2 * f1 * self.C22l[:, 9] + G1 * f1**2 * self.C22l[:, 14] + G1 * f1**2 * self.C22l[:, 15] + f1**3 * self.C22l[:, 21] + f1**3 * self.C22l[:, 22] + G1 * G1t * f1 * self.C22l[:, 28] + G1t * f1**2 * self.C22l[:, 31] + \
+                    G1**2 * f1 * self.C13l[:, 2] + Y1 * f1 * self.C13l[:, 6] + G1t * f1**2 * self.C13l[:, 9] + G1t * f1**2 * self.C13l[:, 10] + V12t * f1 * self.C13l[:, 13] # *b1
+                self.Cloopl[:, 2] = G1 * f1 * self.C22l[:, 10] + f1**2 * self.C22l[:, 16] + f1**2 * self.C22l[:, 17] + G1t * f1 * self.C22l[:, 29] # *b2
                 self.Cloopl[:, 3] = f1 * self.C13l[:, 3] # *b3
-                self.Cloopl[:, 4] = f1 * self.C22l[:, 11] + f1**2 * self.C22l[:, 18] + f1**2 * self.C22l[:, 19] + G1t * f1 * self.C22l[:, 30] # *b4
-                self.Cloopl[:, 5] = self.C22l[:, 0] + f1 * self.C22l[:, 6] + f1**2 * self.C22l[:, 12] + f1**2 * self.C22l[:, 13] + self.C13l[:, 0] + Y1 * self.C13l[:, 5] + G1t * f1 * self.C13l[:, 8]  # *b1*b1
-                self.Cloopl[:, 6] = self.C22l[:, 1] + f1 * self.C22l[:, 7]  # *b1*b2
+                self.Cloopl[:, 4] = G1 * f1 * self.C22l[:, 11] + f1**2 * self.C22l[:, 18] + f1**2 * self.C22l[:, 19] + G1t * f1 * self.C22l[:, 30] # *b4
+                self.Cloopl[:, 5] = G1**2 * self.C22l[:, 0] + G1 * f1 * self.C22l[:, 6] + f1**2 * self.C22l[:, 12] + f1**2 * self.C22l[:, 13] + G1**2 * self.C13l[:, 0] + Y1 * self.C13l[:, 5] + G1t * f1 * self.C13l[:, 8]  # *b1*b1
+                self.Cloopl[:, 6] = G1 * self.C22l[:, 1] + f1 * self.C22l[:, 7]  # *b1*b2
                 self.Cloopl[:, 7] = self.C13l[:, 1]  # *b1*b3
-                self.Cloopl[:, 8] = self.C22l[:, 2] + f1 * self.C22l[:, 8]  # *b1*b4
+                self.Cloopl[:, 8] = G1 * self.C22l[:, 2] + f1 * self.C22l[:, 8]  # *b1*b4
                 self.Cloopl[:, 9] = self.C22l[:, 3]  # *b2*b2
                 self.Cloopl[:, 10] = self.C22l[:, 4]  # *b2*b4
                 self.Cloopl[:, 11] = self.C22l[:, 5]  # *b4*b4
 
         else:
-
             if self.co.Nloop is 12:
                 f1 = self.f
 
