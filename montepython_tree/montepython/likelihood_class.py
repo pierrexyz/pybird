@@ -2702,7 +2702,7 @@ class Likelihood_bird(Likelihood):
             newpath = os.path.join(self.data_directory, self.configfile)
             print("WARNING: We are loading the configuration in %s. Please make sure this is what you want!", newpath)
             with open(newpath, 'r') as f:
-                self.config = yaml.full_load()
+                self.config = yaml.full_load(f)
 
         # Loading data and priors
         if "w" in self.config["output"]:
