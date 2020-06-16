@@ -2824,16 +2824,16 @@ class Likelihood_bird(Likelihood):
                     baoH = None
                     baoD = None
 
-            if "Pk" in self.config["output"]:
-                xi, xmaski, ydatai, chi2datai, invcovi, invcovdatai = self.__load_data_ps(
-                    self.config["multipole"], self.config["wedge"],
-                    self.data_directory, self.config["spectrum_file"][i], self.config["covmat_file"][i],
-                    xmin=self.config["xmin"][i], xmax=xmax, xmax0=xmax0, xmax1=xmax1, with_bao=self.config["with_bao"], baoH=baoH, baoD=baoD)
-            else:
-                xi, xmaski, ydatai, chi2datai, invcovi, invcovdatai = self.__load_data_cf(
-                    self.config["multipole"], self.config["wedge"],
-                    self.data_directory, self.config["spectrum_file"][i], self.config["covmat_file"][i],
-                    xmax=self.config["xmax"][i], xmin=xmin, xmin0=xmin0, xmin1=xmin1, with_bao=self.config["with_bao"], baoH=baoH, baoD=baoD)
+                if "Pk" in self.config["output"]:
+                    xi, xmaski, ydatai, chi2datai, invcovi, invcovdatai = self.__load_data_ps(
+                        self.config["multipole"], self.config["wedge"],
+                        self.data_directory, self.config["spectrum_file"][i], self.config["covmat_file"][i],
+                        xmin=self.config["xmin"][i], xmax=xmax, xmax0=xmax0, xmax1=xmax1, with_bao=self.config["with_bao"], baoH=baoH, baoD=baoD)
+                else:
+                    xi, xmaski, ydatai, chi2datai, invcovi, invcovdatai = self.__load_data_cf(
+                        self.config["multipole"], self.config["wedge"],
+                        self.data_directory, self.config["spectrum_file"][i], self.config["covmat_file"][i],
+                        xmax=self.config["xmax"][i], xmin=xmin, xmin0=xmin0, xmin1=xmin1, with_bao=self.config["with_bao"], baoH=baoH, baoD=baoD)
 
                 priormati = self.__set_prior(self.config["multipole"], model=self.config["model"])
 
