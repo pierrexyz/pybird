@@ -2891,6 +2891,12 @@ class Likelihood_bird(Likelihood):
                 self.config["with_nlo_bias"]
             except:
                 self.config["with_nlo_bias"] = False
+            try:
+                self.config["with_nlo_bias_2loop"]
+            except:
+                self.config["with_nlo_bias_2loop"] = False
+
+
 
             print ("output: %s" % self.config["output"])
             print ("multipole: %s" % self.config["multipole"])
@@ -2915,11 +2921,9 @@ class Likelihood_bird(Likelihood):
     def bias_array_to_dict(self, bs):
         if self.config["with_stoch"]:
             if self.config["multipole"] == 2:
-                bdict = {"b1": bs[0], "b2": bs[1], "b3": bs[2], "b4": bs[3],
-                         "cct": bs[4], "cr1": bs[5], "ce0": bs[7], "ce1": bs[8], "ce2": bs[9]}
+                bdict = {"b1": bs[0], "b2": bs[1], "b3": bs[2], "b4": bs[3], "cct": bs[4], "cr1": bs[5], "ce0": bs[7], "ce1": bs[8], "ce2": bs[9]}
             elif self.config["multipole"] == 3:
-                bdict = {"b1": bs[0], "b2": bs[1], "b3": bs[2], "b4": bs[3], "cct": bs[4],
-                         "cr1": bs[5], "cr2": bs[6], "ce0": bs[7], "ce1": bs[8], "ce2": bs[9]}
+                bdict = {"b1": bs[0], "b2": bs[1], "b3": bs[2], "b4": bs[3], "cct": bs[4], "cr1": bs[5], "cr2": bs[6], "ce0": bs[7], "ce1": bs[8], "ce2": bs[9]}
         else:
             if self.config["multipole"] == 2:
                 bdict = {"b1": bs[0], "b2": bs[1], "b3": bs[2], "b4": bs[3], "cct": bs[4], "cr1": bs[5]}
@@ -2940,18 +2944,34 @@ class Likelihood_bird(Likelihood):
         else:
             return [bs[0], bs[1] / np.sqrt(2.), 0., bs[1] / np.sqrt(2.), 0., 0., 0., 0., 0., 0.]
 
+    def bias_nonmarg_to_all(self, bs, bg):
+        biaslist = []
+        if self.config["with_stoch"]:
+            if self.config["multipole"] == 2:
+                if self.config["model"] == 1: biaslist = [bs[0], bs[1] / np.sqrt(2.), bg[0], bs[1] / np.sqrt(2.), bg[1], bg[2], 0., bg[4], 0., bg[3]]
+                if self.config["model"] == 2: biaslist = [bs[0], bs[1] / np.sqrt(2.), bg[0], bs[1] / np.sqrt(2.), bg[1], bg[2], 0., 0., 0., bg[3]]
+                if self.config["model"] == 3: biaslist = [bs[0], bs[1] / np.sqrt(2.), bg[0], bs[1] / np.sqrt(2.), bg[1], bg[2], 0., 0., bg[4], bg[3]]
+                if self.config["model"] == 4: biaslist = [bs[0], bs[1] / np.sqrt(2.), bg[0], bs[1] / np.sqrt(2.), bg[1], bg[2], 0., bg[5], bg[4], bg[3]]
+            elif self.config["multipole"] == 3:
+                if self.config["model"] == 1: biaslist = [bs[0], bs[1] / np.sqrt(2.), bg[0], bs[1] / np.sqrt(2.), bg[1], bg[2], bg[3], bg[5], 0., bg[4]]
+                if self.config["model"] == 2: biaslist = [bs[0], bs[1] / np.sqrt(2.), bg[0], bs[1] / np.sqrt(2.), bg[1], bg[2], bg[3], 0., 0., bg[4]]
+                if self.config["model"] == 3: biaslist = [bs[0], bs[1] / np.sqrt(2.), bg[0], bs[1] / np.sqrt(2.), bg[1], bg[2], bg[3], 0., bg[5], bg[4]]
+                if self.config["model"] == 4: biaslist = [bs[0], bs[1] / np.sqrt(2.), bg[0], bs[1] / np.sqrt(2.), bg[1], bg[2], bg[3], bg[6], bg[5], bg[4]]
+        else:
+            if self.config["multipole"] == 2:
+                biaslist = [bs[0], bs[1] / np.sqrt(2.), bg[0], bs[1] / np.sqrt(2.), bg[1], bg[2], 0., 0., 0., 0.]
+            elif self.config["multipole"] == 3:
+                biaslist = [bs[0], bs[1] / np.sqrt(2.), bg[0], bs[1] / np.sqrt(2.), bg[1], bg[2], bg[3], 0., 0., 0.]
+        return biaslist
+
     def loglkl(self, cosmo, data):
 
-        if self.config["with_derived_bias"]:
-            data.derived_lkl = {}
+        if self.config["with_derived_bias"]: data.derived_lkl = {}
 
-        if data.need_cosmo_update is True:
-            self.correlator.compute(self.__set_cosmo(cosmo, data))
-        else:
-            pass
+        if data.need_cosmo_update is True: self.correlator.compute(self.__set_cosmo(cosmo, data))
+        else: pass
 
-        bval = np.array([data.mcmc_parameters[k]['current'] * data.mcmc_parameters[k]['scale']
-                         for k in self.use_nuisance])
+        bval = np.array([data.mcmc_parameters[k]['current'] * data.mcmc_parameters[k]['scale'] for k in self.use_nuisance])
         bval = bval.reshape(self.config["skycut"], -1)
         bdict = np.array([self.bias_array_to_dict(self.bias_custom_to_all(bs)) for bs in bval])
         b1 = np.array([bval[i, 0] for i in range(self.config["skycut"])])
@@ -2960,20 +2980,22 @@ class Likelihood_bird(Likelihood):
         marg_correlator = self.correlator.getmarg(b1, model=self.config["model"])
 
         chi2 = 0.
+        if self.config["with_nlo_bias_2loop"]: bg = []
 
         if "w" in self.config["output"]:
             modelX = np.asarray(correlator).reshape(-1)[self.tmask]
             Pi = block_diag(*marg_correlator)[:, self.tmask]
 
-            chi2 += self.__get_chi2(modelX, Pi, self.invcov, self.invcovdata, self.chi2data, self.priormat, data)
+            c2, bgi = self.__get_chi2(modelX, Pi, self.invcov, self.invcovdata, self.chi2data, self.priormat, data)
+            chi2 += c2
+
+            ### TO CODE UP NLO
 
         else:
             for i in range(self.config["skycut"]):
 
-                if self.config["skycut"] is 1:
-                    modelX = correlator.reshape(-1)
-                elif self.config["skycut"] > 1:
-                    modelX = correlator[i].reshape(-1)
+                if self.config["skycut"] is 1: modelX = correlator.reshape(-1)
+                elif self.config["skycut"] > 1: modelX = correlator[i].reshape(-1)
 
                 if self.config["with_bao"]:  # BAO
                     DM_at_z = cosmo.angular_distance(self.config["zbao"][i]) * (1. + self.config["zbao"][i])
@@ -2985,22 +3007,46 @@ class Likelihood_bird(Likelihood):
 
                 modelX = modelX[self.xmask[i]]
 
-                if self.config["skycut"] is 1:
-                    Pi = self.__get_Pi_for_marg(marg_correlator, self.xmask[i])
-                elif self.config["skycut"] > 1:
-                    Pi = self.__get_Pi_for_marg(marg_correlator[i], self.xmask[i])
+                if self.config["skycut"] is 1: Pi = self.__get_Pi_for_marg(marg_correlator, self.xmask[i])
+                elif self.config["skycut"] > 1: Pi = self.__get_Pi_for_marg(marg_correlator[i], self.xmask[i])
 
-                chi2 += self.__get_chi2(modelX, Pi, self.invcov[i], self.invcovdata[i],
-                                        self.chi2data[i], self.priormat[i], data, isky=i)
+                c2, bgi = self.__get_chi2(modelX, Pi, self.invcov[i], self.invcovdata[i], self.chi2data[i], self.priormat[i], data, isky=i)
+                chi2 += c2
+
+                if self.config["with_nlo_bias_2loop"]: bg.append(bgi)
+
+            if self.config["with_nlo_bias_2loop"]: 
+                
+                chi2 = 0.
+                
+                nonmarg_bdict = np.array([self.bias_array_to_dict(self.bias_nonmarg_to_all(bs, bgi)) for (bs, bgi) in zip(bval, bg) ])
+                nonmarg_correlator = self.correlator.get(nonmarg_bdict)
+                nlo = self.correlator.getnlo()
+
+                for i in range(self.config["skycut"]):
+                    
+                    if self.config["skycut"] is 1: modelX = correlator.reshape(-1) + bval[i,-1] * nlo.reshape(-1)
+                    elif self.config["skycut"] > 1: modelX = correlator[i].reshape(-1) + bval[i,-1] * nlo[i].reshape(-1)
+
+                    if self.config["with_bao"]:  # BAO
+                        DM_at_z = cosmo.angular_distance(self.config["zbao"][i]) * (1. + self.config["zbao"][i])
+                        H_at_z = cosmo.Hubble(self.config["zbao"][i]) * conts.c / 1000.0
+                        rd = cosmo.rs_drag() * self.config["rs_rescale"][i]
+                        theo_DM_rdfid_by_rd_in_Mpc = DM_at_z / rd * self.config["rd_fid_in_Mpc"][i]
+                        theo_H_rd_by_rdfid = H_at_z * rd / self.config["rd_fid_in_Mpc"][i]
+                        modelX = np.concatenate((modelX, [theo_H_rd_by_rdfid, theo_DM_rdfid_by_rd_in_Mpc]))
+
+                    modelX = modelX[self.xmask[i]]
+
+                    if self.config["skycut"] is 1: Pi = self.__get_Pi_for_marg(marg_correlator, self.xmask[i])
+                    elif self.config["skycut"] > 1: Pi = self.__get_Pi_for_marg(marg_correlator[i], self.xmask[i])
+
+                    c2, bgi = self.__get_chi2(modelX, Pi, self.invcov[i], self.invcovdata[i], self.chi2data[i], self.priormat[i], data, isky=i)
+                    chi2 += c2
 
         prior = 0.
-        if self.config["with_bbn"]:
-            prior += -0.5 * ((data.cosmo_arguments['omega_b'] -
-                              self.config["omega_b_BBNcenter"]) / self.config["omega_b_BBNsigma"])**2
-
-        if "w" in self.config["output"]:
-            prior += -0.5 * ((data.mcmc_parameters['ln10^{10}A_s']['current']
-                              * data.mcmc_parameters['ln10^{10}A_s']['scale'] - 2.84) / 0.2)**2
+        if self.config["with_bbn"]: prior += -0.5 * ((data.cosmo_arguments['omega_b'] - self.config["omega_b_BBNcenter"]) / self.config["omega_b_BBNsigma"])**2
+        # if "w" in self.config["output"]: prior += -0.5 * ((data.mcmc_parameters['ln10^{10}A_s']['current'] * data.mcmc_parameters['ln10^{10}A_s']['scale'] - 2.84) / 0.2)**2
 
         lkl = - 0.5 * chi2 + prior
 
@@ -3015,14 +3061,16 @@ class Likelihood_bird(Likelihood):
         chi2mar = - np.dot(vectorbi, np.dot(Cinvbi, vectorbi)) + np.log(np.abs(np.linalg.det(Covbi)))
         chi2tot = chi2mar + chi2nomar - priormat.shape[0] * np.log(2. * np.pi)
 
-        if self.config["with_derived_bias"]:
+        if self.config["with_derived_bias"] or self.config["with_nlo_bias_2loop"]: 
             bg = - np.dot(Cinvbi, vectorbi)
-            Ng = len(bg)
-            for i, elem in enumerate(data.get_mcmc_parameters(['derived_lkl'])):
-                if i >= isky * Ng and i < (isky + 1) * Ng:
-                    data.derived_lkl[elem] = bg[i - isky * Ng]
+            if self.config["with_derived_bias"]:
+                Ng = len(bg)
+                for i, elem in enumerate(data.get_mcmc_parameters(['derived_lkl'])):
+                    if i >= isky * Ng and i < (isky + 1) * Ng:
+                        data.derived_lkl[elem] = bg[i - isky * Ng]
 
-        return chi2tot
+        if self.config["with_nlo_bias_2loop"]: return chi2tot, bg
+        else: return chi2tot, None
 
     def __get_Pi_for_marg(self, marg_correlator, xmask):
 

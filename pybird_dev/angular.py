@@ -6,6 +6,8 @@ from scipy.special import legendre
 from scipy.integrate import quad, dblquad, simps
 from common import co
 
+
+
 class Angular(object):
 
     def __init__(self, theta, co=co):

@@ -411,7 +411,7 @@ class Correlator(object):
 
             if "Pk" in self.config["output"]: return self.bird.fullPs
             elif "Cf" in self.config["output"]: return self.bird.fullCf
-            elif "w" in self.config["output"]: return self.bird.w
+            elif "w" in self.config["output"]: return self.bird.fullw   
 
         elif self.config["skycut"] > 1:
 
@@ -425,7 +425,7 @@ class Correlator(object):
                 elif "Pk" in self.config["output"]: self.birds[i].setreducePslb(self.bias)
             if "Pk" in self.config["output"]: return [self.birds[i].fullPs for i in range(self.config["skycut"])]
             elif "Cf" in self.config["output"]: return [self.birds[i].fullCf for i in range(self.config["skycut"])]
-            elif "w" in self.config["output"]: return [self.birds[i].w for i in range(self.config["skycut"])]
+            elif "w" in self.config["output"]: return [self.birds[i].fullw for i in range(self.config["skycut"])]
 
     def getmarg(self, b1, model=1):
 
@@ -468,6 +468,18 @@ class Correlator(object):
             elif "Cf" in self.config["output"]: return [ marg(self.birds[i].Cloopl, self.birds[i].Cctl, b1=b1[i], f1=self.birds[i].f, Pst=self.birds[i].Cstl) for i in range(self.config["skycut"]) ]
             elif "w" in self.config["output"]: return [ marg(self.birds[i].wloop, self.birds[i].wct, b1=b1[i], f1=self.birds[i].f) for i in range(self.config["skycut"]) ]
 
+    def getnlo(self, model=1):
+        if self.config["skycut"] == 1:
+            if "Pk" in self.config["output"]: return self.bird.Ps[1]**2/self.bird.Ps[0]
+            elif "Cf" in self.config["output"]: 
+                lowpass = 1.-1./(1.+np.exp(-self.projection.xout+50)) # avoid 0-crossing by damping the nlo term for s > scut
+                return self.bird.Cf[1]**2/self.bird.Cf[0] * lowpass
+            elif "w" in self.config["output"]: return self.bird.w[1]**2/self.bird.w[0]
+        elif self.config["skycut"] > 1:
+            if "Pk" in self.config["output"]: return [ self.birds[i].Ps[1]**2/self.birds[i].Ps[0] for i in range(self.config["skycut"]) ]
+            elif "Cf" in self.config["output"]: return [ self.birds[i].Cf[1]**2/self.birds[i].Cf[0] * (1.-1./(1.+np.exp(-self.projection[i].xout+50))) for i in range(self.config["skycut"]) ]
+            elif "w" in self.config["output"]: return [ self.birds[i].w[1]**2/self.birds[i].w[0] for i in range(self.config["skycut"]) ]
+            
     def __load_engines(self, only_common=False):
 
         self.co = Common(Nl=self.config["multipole"], kmax=self.config["kmax"], km=self.config["km"], nd=self.config["nd"], 

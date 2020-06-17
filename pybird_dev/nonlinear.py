@@ -259,9 +259,14 @@ class NonLinear(object):
 
         if bird.with_nlo_bias: self.makeCnlo(coefsPow, bird)
 
-
-
-
+    def Ang(self, bird, window=None):
+        coef = self.Coef(bird, window=.2)
+        coefsPow = self.CoefsPow(coef)
+        self.makeA11(coefsPow, bird)
+        self.makeAct(coefsPow, bird)
+        self.makeA22l(coefsPow, bird)
+        self.makeA13l(coefsPow, bird)
+    
 
 def M13a(n1):
     """ Common part of the 13-loop matrices """

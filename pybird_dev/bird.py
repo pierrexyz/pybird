@@ -64,6 +64,7 @@ class Bird(object):
     """
 
     def __init__(self, cosmology=None, with_bias=True, with_stoch=False, with_nlo_bias=False, with_assembly_bias=False, co=co):
+        
         self.co = co
 
         self.with_bias = with_bias
@@ -82,6 +83,18 @@ class Bird(object):
         self.C13l = np.empty(shape=(self.co.Nl, self.co.N13, self.co.Ns))
         self.Cct = np.empty(shape=(self.co.Nl, self.co.Ns))
         self.Cf = np.empty(shape=(2, self.co.Nl, self.co.Ns))
+
+        if self.co.angular:
+            self.A11 = np.empty(shape=(self.co.Ng, self.co.Nr))
+            self.A22l = np.empty(shape=(self.co.Ng, self.co.N22, self.co.Nr))
+            self.A13l = np.empty(shape=(self.co.Ng, self.co.N13, self.co.Nr))
+            self.Act = np.empty(shape=(self.co.Ng, self.co.Nr))
+            self.Ang = np.empty(shape=(2, self.co.Ng, self.co.Nr))
+
+            if not with_bias:
+                self.Aloopl = np.empty(shape=(self.co.Ng, self.co.Nloop, self.co.Nr))
+                self.A11l = np.empty(shape=(self.co.Ng, self.co.N11, self.co.Nr))
+                self.Actl = np.empty(shape=(self.co.Ng, self.co.Nct, self.co.Nr))
 
         if self.with_nlo_bias:
             self.bnlo = np.zeros(shape=(self.co.Nl))
@@ -214,46 +227,70 @@ class Bird(object):
             self.bst[1] = bias["ce1"] 
             self.bst[2] = bias["ce2"]
 
-        if self.with_nlo_bias: self.bnlo[0] = 2. * b1**2 * bias["bnlo"] / self.co.km**4
+        if self.co.halohalo:
 
-        if self.with_assembly_bias: bq = bias["bq"]
+            if self.with_nlo_bias: self.bnlo[0] = 2. * b1**2 * bias["bnlo"] / self.co.km**4
 
-        if self.with_bias:
-            for i in range(self.co.Nl):
-                l = 2 * i
-                
-                if self.with_assembly_bias: (b1-bq/3.)**2 * mu[0][l] + 2. * (b1-bq/3.) * (f+bq) * mu[2][l] + (f+bq)**2 * mu[4][l]
-                else: self.b11[i] = b1**2 * mu[0][l] + 2. * b1 * f * mu[2][l] + f**2 * mu[4][l]
-                self.bct[i] = 2. * b1 * (b5 * mu[0][l] + b6 * mu[2][l] + b7 * mu[4][l]) + 2. * f * (b5 * mu[2][l] + b6 * mu[4][l] + b7 * mu[6][l])
-                
-                if self.co.exact_time:
-                    ## EdS: Y1 = 0., G1t = 3/7., V12t = 1/7.
-                    G1 = self.G1
-                    Y1 = self.Y1
-                    G1t = self.G1t
-                    V12t = self.V12t
-                    self.b22[i] = np.array([ b1**2*G1**2*mu[0][l], b1*b2*G1*mu[0][l], b1*b4*G1*mu[0][l], b2**2*mu[0][l], b2*b4*mu[0][l], b4**2*mu[0][l], b1**2*f*G1*mu[2][l], b1*b2*f*mu[2][l], b1*b4*f*mu[2][l], b1*f*G1**2*mu[2][l], b2*f*G1*mu[2][l], b4*f*G1*mu[2][l], b1**2*f**2*mu[2][l], b1**2*f**2*mu[4][l], b1*f**2*G1*mu[2][l], b1*f**2*G1*mu[4][l], b2*f**2*mu[2][l], b2*f**2*mu[4][l], b4*f**2*mu[2][l], b4*f**2*mu[4][l], f**2*G1**2*mu[4][l], b1*f**3*mu[4][l], b1*f**3*mu[6][l], f**3*G1*mu[4][l], f**3*G1*mu[6][l], f**4*mu[4][l], f**4*mu[6][l], f**4*mu[8][l], b1*f*G1*G1t*mu[2][l], b2*f*G1t*mu[2][l], b4*f*G1t*mu[2][l], b1*f**2*G1t*mu[4][l], f**2*G1*G1t*mu[4][l], f**3*G1t*mu[4][l], f**3*G1t*mu[6][l], f**2*G1t**2*mu[4][l] ])
-                    self.b13[i] = np.array([ b1**2*G1**2*mu[0][l], b1*b3*mu[0][l], b1*f*G1**2*mu[2][l], b3*f*mu[2][l], f**2*G1**2*mu[4][l], b1**2*Y1*mu[0][l], b1*f*mu[2][l]*Y1, f**2*mu[4][l]*Y1, b1**2*f*G1t*mu[2][l], b1*f**2*G1t*mu[2][l], b1*f**2*G1t*mu[4][l], f**3*G1t*mu[4][l], f**3*G1t*mu[6][l], b1*f*mu[2][l]*V12t, f**2*mu[4][l]*V12t ])
-                    # similar to above but with G1 = 1
-                    # self.b22[i] = np.array([b1**2*mu[0][l], b1*b2*mu[0][l], b1*b4*mu[0][l], b2**2*mu[0][l], b2*b4*mu[0][l], b4**2*mu[0][l], b1**2*f*mu[2][l], b1*b2*f*mu[2][l], b1*b4*f*mu[2][l], b1*f*mu[2][l], b2*f*mu[2][l], b4*f*mu[2][l], b1**2*f**2*mu[2][l], b1**2*f**2*mu[4][l], b1*f**2*mu[2][l], b1*f**2*mu[4][l], b2*f**2*mu[2][l], b2*f**2*mu[4][l], b4*f**2*mu[2][l], b4*f**2*mu[4][l], f**2*mu[4][l], b1*f**3*mu[4][l], b1*f**3*mu[6][l], f**3*mu[4][l], f**3*mu[6][l], f**4*mu[4][l], f**4*mu[6][l], f**4*mu[8][l], b1*f*G1t*mu[2][l], b2*f*G1t*mu[2][l], b4*f*G1t*mu[2][l], b1*f**2*G1t*mu[4][l], f**2*G1t*mu[4][l], f**3*G1t*mu[4][l], f**3*G1t*mu[6][l], f**2*G1t**2*mu[4][l] ])
-                    # self.b13[i] = np.array([b1**2*mu[0][l], b1*b3*mu[0][l], b1*f*mu[2][l], b3*f*mu[2][l], f**2*mu[4][l], b1**2*Y1*mu[0][l], b1*f*mu[2][l]*Y1, f**2*mu[4][l]*Y1, b1**2*f*G1t*mu[2][l], b1*f**2*G1t*mu[2][l], b1*f**2*G1t*mu[4][l], f**3*G1t*mu[4][l], f**3*G1t*mu[6][l], b1*f*mu[2][l]*V12t, f**2*mu[4][l]*V12t])
-                else:
-                    self.b22[i] = np.array([b1**2 * mu[0][l], b1 * b2 * mu[0][l], b1 * b4 * mu[0][l], b2**2 * mu[0][l], b2 * b4 * mu[0][l], b4**2 * mu[0][l], b1**2 * f * mu[2][l], b1 * b2 * f * mu[2][l], b1 * b4 * f * mu[2][l], b1 * f * mu[2][l], b2 * f * mu[2][l], b4 * f * mu[2][l], b1**2 * f**2 * mu[2][l], b1**2 * f**2 * mu[4][l], b1 * f**2 * mu[2][l], b1 * f**2 * mu[4][l], b2 * f**2 * mu[2][l], b2 * f**2 * mu[4][l], b4 * f**2 * mu[2][l], b4 * f**2 * mu[4][l], f**2 * mu[4][l], b1 * f**3 * mu[4][l], b1 * f**3 * mu[6][l], f**3 * mu[4][l], f**3 * mu[6][l], f**4 * mu[4][l], f**4 * mu[6][l], f**4 * mu[8][l]])
-                    self.b13[i] = np.array([b1**2 * mu[0][l], b1 * b3 * mu[0][l], b1**2 * f * mu[2][l], b1 * f * mu[2][l], b3 * f * mu[2][l], b1 * f**2 * mu[2][l], b1 * f**2 * mu[4][l], f**2 * mu[4][l], f**3 * mu[4][l], f**3 * mu[6][l]])
-                
-        
-        else:
-            if self.with_assembly_bias: self.b11 = np.array([(b1-bq/3.)**2, 2. * (b1-bq/3.) * (f+bq), (f+bq)**2])
-            else: self.b11 = np.array([b1**2, 2. * b1 * f, f**2])
-            self.bct = np.array([2. * b1 * b5, 2. * b1 * b6, 2. * b1 * b7, 2. * f * b5, 2. * f * b6, 2. * f * b7])
-            if self.co.Nloop is 12: self.bloop = np.array([1., b1, b2, b3, b4, b1 * b1, b1 * b2, b1 * b3, b1 * b4, b2 * b2, b2 * b4, b4 * b4])
-            elif self.co.Nloop is 22: self.bloop = np.array([f**2, f**3, f**4, b1*f, b1*f**2, b1*f**3, b2*f, b2*f**2, b3*f, b4*f, b4*f**2, b1**2, b1**2*f, b1**2*f**2, b1*b2, b1*b2*f, b1*b3, b1*b4, b1*b4*f, b2**2, b2*b4, b4**2])
-            elif self.co.Nloop is self.co.N22+self.co.N13: self.bloop = np.array([
-                b1**2, b1 * b2, b1 * b4, b2**2, b2 * b4, b4**2, 
-                b1**2 * f, b1 * b2 * f, b1 * b4 * f, b1 * f, b2 * f, b4 * f, 
-                b1**2 * f**2, b1**2 *f**2, b1 * f**2, b1 * f**2, b2 * f**2, b2 * f**2, b4 * f**2, b4 * f**2, f**2, 
-                b1 * f**3, b1 * f**3, f**3, f**3, f**4, f**4, f**4,
-                b1**2, b1 * b3, b1**2 * f, b1 * f, b3 * f, b1 * f**2, b1 * f**2, f**2, f**3, f**3])
+            if self.with_assembly_bias: bq = bias["bq"]
+
+            if self.with_bias:
+                for i in range(self.co.Nl):
+                    l = 2 * i
+                    
+                    if self.with_assembly_bias: (b1-bq/3.)**2 * mu[0][l] + 2. * (b1-bq/3.) * (f+bq) * mu[2][l] + (f+bq)**2 * mu[4][l]
+                    else: self.b11[i] = b1**2 * mu[0][l] + 2. * b1 * f * mu[2][l] + f**2 * mu[4][l]
+                    self.bct[i] = 2. * b1 * (b5 * mu[0][l] + b6 * mu[2][l] + b7 * mu[4][l]) + 2. * f * (b5 * mu[2][l] + b6 * mu[4][l] + b7 * mu[6][l])
+                    
+                    if self.co.exact_time:
+                        ## EdS: Y1 = 0., G1t = 3/7., V12t = 1/7.
+                        G1 = self.G1
+                        Y1 = self.Y1
+                        G1t = self.G1t
+                        V12t = self.V12t
+                        self.b22[i] = np.array([ b1**2*G1**2*mu[0][l], b1*b2*G1*mu[0][l], b1*b4*G1*mu[0][l], b2**2*mu[0][l], b2*b4*mu[0][l], b4**2*mu[0][l], b1**2*f*G1*mu[2][l], b1*b2*f*mu[2][l], b1*b4*f*mu[2][l], b1*f*G1**2*mu[2][l], b2*f*G1*mu[2][l], b4*f*G1*mu[2][l], b1**2*f**2*mu[2][l], b1**2*f**2*mu[4][l], b1*f**2*G1*mu[2][l], b1*f**2*G1*mu[4][l], b2*f**2*mu[2][l], b2*f**2*mu[4][l], b4*f**2*mu[2][l], b4*f**2*mu[4][l], f**2*G1**2*mu[4][l], b1*f**3*mu[4][l], b1*f**3*mu[6][l], f**3*G1*mu[4][l], f**3*G1*mu[6][l], f**4*mu[4][l], f**4*mu[6][l], f**4*mu[8][l], b1*f*G1*G1t*mu[2][l], b2*f*G1t*mu[2][l], b4*f*G1t*mu[2][l], b1*f**2*G1t*mu[4][l], f**2*G1*G1t*mu[4][l], f**3*G1t*mu[4][l], f**3*G1t*mu[6][l], f**2*G1t**2*mu[4][l] ])
+                        self.b13[i] = np.array([ b1**2*G1**2*mu[0][l], b1*b3*mu[0][l], b1*f*G1**2*mu[2][l], b3*f*mu[2][l], f**2*G1**2*mu[4][l], b1**2*Y1*mu[0][l], b1*f*mu[2][l]*Y1, f**2*mu[4][l]*Y1, b1**2*f*G1t*mu[2][l], b1*f**2*G1t*mu[2][l], b1*f**2*G1t*mu[4][l], f**3*G1t*mu[4][l], f**3*G1t*mu[6][l], b1*f*mu[2][l]*V12t, f**2*mu[4][l]*V12t ])
+                        # similar to above but with G1 = 1
+                        # self.b22[i] = np.array([b1**2*mu[0][l], b1*b2*mu[0][l], b1*b4*mu[0][l], b2**2*mu[0][l], b2*b4*mu[0][l], b4**2*mu[0][l], b1**2*f*mu[2][l], b1*b2*f*mu[2][l], b1*b4*f*mu[2][l], b1*f*mu[2][l], b2*f*mu[2][l], b4*f*mu[2][l], b1**2*f**2*mu[2][l], b1**2*f**2*mu[4][l], b1*f**2*mu[2][l], b1*f**2*mu[4][l], b2*f**2*mu[2][l], b2*f**2*mu[4][l], b4*f**2*mu[2][l], b4*f**2*mu[4][l], f**2*mu[4][l], b1*f**3*mu[4][l], b1*f**3*mu[6][l], f**3*mu[4][l], f**3*mu[6][l], f**4*mu[4][l], f**4*mu[6][l], f**4*mu[8][l], b1*f*G1t*mu[2][l], b2*f*G1t*mu[2][l], b4*f*G1t*mu[2][l], b1*f**2*G1t*mu[4][l], f**2*G1t*mu[4][l], f**3*G1t*mu[4][l], f**3*G1t*mu[6][l], f**2*G1t**2*mu[4][l] ])
+                        # self.b13[i] = np.array([b1**2*mu[0][l], b1*b3*mu[0][l], b1*f*mu[2][l], b3*f*mu[2][l], f**2*mu[4][l], b1**2*Y1*mu[0][l], b1*f*mu[2][l]*Y1, f**2*mu[4][l]*Y1, b1**2*f*G1t*mu[2][l], b1*f**2*G1t*mu[2][l], b1*f**2*G1t*mu[4][l], f**3*G1t*mu[4][l], f**3*G1t*mu[6][l], b1*f*mu[2][l]*V12t, f**2*mu[4][l]*V12t])
+                    else:
+                        self.b22[i] = np.array([b1**2 * mu[0][l], b1 * b2 * mu[0][l], b1 * b4 * mu[0][l], b2**2 * mu[0][l], b2 * b4 * mu[0][l], b4**2 * mu[0][l], b1**2 * f * mu[2][l], b1 * b2 * f * mu[2][l], b1 * b4 * f * mu[2][l], b1 * f * mu[2][l], b2 * f * mu[2][l], b4 * f * mu[2][l], b1**2 * f**2 * mu[2][l], b1**2 * f**2 * mu[4][l], b1 * f**2 * mu[2][l], b1 * f**2 * mu[4][l], b2 * f**2 * mu[2][l], b2 * f**2 * mu[4][l], b4 * f**2 * mu[2][l], b4 * f**2 * mu[4][l], f**2 * mu[4][l], b1 * f**3 * mu[4][l], b1 * f**3 * mu[6][l], f**3 * mu[4][l], f**3 * mu[6][l], f**4 * mu[4][l], f**4 * mu[6][l], f**4 * mu[8][l]])
+                        self.b13[i] = np.array([b1**2 * mu[0][l], b1 * b3 * mu[0][l], b1**2 * f * mu[2][l], b1 * f * mu[2][l], b3 * f * mu[2][l], b1 * f**2 * mu[2][l], b1 * f**2 * mu[4][l], f**2 * mu[4][l], f**3 * mu[4][l], f**3 * mu[6][l]])
+            else:
+                if self.with_assembly_bias: self.b11 = np.array([(b1-bq/3.)**2, 2. * (b1-bq/3.) * (f+bq), (f+bq)**2])
+                else: self.b11 = np.array([b1**2, 2. * b1 * f, f**2])
+                self.bct = np.array([2. * b1 * b5, 2. * b1 * b6, 2. * b1 * b7, 2. * f * b5, 2. * f * b6, 2. * f * b7])
+                if self.co.Nloop is 12: self.bloop = np.array([1., b1, b2, b3, b4, b1 * b1, b1 * b2, b1 * b3, b1 * b4, b2 * b2, b2 * b4, b4 * b4])
+                elif self.co.Nloop is 22: self.bloop = np.array([f**2, f**3, f**4, b1*f, b1*f**2, b1*f**3, b2*f, b2*f**2, b3*f, b4*f, b4*f**2, b1**2, b1**2*f, b1**2*f**2, b1*b2, b1*b2*f, b1*b3, b1*b4, b1*b4*f, b2**2, b2*b4, b4**2])
+                elif self.co.Nloop is self.co.N22+self.co.N13: self.bloop = np.array([
+                    b1**2, b1 * b2, b1 * b4, b2**2, b2 * b4, b4**2, 
+                    b1**2 * f, b1 * b2 * f, b1 * b4 * f, b1 * f, b2 * f, b4 * f, 
+                    b1**2 * f**2, b1**2 *f**2, b1 * f**2, b1 * f**2, b2 * f**2, b2 * f**2, b4 * f**2, b4 * f**2, f**2, 
+                    b1 * f**3, b1 * f**3, f**3, f**3, f**4, f**4, f**4,
+                    b1**2, b1 * b3, b1**2 * f, b1 * f, b3 * f, b1 * f**2, b1 * f**2, f**2, f**3, f**3])
+
+        else: # halo-matter
+            pass ### TO CODE UP
+            # if self.with_bias:
+            #     for i in range(self.co.Nl):
+            #         l = 2 * i
+                    
+            #         self.b11[i] = b1**2 * mu[0][l] + 2. * b1 * f * mu[2][l] + f**2 * mu[4][l]
+            #         self.bct[i] = 2. * b1 * (b5 * mu[0][l] + b6 * mu[2][l] + b7 * mu[4][l]) + 2. * f * (b5 * mu[2][l] + b6 * mu[4][l] + b7 * mu[6][l])
+                    
+            #         self.b22[i] = np.array([b1**2 * mu[0][l], b1 * b2 * mu[0][l], b1 * b4 * mu[0][l], b2**2 * mu[0][l], b2 * b4 * mu[0][l], b4**2 * mu[0][l], b1**2 * f * mu[2][l], b1 * b2 * f * mu[2][l], b1 * b4 * f * mu[2][l], b1 * f * mu[2][l], b2 * f * mu[2][l], b4 * f * mu[2][l], b1**2 * f**2 * mu[2][l], b1**2 * f**2 * mu[4][l], b1 * f**2 * mu[2][l], b1 * f**2 * mu[4][l], b2 * f**2 * mu[2][l], b2 * f**2 * mu[4][l], b4 * f**2 * mu[2][l], b4 * f**2 * mu[4][l], f**2 * mu[4][l], b1 * f**3 * mu[4][l], b1 * f**3 * mu[6][l], f**3 * mu[4][l], f**3 * mu[6][l], f**4 * mu[4][l], f**4 * mu[6][l], f**4 * mu[8][l]])
+            #         self.b13[i] = np.array([b1**2 * mu[0][l], b1 * b3 * mu[0][l], b1**2 * f * mu[2][l], b1 * f * mu[2][l], b3 * f * mu[2][l], b1 * f**2 * mu[2][l], b1 * f**2 * mu[4][l], f**2 * mu[4][l], f**3 * mu[4][l], f**3 * mu[6][l]])
+            # else:
+            #     self.b11 = np.array([b1**2, 2. * b1 * f, f**2])
+            #     self.bct = np.array([2. * b1 * b5, 2. * b1 * b6, 2. * b1 * b7, 2. * f * b5, 2. * f * b6, 2. * f * b7])
+            #     if self.co.Nloop is 12: self.bloop = np.array([1., b1, b2, b3, b4, b1 * b1, b1 * b2, b1 * b3, b1 * b4, b2 * b2, b2 * b4, b4 * b4])
+            #     elif self.co.Nloop is 22: self.bloop = np.array([f**2, f**3, f**4, b1*f, b1*f**2, b1*f**3, b2*f, b2*f**2, b3*f, b4*f, b4*f**2, b1**2, b1**2*f, b1**2*f**2, b1*b2, b1*b2*f, b1*b3, b1*b4, b1*b4*f, b2**2, b2*b4, b4**2])
+            #     elif self.co.Nloop is self.co.N22+self.co.N13: self.bloop = np.array([
+            #         b1**2, b1 * b2, b1 * b4, b2**2, b2 * b4, b4**2, 
+            #         b1**2 * f, b1 * b2 * f, b1 * b4 * f, b1 * f, b2 * f, b4 * f, 
+            #         b1**2 * f**2, b1**2 *f**2, b1 * f**2, b1 * f**2, b2 * f**2, b2 * f**2, b4 * f**2, b4 * f**2, f**2, 
+            #         b1 * f**3, b1 * f**3, f**3, f**3, f**4, f**4, f**4,
+            #         b1**2, b1 * b3, b1**2 * f, b1 * f, b3 * f, b1 * f**2, b1 * f**2, f**2, f**3, f**3])
+
 
     def setPs(self, bs, setfull=True):
         """ For option: which='full'. Given an array of EFT parameters, multiplies them accordingly to the power spectrum multipole terms and adds the resulting terms together per loop order
@@ -423,6 +460,23 @@ class Bird(object):
                 self.Cloopl[:, 10] = self.C22l[:, 4]  # *b2*b4
                 self.Cloopl[:, 11] = self.C22l[:, 5]  # *b4*b4
 
+                if self.co.angular:
+                    self.Aloopl[:, 0] = f1**2 * self.A22l[:, 20] + f1**3 * self.A22l[:, 23] + f1**3 * self.A22l[:, 24] + f1**4 * self.A22l[:, 25] + \
+                    f1**4 * self.A22l[:, 26] + f1**4 * self.A22l[:, 27] + f1**2 * \
+                    self.A13l[:, 7] + f1**3 * self.A13l[:, 8] + f1**3 * self.A13l[:, 9]  # *1
+                    self.Aloopl[:, 1] = f1 * self.A22l[:, 9] + f1**2 * self.A22l[:, 14] + f1**2 * self.A22l[:, 15] + f1**3 * self.A22l[:, 21] + f1**3 * self.A22l[:, 22] + f1 * self.A13l[:, 3] + f1**2 * self.A13l[:, 5] + f1**2 * self.A13l[:, 6]  # *b1
+                    self.Aloopl[:, 2] = f1 * self.A22l[:, 10] + f1**2 * self.A22l[:, 16] + f1**2 * self.A22l[:, 17]  # *b2
+                    self.Aloopl[:, 3] = f1 * self.A13l[:, 4]  # *b3
+                    self.Aloopl[:, 4] = f1 * self.A22l[:, 11] + f1**2 * self.A22l[:, 18] + f1**2 * self.A22l[:, 19]  # *b4
+                    self.Aloopl[:, 5] = self.A22l[:, 0] + f1 * self.A22l[:, 6] + f1**2 * self.A22l[:, 12] + \
+                        f1**2 * self.A22l[:, 13] + self.A13l[:, 0] + f1 * self.A13l[:, 2]  # *b1*b1
+                    self.Aloopl[:, 6] = self.A22l[:, 1] + f1 * self.A22l[:, 7]  # *b1*b2
+                    self.Aloopl[:, 7] = self.A13l[:, 1]  # *b1*b3
+                    self.Aloopl[:, 8] = self.A22l[:, 2] + f1 * self.A22l[:, 8]  # *b1*b4
+                    self.Aloopl[:, 9] = self.A22l[:, 3]  # *b2*b2
+                    self.Aloopl[:, 10] = self.A22l[:, 4]  # *b2*b4
+                    self.Aloopl[:, 11] = self.A22l[:, 5]  # *b4*b_4
+
             elif self.co.Nloop is 22:
                 self.Ploopl[:, 0] = self.P22l[:, 20] + self.P13l[:, 7]   # *f^2
                 self.Ploopl[:, 1] = self.P22l[:, 23] + self.P22l[:, 24] + self.P13l[:, 8] + self.P13l[:, 9]   # *f^3
@@ -498,18 +552,25 @@ class Bird(object):
         """
         self.setBias(bs)
 
+        ### For some reasons this was commented a while ago....
         # self.Ps[0] = np.einsum('b,lbx->lx', b11, self.P11l)
         # self.Ps[1] = np.einsum('b,lbx->lx', bloop, self.Ploopl)
         # for l in range(self.co.Nl): self.Ps[1,l] -= self.Ps[1,l,0]
         # self.Ps[1] += np.einsum('b,lbx->lx', bct, self.Pctl)
+        ### ... And replace by this... not sure why...
+        # Ps0 = np.einsum('b,lbx->lx', self.b11, self.P11l)
+        # Ps1 = np.einsum('b,lbx->lx', self.bloop, self.Ploopl) + np.einsum('b,lbx->lx', self.bct, self.Pctl)
+        ### Putting it back to original form for the nlo bias = 1-loop^2 / Plin
+        ### First redefine self.Ps to the correct shape (potentially modified by the interpolation / binning on data bins)
 
-        Ps0 = np.einsum('b,lbx->lx', self.b11, self.P11l)
-        Ps1 = np.einsum('b,lbx->lx', self.bloop, self.Ploopl) + np.einsum('b,lbx->lx', self.bct, self.Pctl)
+        self.Ps = np.empty(shape=(2, self.co.Nl, self.P11l.shape[-1]))
+        self.Ps[0] = np.einsum('b,lbx->lx', self.b11, self.P11l)
+        self.Ps[1] = np.einsum('b,lbx->lx', self.bloop, self.Ploopl) + np.einsum('b,lbx->lx', self.bct, self.Pctl)
+        
+        if self.with_stoch: self.Ps[0] += np.einsum('b,lbx->lx', self.bst, self.Pstl)
+        # if self.with_nlo_bias: self.Ps[1] += np.einsum('l,lbx->lx', self.bnlo, self.Pnlol)
 
-        if self.with_stoch: Ps1 += np.einsum('b,lbx->lx', self.bst, self.Pstl)
-        if self.with_nlo_bias: Ps1 += np.einsum('l,lbx->lx', self.bnlo, self.Pnlol)
-
-        self.fullPs = Ps0 + Ps1
+        self.setfullPs()
 
     def setreduceCflb(self, bs):
         """ For option: which='all'. Given an array of EFT parameters, multiply them accordingly to the correlation multipole regrouped terms and adds the resulting terms together per loop order.
@@ -521,13 +582,14 @@ class Bird(object):
         """
         self.setBias(bs)
 
-        Cf0 = np.einsum('b,lbx->lx', self.b11, self.C11l)
-        Cf1 = np.einsum('b,lbx->lx', self.bloop, self.Cloopl) + np.einsum('b,lbx->lx', self.bct, self.Cctl)
+        self.Cf = np.empty(shape=(2, self.co.Nl, self.C11l.shape[-1]))
+        self.Cf[0] = np.einsum('b,lbx->lx', self.b11, self.C11l)
+        self.Cf[1] = np.einsum('b,lbx->lx', self.bloop, self.Cloopl) + np.einsum('b,lbx->lx', self.bct, self.Cctl)
 
-        if self.with_stoch: Cf1 += np.einsum('b,lbx->lx', self.bst, self.Cstl)
-        if self.with_nlo_bias: Cf1 += np.einsum('l,lbx->lx', self.bnlo, self.Cnlol)
+        if self.with_stoch: self.Cf[1] += np.einsum('b,lbx->lx', self.bst, self.Cstl)
+        if self.with_nlo_bias: self.Cf[1] += np.einsum('l,lbx->lx', self.bnlo, self.Cnlol)
 
-        self.fullCf = Cf0 + Cf1
+        self.setfullCf()
 
     def subtractShotNoise(self):
         """ For option: which='all'. Subtract the constant stochastic term from the (22-)loop """
@@ -607,6 +669,9 @@ class Bird(object):
     def setw(self, bs):
         
         self.setBias(bs)
-        self.w = np.einsum('n,nx->x', self.b11, self.wlin) + np.einsum('n,nx->x', self.bct, self.wct) + np.einsum('n,nx->x', self.bloop, self.wloop)
-        if self.with_nlo_bias: self.w += np.einsum('n,nx->x', self.bnlo, self.wnlo)
+        self.w = np.empty(shape=(2, self.wlin.shape[-1]))
+        self.w[0] = np.einsum('n,nx->x', self.b11, self.wlin)
+        self.w[1] = np.einsum('n,nx->x', self.bloop, self.wloop) + np.einsum('n,nx->x', self.bct, self.wct)
+        if self.with_nlo_bias: self.w[1] += np.einsum('n,nx->x', self.bnlo, self.wnlo)
+        self.fullw = np.sum(self.w, axis=0)
 

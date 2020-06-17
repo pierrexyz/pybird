@@ -26,37 +26,58 @@ class Common(object):
         The maximum multipole to calculate (default 2)
     """
 
-    def __init__(self, Nl=2, kmin=0.001, kmax=0.25, km=1., nd=3e-4, with_cf=False, with_time=True, accboost=1., optiresum=False, orderresum=16, exact_time=False, quintessence=False):
+    def __init__(self, Nl=2, kmin=0.001, kmax=0.25, km=1., nd=3e-4, halohalo=True, with_cf=False, with_time=True, accboost=1., optiresum=False, orderresum=16, exact_time=False, quintessence=False, angular=False):
         
+        self.halohalo = halohalo
         self.nd = nd
         self.km = km
+
 
         self.optiresum = optiresum
         self.with_time = with_time
         self.exact_time = exact_time
         self.quintessence = quintessence
+        if self.quintessence: self.exact_time = True
+
+        self.angular = angular
+
+        if self.angular: 
+            self.Ng = 3
+            rlog = np.geomspace(0.01, 1000., 100) ### Do not change the min max ; the damping windows in the FFTLog of the IR-corrections are depending on those
+            rlin = np.arange(1./accboost, 200., 1./accboost)
+            rlogmask = np.where((rlog > rlin[-1]) | (rlog < rlin[0] ))[0]
+            self.r = np.unique( np.sort( np.concatenate((rlog[rlogmask], rlin)) ) )
+            self.Nr = self.r.shape[0]
 
         if Nl is 0: self.Nl = 1
         elif Nl > 0: self.Nl = Nl
-        self.N11 = 3
-        self.Nct = 6
-
-        if self.exact_time:
-            self.N22 = 36  # number of 22-loops
-            self.N13 = 15  # number of 13-loops
-        elif self.quintessence:
-            self.N22 = 36  # number of 22-loops
-            self.N13 = 15  # number of 13-loops
-        else:
-            self.N22 = 28  # number of 22-loops
-            self.N13 = 10  # number of 13-loops
-
-        self.Nst = 3  # number of stochastic terms
         
-        if self.with_time: self.Nloop = 12
-        else: self.Nloop = 22
-        #elif self.redshift is 'geom': self.Nloop = self.N13+self.N22
-        #else: self.Nloop = 12
+        self.Nst = 3  # number of stochastic terms
+
+        if self.halohalo:
+            
+            self.N11 = 3  # number of linear terms
+            self.Nct = 6  # number of counterterms
+
+            if self.exact_time or self.quintessence:
+                self.N22 = 36  # number of 22-loops
+                self.N13 = 15  # number of 13-loops
+            else:
+                self.N22 = 28  # number of 22-loops
+                self.N13 = 10  # number of 13-loops
+            
+            if self.with_time: self.Nloop = 12
+            else: self.Nloop = 22
+            #elif self.redshift is 'geom': self.Nloop = self.N13+self.N22
+            #else: self.Nloop = 12
+
+        else: # halo-matter
+            self.N11 = 2  # number of linear terms
+            self.Nct = 6  # number of counterterms
+            self.N22 = 22
+            self.N13 = 11
+            if self.with_time: self.Nloop = 5
+            else: self.Nloop = 5 ###
 
         self.with_cf = False
         if with_cf:
@@ -100,13 +121,13 @@ class Common(object):
         self.lct = np.empty(shape=(self.Nl, self.Nct))
         self.l22 = np.empty(shape=(self.Nl, self.N22))
         self.l13 = np.empty(shape=(self.Nl, self.N13))
-
+        
         for i in range(self.Nl):
             l = 2 * i
             self.l11[i] = np.array([mu[0][l], mu[2][l], mu[4][l]])
             self.lct[i] = np.array([mu[0][l], mu[2][l], mu[4][l], mu[2][l], mu[4][l], mu[6][l]])
             
-            if self.exact_time:
+            if self.exact_time or self.quintessence:
                 self.l22[i] = np.array([ 6 * [mu[0][l]] + 7 * [mu[2][l]] + [mu[4][l], mu[2][l], mu[4][l], mu[2][l], mu[4][l], mu[2][l]] 
                     + 3 * [mu[4][l]] + [mu[6][l], mu[4][l], mu[6][l], mu[4][l], mu[6][l], mu[8][l]] 
                     + 3 * [mu[2][l]] + 3 * [mu[4][l]] + [mu[6][l], mu[4][l]] ])
