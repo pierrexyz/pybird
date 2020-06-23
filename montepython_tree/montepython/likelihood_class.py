@@ -2695,14 +2695,16 @@ class Likelihood_bird(Likelihood):
 
         Likelihood.__init__(self, path, data, command_line)
 
-        try:
-            with open(self.configfile, 'r') as f:
-                self.config = yaml.full_load(f)
-        except OSError:
-            newpath = os.path.join(self.data_directory, self.configfile)
-            print("WARNING: We are loading the configuration in %s. Please make sure this is what you want!", newpath)
-            with open(newpath, 'r') as f:
-                self.config = yaml.full_load(f)
+        # try:
+        #     with open(self.configfile, 'r') as f:
+        #         self.config = yaml.full_load(f)
+        # except OSError:
+        #     newpath = os.path.join(self.data_directory, self.configfile)
+        #     print("WARNING: We are loading the configuration in %s. Please make sure this is what you want!", newpath)
+        #     with open(newpath, 'r') as f:
+        #         self.config = yaml.full_load(f)
+
+        self.config = yaml.full_load(open(os.path.join(self.data_directory, self.configfile), 'r'))
 
         # Loading data and priors
         if "w" in self.config["output"]:
@@ -2997,7 +2999,7 @@ class Likelihood_bird(Likelihood):
                 if self.config["skycut"] is 1: modelX = correlator.reshape(-1)
                 elif self.config["skycut"] > 1: modelX = correlator[i].reshape(-1)
 
-                if self.config["with_bao"]:  # BAO
+                if self.config["with_bao"] and self.config["baoH"][i] > 0 and self.config["baoD"][i] > 0:  # BAO
                     DM_at_z = cosmo.angular_distance(self.config["zbao"][i]) * (1. + self.config["zbao"][i])
                     H_at_z = cosmo.Hubble(self.config["zbao"][i]) * conts.c / 1000.0
                     rd = cosmo.rs_drag() * self.config["rs_rescale"][i]
@@ -3204,7 +3206,7 @@ class Likelihood_bird(Likelihood):
         ydata = ydata[xmask]
 
         # BAO
-        if with_bao and baoH is not None and baoD is not None:
+        if with_bao and baoH > 0 and baoD > 0:
             ydata = np.concatenate((ydata, [baoH, baoD]))
             xmask = np.concatenate((xmask, [-2, -1]))
             print ("BAO recon: on")
@@ -3242,7 +3244,7 @@ class Likelihood_bird(Likelihood):
             xmask = xmask0
 
             if 'linear' in xminspacing:
-                dxmax = (xmin0 - xmin1) / (wedge - 1.)
+                dxmax = (xmin1 - xmin0) / (wedge - 1.)
                 for i in range(wedge - 1):
                     xmaski = np.argwhere((x >= xmin0 + (i + 1) * dxmax) & (x <= xmax))[:, 0] + (i + 1) * Nx
                     xmask = np.concatenate((xmask, xmaski))
@@ -3271,7 +3273,7 @@ class Likelihood_bird(Likelihood):
         ydata = ydata[xmask]
 
         # BAO
-        if with_bao and baoH is not None and baoD is not None:
+        if with_bao and baoH > 0 and baoD > 0:
             ydata = np.concatenate((ydata, [baoH, baoD]))
             xmask = np.concatenate((xmask, [-2, -1]))
             print ("BAO recon: on")
@@ -3373,4 +3375,6 @@ class Likelihood_bird(Likelihood):
         priormat = np.diagflat(1. / priors**2)
 
         return priormat
-        
+
+
+
