@@ -3372,3 +3372,4 @@ class Likelihood_bird(Likelihood):
         priormat = np.diagflat(1. / priors**2)
 
         return priormat
+        
