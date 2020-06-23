@@ -3252,7 +3252,8 @@ class Likelihood_bird(Likelihood):
                     b = -(s1 - s0 + 4 * s0 * N - 4 * s0 * N**2) / (4. * (-1 + N) * N)
                     mu = (np.arange(0, N, 1) + 0.5) / N
                     return a / mu**2 + b
-                xmins = get_xmin(xmin0, xmin1)
+                xmins = get_xmin(xmin1, xmin0)
+                print("Xmins: ", xmins)
                 for i, xmini in enumerate(xmins[1:]):
                     xmaski = np.argwhere((x >= xmini) & (x <= xmax))[:, 0] + (i + 1) * Nx
                     xmask = np.concatenate((xmask, xmaski))
