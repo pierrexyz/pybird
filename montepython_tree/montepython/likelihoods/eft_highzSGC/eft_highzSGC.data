@@ -1,0 +1,33 @@
+# location of data files
+eft_highzSGC.data_directory = data.path['data']
+
+eft_highzSGC.model = 1
+
+# define kmin and kmax
+eft_highzSGC.kmin = 0.01
+eft_highzSGC.kmax = 0.23
+
+eft_highzSGC.z = 0.57
+
+# can provide either a covmat or inverse covmat
+eft_highzSGC.use_covmat = True
+eft_highzSGC.covmat_file = 'pybird/Covariance/Cov_highzSGC.dat'
+
+eft_highzSGC.data_file = 'pybird/DataSims/ps1D_highzSGC.dat'
+
+eft_highzSGC.use_nuisance = ['b1_hS', 'c2_hS', 'b3', 'c4', 'b5', 'b6', 'b7', 'b8', 'b9', 'b10']
+
+eft_highzSGC.use_window = True
+eft_highzSGC.path_to_window = 'pybird/Window/'
+eft_highzSGC.window_fourier_name = 'pynest_BOSS_CMASS_SGC_z057'
+eft_highzSGC.window_configspace_file = 'window_BOSS_CMASS_SGC_z057.dat'
+
+eft_highzSGC.nd = 4.5e-4
+eft_highzSGC.Om_AP = 0.310
+eft_highzSGC.zAP = 0.57
+
+eft_highzSGC.km = 0.7
+eft_highzSGC.knl = 0.7
+
+eft_highzSGC.fibcol_window = True
+

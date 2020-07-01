@@ -1,0 +1,33 @@
+# location of data files
+eft_lowzNGC.data_directory = data.path['data']
+
+eft_lowzNGC.model = 1
+
+# define kmin and kmax
+eft_lowzNGC.kmin = 0.01
+eft_lowzNGC.kmax = 0.20
+
+eft_lowzNGC.z = 0.32
+
+# can provide either a covmat or inverse covmat
+eft_lowzNGC.use_covmat = True
+eft_lowzNGC.covmat_file = 'pybird/Covariance/Cov_lowzNGC.dat'
+
+eft_lowzNGC.data_file = 'pybird/DataSims/ps1D_lowzNGC.dat'
+
+eft_lowzNGC.use_nuisance = ['b1_lN', 'c2_lN', 'b3', 'c4', 'b5', 'b6', 'b7', 'b8', 'b9', 'b10']
+
+eft_lowzNGC.use_window = True
+eft_lowzNGC.path_to_window = 'pybird/Window/'
+eft_lowzNGC.window_fourier_name = 'pynest_BOSS_LOWZ_NGC_z032'
+eft_lowzNGC.window_configspace_file = 'window_BOSS_LOWZ_NGC_z032.dat'
+
+eft_lowzNGC.nd = 4.0e-4
+eft_lowzNGC.Om_AP = 0.310
+eft_lowzNGC.zAP = 0.32
+
+eft_lowzNGC.km = 0.7
+eft_lowzNGC.knl = 0.7
+
+eft_lowzNGC.fibcol_window = True
+
