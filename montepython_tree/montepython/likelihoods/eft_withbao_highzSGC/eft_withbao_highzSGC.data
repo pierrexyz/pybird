@@ -1,0 +1,38 @@
+# location of data files
+eft_withbao_highzSGC.data_directory = data.path['data']
+
+eft_withbao_highzSGC.model = 1
+
+# define kmin and kmax
+eft_withbao_highzSGC.kmin = 0.01
+eft_withbao_highzSGC.kmax = 0.23
+
+eft_withbao_highzSGC.z = 0.57
+
+# can provide either a covmat or inverse covmat
+eft_withbao_highzSGC.use_covmat = True
+eft_withbao_highzSGC.covmat_file = 'pybird/Covariance/Cov_HectorPsBAO_SGC.txt'
+
+eft_withbao_highzSGC.data_file = 'pybird/DataSims/ps1D_highzSGC.dat'
+
+eft_withbao_highzSGC.use_nuisance = ['b1_hS', 'c2_hS', 'b3', 'c4', 'b5', 'b6', 'b7', 'b8', 'b9', 'b10']
+
+eft_withbao_highzSGC.use_window = True
+eft_withbao_highzSGC.path_to_window = 'pybird/Window/'
+eft_withbao_highzSGC.window_fourier_name = 'pynest_BOSS_CMASS_SGC_z057'
+eft_withbao_highzSGC.window_configspace_file = 'window_BOSS_CMASS_SGC_z057.dat'
+
+eft_withbao_highzSGC.nd = 4.5e-4
+eft_withbao_highzSGC.Om_AP = 0.310
+eft_withbao_highzSGC.zAP = 0.57
+
+eft_withbao_highzSGC.km = 0.7
+eft_withbao_highzSGC.knl = 0.7
+
+eft_withbao_highzSGC.fibcol_window = True
+
+eft_withbao_highzSGC.zbao = 0.57
+eft_withbao_highzSGC.baoH = 91.8465
+eft_withbao_highzSGC.baoD = 2215.45
+eft_withbao_highzSGC.rs_rescale          = 1.
+eft_withbao_highzSGC.rd_fid_in_Mpc       = 148.11
