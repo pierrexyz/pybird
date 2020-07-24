@@ -576,7 +576,7 @@ class Bird(object):
         # self.Ps[1] = np.einsum('b,lbx->lx', bloop, self.Ploopl)
         # for l in range(self.co.Nl): self.Ps[1,l] -= self.Ps[1,l,0]
         # self.Ps[1] += np.einsum('b,lbx->lx', bct, self.Pctl)
-        ### ... And replace by this... not sure why...
+        ### ... And replace by this... Because of the wedge replacement to multipoles...
         # Ps0 = np.einsum('b,lbx->lx', self.b11, self.P11l)
         # Ps1 = np.einsum('b,lbx->lx', self.bloop, self.Ploopl) + np.einsum('b,lbx->lx', self.bct, self.Pctl)
         ### Putting it back to original form for the nlo bias = 1-loop^2 / Plin
@@ -601,14 +601,20 @@ class Bird(object):
         """
         self.setBias(bs)
 
-        self.Cf = np.empty(shape=(2, self.co.Nl, self.C11l.shape[-1]))
-        self.Cf[0] = np.einsum('b,lbx->lx', self.b11, self.C11l)
-        self.Cf[1] = np.einsum('b,lbx->lx', self.bloop, self.Cloopl) + np.einsum('b,lbx->lx', self.bct, self.Cctl)
+        # self.Cf = np.empty(shape=(2, self.co.Nl, self.C11l.shape[-1]))
+        # self.Cf[0] = np.einsum('b,lbx->lx', self.b11, self.C11l)
+        # self.Cf[1] = np.einsum('b,lbx->lx', self.bloop, self.Cloopl) + np.einsum('b,lbx->lx', self.bct, self.Cctl)
 
-        if self.with_stoch: self.Cf[1] += np.einsum('b,lbx->lx', self.bst, self.Cstl)
-        if self.with_nlo_bias: self.Cf[1] += np.einsum('l,lbx->lx', self.bnlo, self.Cnlol)
+        # if self.with_stoch: self.Cf[1] += np.einsum('b,lbx->lx', self.bst, self.Cstl)
+        # if self.with_nlo_bias: self.Cf[1] += np.einsum('l,lbx->lx', self.bnlo, self.Cnlol)
 
-        self.setfullCf()
+        # self.setfullCf()
+
+        Cf0 = np.einsum('b,lbx->lx', self.b11, self.C11l)
+        Cf1 = np.einsum('b,lbx->lx', self.bloop, self.Cloopl) + np.einsum('b,lbx->lx', self.bct, self.Cctl)
+        self.fullCf = Cf0 + Cf1
+
+        
 
     def subtractShotNoise(self):
         """ For option: which='all'. Subtract the constant stochastic term from the (22-)loop """

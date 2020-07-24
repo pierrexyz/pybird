@@ -2897,6 +2897,10 @@ class Likelihood_bird(Likelihood):
                 self.config["with_nlo_bias_2loop"]
             except:
                 self.config["with_nlo_bias_2loop"] = False
+            try:
+                self.config["with_cf_sys"]
+            except:
+                self.config["with_cf_sys"] = False
 
 
 
@@ -2996,8 +3000,12 @@ class Likelihood_bird(Likelihood):
         else:
             for i in range(self.config["skycut"]):
 
-                if self.config["skycut"] is 1: modelX = correlator.reshape(-1)
-                elif self.config["skycut"] > 1: modelX = correlator[i].reshape(-1)
+                if self.config["skycut"] is 1: modelX = correlator   
+                elif self.config["skycut"] > 1: modelX = correlator[i]
+
+                if self.config["with_cf_sys"]: modelX[0] += bval[i,-1] + bval[i,-2] * self.x[i]**-1 + bval[i,-3] * self.x[i]**-2
+
+                modelX = modelX.reshape(-1)
 
                 if self.config["with_bao"] and self.config["baoH"][i] > 0 and self.config["baoD"][i] > 0:  # BAO
                     DM_at_z = cosmo.angular_distance(self.config["zbao"][i]) * (1. + self.config["zbao"][i])
@@ -3050,6 +3058,9 @@ class Likelihood_bird(Likelihood):
         if self.config["with_bbn"]: prior += -0.5 * ((data.cosmo_arguments['omega_b'] - self.config["omega_b_BBNcenter"]) / self.config["omega_b_BBNsigma"])**2
         # if "w" in self.config["output"]: prior += -0.5 * ((data.mcmc_parameters['ln10^{10}A_s']['current'] * data.mcmc_parameters['ln10^{10}A_s']['scale'] - 2.84) / 0.2)**2
 
+        if self.config["with_cf_sys"]: 
+            for i in range(self.config["skycut"]): prior += - 0.5 * ( (bs[i,-1]/0.003)**2 + (bs[i,-2]/3.)**2 + (bs[i,-3]/20.)**2 )
+        
         lkl = - 0.5 * chi2 + prior
 
         return lkl
@@ -3248,6 +3259,7 @@ class Likelihood_bird(Likelihood):
                 for i in range(wedge - 1):
                     xmaski = np.argwhere((x >= xmin0 + (i + 1) * dxmax) & (x <= xmax))[:, 0] + (i + 1) * Nx
                     xmask = np.concatenate((xmask, xmaski))
+
             else:
                 def get_xmin(s0, s1, N=wedge):
                     a = ((s1 - s0) * (-1 + 2 * N)**2) / (16. * (-1 + N) * N**3)
@@ -3255,10 +3267,11 @@ class Likelihood_bird(Likelihood):
                     mu = (np.arange(0, N, 1) + 0.5) / N
                     return a / mu**2 + b
                 xmins = get_xmin(xmin1, xmin0)
-                print("Xmins: ", xmins)
                 for i, xmini in enumerate(xmins[1:]):
                     xmaski = np.argwhere((x >= xmini) & (x <= xmax))[:, 0] + (i + 1) * Nx
                     xmask = np.concatenate((xmask, xmaski))
+
+                print (xmins)
 
         elif multipole is not 0:
             x = xdata.reshape(3, -1)[0]
@@ -3375,6 +3388,7 @@ class Likelihood_bird(Likelihood):
         priormat = np.diagflat(1. / priors**2)
 
         return priormat
+
 
 
 

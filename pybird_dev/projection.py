@@ -80,7 +80,7 @@ class Projection(object):
     """
     def __init__(self, xout, Om_AP=None, z_AP=None, nbinsmu=100, 
         window_fourier_name=None, path_to_window=None, window_configspace_file=None, 
-        binning=False, fibcol=False, Nwedges=0, 
+        binning=False, fibcol=False, Nwedges=0, wedges_bounds=None,
         zz=None, nz=None, co=co):
 
         self.co = co
@@ -113,7 +113,7 @@ class Projection(object):
         # wedges
         if Nwedges is not 0:
             self.Nw = Nwedges
-            self.IL = self.IntegralLegendreArray(Nw=self.Nw, Nl=self.co.Nl)
+            self.IL = self.IntegralLegendreArray(Nw=self.Nw, Nl=self.co.Nl, bounds=wedges_bounds)
 
         if zz is not None and nz is not None:
             self.zz = zz
@@ -467,13 +467,14 @@ class Projection(object):
         if l == 2: return 0.5*(b**3-b-a**3+a)/(b-a)
         if l == 4: return 0.25*(-3/2.*a+5*a**3-7/2.*a**5+3/2.*b-5*b**3+7/2.*b**5)/(b-a)
 
-    def IntegralLegendreArray(self, Nw=3, Nl=2):
+    def IntegralLegendreArray(self, Nw=3, Nl=2, bounds=None):
         deltamu = 1./float(Nw)
-        boundsmu = np.arange(0., 1., deltamu)
+        if bounds is None: boundsmu = np.arange(0., 1.+deltamu, deltamu)
+        else: boundsmu = bounds
         IntegrLegendreArray = np.empty(shape=(Nw, Nl))
-        for w, boundmu in enumerate(boundsmu):
+        for w in range(Nw):
             for l in range(Nl):
-                IntegrLegendreArray[w,l] = self.IntegralLegendre(2*l, boundmu, boundmu+deltamu)
+                IntegrLegendreArray[w,l] = self.IntegralLegendre(2*l, boundsmu[w], boundsmu[w+1])
         return IntegrLegendreArray
 
     def integrWedges(self, P, many=False):

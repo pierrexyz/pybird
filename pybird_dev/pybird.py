@@ -88,8 +88,11 @@ class Correlator(object):
                 description="Number of multipoles. 0: real space. 2: monopole + quadrupole. 3: monopole + quadrupole + hexadecapole.",
                 default=2) ,
             "wedge": Option("wedge", int, 
-                description="Number of wedges. 0: compute multipole instead. 0<: automatically set \'multipole\' to 3.",
+                description="Number of wedges. 0: compute multipole instead. ",
                 default=0) ,
+            "wedges_bounds": Option("wedges_bounds", (list, np.ndarray), 
+                description="Wedges bounds: [0, a_1, ..., a_{n-1}, 1], n: number of wedges, such that 0 < mu < a_1, ..., a_{n-1} < mu < 1. Default: equi-spaced between 0 and 1.",
+                default=None) ,
             "skycut": Option("skycut", int, 
                 description="Number of skycuts.",
                 default=1) ,
@@ -103,7 +106,7 @@ class Correlator(object):
                 description="Inverse galaxy spatial extension scale in [h/Mpc].",
                 default=1.) ,
             "nd": Option("nd", float,
-                description="mean galaxy density",
+                description="Mean galaxy density",
                 default=3e-4) ,
             "with_stoch": Option("with_stoch", bool, 
                 description="With stochastic terms.",
@@ -499,7 +502,8 @@ class Correlator(object):
     def __load_engines(self, only_common=False):
 
         self.co = Common(Nl=self.config["multipole"], kmax=self.config["kmax"], km=self.config["km"], nd=self.config["nd"], halohalo=self.config["halohalo"], 
-            with_cf=self.config["with_cf"], with_time=self.config["with_time"], optiresum=self.config["optiresum"], exact_time=self.config["with_exact_time"])
+            with_cf=self.config["with_cf"], with_time=self.config["with_time"], optiresum=self.config["optiresum"], 
+            exact_time=self.config["with_exact_time"], quintessence=self.config["with_quintessence"])
         
         if not only_common:
             self.nonlinear = NonLinear(load=True, save=True, co=self.co)
@@ -519,7 +523,7 @@ class Correlator(object):
                 if self.config["skycut"] == 1: 
                     self.projection = Projection(self.config["xdata"], Om_AP=self.config["Omega_m_AP"], z_AP=self.config["z_AP"], 
                         window_fourier_name=self.config["windowPk"], path_to_window='', window_configspace_file=self.config["windowCf"], 
-                        binning=self.config["with_binning"], fibcol=self.config["with_fibercol"], Nwedges=self.config["wedge"], 
+                        binning=self.config["with_binning"], fibcol=self.config["with_fibercol"], Nwedges=self.config["wedge"], wedges_bounds=self.config["wedges_bounds"],
                         zz=self.config["zz"], nz=self.config["nz"], co=self.co)
                 
                 elif self.config["skycut"] > 1:
@@ -558,7 +562,7 @@ class Correlator(object):
 
                         self.projection.append( Projection(xdata, Om_AP=Om_AP, z_AP=z_AP, 
                             window_fourier_name=windowPk, path_to_window='', window_configspace_file=windowCf, 
-                            binning=self.config["with_binning"], fibcol=self.config["with_fibercol"], Nwedges=self.config["wedge"], 
+                            binning=self.config["with_binning"], fibcol=self.config["with_fibercol"], Nwedges=self.config["wedge"], wedges_bounds=self.config["wedges_bounds"],
                             zz=zz, nz=nz,
                             co=self.co) ) 
 
@@ -601,9 +605,14 @@ class Correlator(object):
             if self.config["skycut"] == 1:
                 if not isinstance(self.cosmo["f"], float):
                     raise Exception("Please provide a single growth rate \'f\'.")
-            elif len(self.cosmo["f"]) is not self.config["skycut"]: 
+            elif len(self.cosmo["f"]) != self.config["skycut"]: 
                 raise Exception("Please specify (in a list) as many \'f\' as the corresponding skycuts.")
 
+        if self.config["wedge"] > 0:
+            if self.config["wedges_bounds"] is not None:
+                if len(self.config["wedges_bounds"]) != self.config["wedge"]+1 or self.config["wedges_bounds"][0] != 0 or self.config["wedges_bounds"][-1] != 1:
+                    raise Exception("If specifying \'wedges_bounds\', specify them in a list as: [0, a_1, ..., a_{n-1}, 1], where n: number of wedges")
+        
         if self.config["with_bias"]:
             self.__is_bias_conflict()
 
@@ -752,8 +761,7 @@ class Correlator(object):
             self.config["with_cf"] = False
 
         # if self.config["with_cf"]: self.config["with_stoch"] = False
-        
-        if self.config["wedge"] is not 0: self.config["multipole"] = 3 # enforced
+        # if self.config["wedge"] is not 0: self.config["multipole"] = 3 # enforced
         
         if "bm" in self.config["output"]: self.config["halohalo"] = False
         else: self.config["halohalo"] = True
