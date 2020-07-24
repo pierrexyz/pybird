@@ -2901,6 +2901,10 @@ class Likelihood_bird(Likelihood):
                 self.config["with_cf_sys"]
             except:
                 self.config["with_cf_sys"] = False
+            try:
+                self.config["with_derived_bias"]
+            except:
+                self.config["with_derived_bias"] = False
 
 
 
