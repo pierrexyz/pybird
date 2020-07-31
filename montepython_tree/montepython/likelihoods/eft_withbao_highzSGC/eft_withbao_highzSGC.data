@@ -11,7 +11,7 @@ eft_withbao_highzSGC.z = 0.57
 
 # can provide either a covmat or inverse covmat
 eft_withbao_highzSGC.use_covmat = True
-eft_withbao_highzSGC.covmat_file = 'pybird/Covariance/Cov_HectorPsBAO_SGC.txt'
+eft_withbao_highzSGC.covmat_file = 'pybird/Covariance/Cov_PsBAO_SGC.txt'
 
 eft_withbao_highzSGC.data_file = 'pybird/DataSims/ps1D_highzSGC.dat'
 

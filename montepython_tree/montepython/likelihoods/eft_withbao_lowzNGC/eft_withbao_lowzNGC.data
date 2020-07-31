@@ -11,7 +11,7 @@ eft_withbao_lowzNGC.z = 0.32
 
 # can provide either a covmat or inverse covmat
 eft_withbao_lowzNGC.use_covmat = True
-eft_withbao_lowzNGC.covmat_file = 'pybird/Covariance/Cov_HectorPsBAO_lowzNGC.txt'
+eft_withbao_lowzNGC.covmat_file = 'pybird/Covariance/Cov_PsBAO_lowzNGC.txt'
 
 eft_withbao_lowzNGC.data_file = 'pybird/DataSims/ps1D_lowzNGC.dat'
 
