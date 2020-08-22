@@ -461,20 +461,17 @@ class Correlator(object):
             if self.config["with_time"]: Pb3 = loop[3] + b1 * loop[7]
             else: Pb3 = f * loop[8] + b1 * loop[16]
 
-            m = np.array([ Pb3.reshape(-1),
-                            2 * (f * ct[0+3] + b1 * ct[0]).reshape(-1) / self.config["km"]**2 ])
+            m = np.array([ Pb3.reshape(-1), 2 * (f * ct[0+3] + b1 * ct[0]).reshape(-1) / self.config["km"]**2 ])
             
             if "w" not in self.config["output"]:
                 if self.config["multipole"] >= 2: m = np.vstack([m, 2 * (f * ct[1+3] + b1 * ct[1]).reshape(-1) / self.config["km"]**2])
                 if self.config["multipole"] >= 3: m = np.vstack([m, 2 * (f * ct[2+3] + b1 * ct[2]).reshape(-1) / self.config["km"]**2])
+
                 if self.config["with_stoch"]:
-                    # if "Cf" in self.config["output"]:
-                    #     if model == 5: m = np.vstack([m, Pst[0].reshape(-1)])
-                    # elif "Pk" in self.config["output"]:
-                    if model <= 4: m = np.vstack([m, Pst[2].reshape(-1) ])
-                    if model == 1: m = np.vstack([m, Pst[0].reshape(-1) ])
-                    if model == 3: m = np.vstack([m, Pst[1].reshape(-1) ])
-                    if model == 4: m = np.vstack([m, Pst[1].reshape(-1) , Pst[0].reshape(-1) ])
+                    if model <= 4: m = np.vstack([m, Pst[2].reshape(-1) ]) # k^2 quad
+                    if model == 1: m = np.vstack([m, Pst[0].reshape(-1) ]) # k^0 mono
+                    if model == 3: m = np.vstack([m, Pst[1].reshape(-1) ]) # k^2 mono
+                    if model == 4: m = np.vstack([m, Pst[1].reshape(-1) , Pst[0].reshape(-1) ]) # k^2 mono, k^0 mono
 
             return m
 
@@ -757,6 +754,7 @@ class Correlator(object):
             self.config["with_redshift_bin"] = True
             self.config["with_AP"] = False
             self.config["with_window"] = False
+            self.config["with_stoch"] = False
         else:
             self.config["with_cf"] = False
 
@@ -768,14 +766,15 @@ class Correlator(object):
         
         if self.config["skycut"] > 1:
             self.config["with_bias"] = False
-            if len(self.config["z"]) is not self.config["skycut"]:
+            if len(self.config["z"]) != self.config["skycut"]:
                 raise Exception("Please specify as many redshifts \'z\' as the number of skycuts.")
                 self.config["z"] = np.asarray(self.config["z"])
-            def checkEqual(lst): return lst[1:] == lst[:-1]
-            if checkEqual(self.config["z"]): # if same redshift
-                self.config["with_time"] = True 
-                #self.config["z"] = self.config["z"][0]
-            else: self.config["with_time"] = False
+            if "w" not in self.config["output"]: ### TO CHANGE
+                def checkEqual(lst): return lst[1:] == lst[:-1]
+                if checkEqual(self.config["z"]): # if same redshift
+                    self.config["with_time"] = True 
+                    #self.config["z"] = self.config["z"][0]
+                else: self.config["with_time"] = False
                 
         
         if self.config["xdata"] is None:
@@ -847,7 +846,8 @@ class Correlator(object):
             elif self.config["skycut"] > 1:
                 self.config["zz"] = np.asarray(self.config["zz"])
                 self.config["nz"] = np.asarray(self.config["nz"])
-                if len(self.config["zz"]) is self.config["skycut"] and len(self.config["nz"]) is self.config["skycut"]: 
+                print (len(self.config["zz"]), len(self.config["nz"]))
+                if len(self.config["zz"]) == self.config["skycut"] and len(self.config["nz"]) == self.config["skycut"]: 
                     for zz, nz in zip(self.config["zz"], self.config["nz"]): is_conflict_zz(zz, nz)
                 else:
                     raise Exception("Please provide as many \'nz\' with corresponding \'zz\' (in a list) as the corresponding skycuts. ")

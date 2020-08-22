@@ -229,7 +229,7 @@ class Bird(object):
 
         if self.co.halohalo:
 
-            if self.with_nlo_bias: self.bnlo[0] = 2. * b1**2 * bias["bnlo"] / self.co.km**4
+            if self.with_nlo_bias: self.bnlo[0] = bias["bnlo"] / self.co.km**4
 
             if self.with_assembly_bias: bq = bias["bq"]
 
@@ -364,8 +364,8 @@ class Bird(object):
         self.C13l = np.einsum('lnx,ln->lnx', self.C13l, self.co.l13)
 
         if self.with_nlo_bias:
-            self.Pnlol = np.einsum('x,x,ln->lnx', self.co.k**4, self.P11, np.array([[1.], [0], [0]]))
-            self.Cnlol = np.einsum('lx,ln->lnx', self.Cnlo, np.array([[1.], [0], [0]]))
+            self.Pnlol = np.einsum('x,x,ln->lnx', self.co.k**4, self.P11, np.array([[mu[4][2*l]] for l in range(self.co.Nl)]))
+            self.Cnlol = np.einsum('lx,ln->lnx', self.Cnlo, np.array([[mu[4][2*l]] for l in range(self.co.Nl)]))
 
         self.reducePsCfl()
 
@@ -586,8 +586,8 @@ class Bird(object):
         self.Ps[0] = np.einsum('b,lbx->lx', self.b11, self.P11l)
         self.Ps[1] = np.einsum('b,lbx->lx', self.bloop, self.Ploopl) + np.einsum('b,lbx->lx', self.bct, self.Pctl)
         
-        if self.with_stoch: self.Ps[0] += np.einsum('b,lbx->lx', self.bst, self.Pstl)
-        # if self.with_nlo_bias: self.Ps[1] += np.einsum('l,lbx->lx', self.bnlo, self.Pnlol)
+        if self.with_stoch: self.Ps[1] += np.einsum('b,lbx->lx', self.bst, self.Pstl)
+        if self.with_nlo_bias: self.Ps[1] += np.einsum('l,lbx->lx', self.bnlo, self.Pnlol)
 
         self.setfullPs()
 
@@ -601,18 +601,18 @@ class Bird(object):
         """
         self.setBias(bs)
 
-        # self.Cf = np.empty(shape=(2, self.co.Nl, self.C11l.shape[-1]))
-        # self.Cf[0] = np.einsum('b,lbx->lx', self.b11, self.C11l)
-        # self.Cf[1] = np.einsum('b,lbx->lx', self.bloop, self.Cloopl) + np.einsum('b,lbx->lx', self.bct, self.Cctl)
+        self.Cf = np.empty(shape=(2, self.co.Nl, self.C11l.shape[-1]))
+        self.Cf[0] = np.einsum('b,lbx->lx', self.b11, self.C11l)
+        self.Cf[1] = np.einsum('b,lbx->lx', self.bloop, self.Cloopl) + np.einsum('b,lbx->lx', self.bct, self.Cctl)
 
-        # if self.with_stoch: self.Cf[1] += np.einsum('b,lbx->lx', self.bst, self.Cstl)
-        # if self.with_nlo_bias: self.Cf[1] += np.einsum('l,lbx->lx', self.bnlo, self.Cnlol)
+        if self.with_stoch: self.Cf[1] += np.einsum('b,lbx->lx', self.bst, self.Cstl)
+        if self.with_nlo_bias: self.Cf[1] += np.einsum('l,lbx->lx', self.bnlo, self.Cnlol)
 
-        # self.setfullCf()
+        self.setfullCf()
 
-        Cf0 = np.einsum('b,lbx->lx', self.b11, self.C11l)
-        Cf1 = np.einsum('b,lbx->lx', self.bloop, self.Cloopl) + np.einsum('b,lbx->lx', self.bct, self.Cctl)
-        self.fullCf = Cf0 + Cf1
+        #Cf0 = np.einsum('b,lbx->lx', self.b11, self.C11l)
+        #Cf1 = np.einsum('b,lbx->lx', self.bloop, self.Cloopl) + np.einsum('b,lbx->lx', self.bct, self.Cctl)
+        #self.fullCf = Cf0 + Cf1
 
         
 
