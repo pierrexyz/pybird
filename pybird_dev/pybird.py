@@ -10,7 +10,6 @@ from projection import Projection
 from angular import Angular
 from greenfunction import GreenFunction
 
-
 # import importlib, sys
 # importlib.reload(sys.modules['common'])
 # importlib.reload(sys.modules['bird'])
@@ -266,11 +265,16 @@ class Correlator(object):
 
             else:
                 self.birds = []
-
                 cosmoi = deepcopy(self.cosmo)
 
-                for i in range(self.config["skycut"]):
+                def mycycle(skycut, first=0, L=None):
+                    if L is None: L = [i for i in range(skycut)]
+                    if first == 0: first = (skycut+1)//2
+                    else: first = skycut//2
+                    return [item for i, item in enumerate(L+L) if i < skycut+first and first <= i]
 
+                zbins = mycycle(self.config["skycut"], first=2) # cycle to get the middle redshift
+                for i in zbins:
                     cosmoi["f"] = self.cosmo["f"][i]
                     cosmoi["D"] = self.cosmo["D"][i]
                     cosmoi["z"] = self.config["z"][i]
@@ -279,7 +283,7 @@ class Correlator(object):
                         cosmoi["DA"] = self.cosmo["DA"][i]
                         cosmoi["H"] = self.cosmo["H"][i]
 
-                    if i is 0: 
+                    if i == zbins[0]:
                         self.bird = Bird(cosmoi, with_bias=False, with_stoch=self.config["with_stoch"], with_nlo_bias=self.config["with_nlo_bias"], with_assembly_bias=self.config["with_assembly_bias"], co=self.co)
                         self.nonlinear.PsCf(self.bird)
                         self.bird.setPsCfl()
@@ -287,7 +291,7 @@ class Correlator(object):
                         self.birds.append(self.bird)
                     else:
                         birdi = deepcopy(self.bird)
-                        birdi.settime(cosmoi)
+                        birdi.settime(cosmoi) # rescale by (Dnew/Dold)**(2p) # f if not given yet at this stage?
                         if self.config["with_resum"]:
                             if self.config["with_cf"]: self.resum.PsCf(birdi, makeIR=False, makeQ=True, setPs=False, setCf=True)
                             else: self.resum.Ps(birdi, makeIR=False, makeQ=True, setPs=True)
@@ -297,8 +301,9 @@ class Correlator(object):
                     if self.config["with_cf"]: self.resum.PsCf(self.birds[0], makeIR=False, makeQ=False, setPs=False, setCf=True)
                     else: self.resum.Ps(self.birds[0], makeIR=False, makeQ=False, setPs=True)
 
-            for i in range(self.config["skycut"]):
+                self.birds = mycycle(self.config["skycut"], first=0, L=self.birds) # cycle back the birds 
 
+            for i in range(self.config["skycut"]):
                 if "w" in self.config["output"]: 
                     self.angular[i].w(self.birds[i], self.cosmo["Dz"][i], self.cosmo["fz"][i], self.cosmo["rz"][i], self.config["zz"][i], self.config["nz"][i])
                 else:
@@ -750,7 +755,6 @@ class Correlator(object):
             self.config["wedge"] = 0
             self.config["with_cf"] = True
             self.config["with_bias"] = False
-            self.config["with_time"] = True
             self.config["with_redshift_bin"] = True
             self.config["with_AP"] = False
             self.config["with_window"] = False

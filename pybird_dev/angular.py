@@ -31,7 +31,7 @@ class Angular(object):
 
         zm = 0.5 * (z1 + z2)
         Dm = self.mesheval1d(z, zm, Dz/bird.D)
-        fm = self.mesheval1d(z, zm, fz/bird.f)
+        fm = self.mesheval1d(z, zm, fz)
         
         Dp2 = Dm**2
         Dp4 = Dp2**2
