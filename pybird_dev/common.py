@@ -66,8 +66,10 @@ class Common(object):
                 self.N22 = 28  # number of 22-loops
                 self.N13 = 10  # number of 13-loops
             
-            if self.with_time: self.Nloop = 12
-            else: self.Nloop = 22
+            if self.with_time: self.Nloop = 12 # giving f (and other time functions e.g. Y if != EdS)
+            else: 
+                if self.exact_time or self.quintessence: self.Nloop = 35 # giving nothing but more terms than in EdS
+                else: self.Nloop = 22          # giving nothing (this is EdS)
             #elif self.redshift is 'geom': self.Nloop = self.N13+self.N22
             #else: self.Nloop = 12
 

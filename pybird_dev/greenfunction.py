@@ -13,6 +13,8 @@ class GreenFunction(object):
             if quintessence: self.quintessence = True
             else: self.wcdm = True
 
+        self.epsrel = 1e-4
+
     def C(self, a):
         if self.quintessence: return 1. + (1.+self.w) * self.OmegaL_by_Omega_m * a**(-3.*self.w)
         else: return 1.
@@ -32,7 +34,7 @@ class GreenFunction(object):
         """Growth factor"""
         if self.wcdm: return a*hyp2f1((self.w-1)/(2*self.w),-1/(3*self.w),1-(5/(6*self.w)),-(a**(-3*self.w))*self.OmegaL_by_Omega_m)
         else:
-            I = quad(self.H3, 0, a)[0]
+            I = quad(self.H3, 0, a, epsrel=self.epsrel)[0]
             return 5 * self.Omega0_m * I * self.H(a) / (2.*a)
     
     def DD(self, a):
@@ -84,13 +86,13 @@ class GreenFunction(object):
 
     # second order time integrals
     def mG1d(self, a): 
-        return quad(self.I1d,0,a,args=(a,))[0]
+        return quad(self.I1d,0,a,args=(a,), epsrel=self.epsrel)[0]
     def mG2d(self, a): 
-        return quad(self.I2d,0,a,args=(a,))[0]
+        return quad(self.I2d,0,a,args=(a,), epsrel=self.epsrel)[0]
     def mG1t(self, a): 
-        return quad(self.I1t,0,a,args=(a,))[0]
+        return quad(self.I1t,0,a,args=(a,), epsrel=self.epsrel)[0]
     def mG2t(self, a): 
-        return quad(self.I2t,0,a,args=(a,))[0]
+        return quad(self.I2t,0,a,args=(a,), epsrel=self.epsrel)[0]
 
     # quintessence time function
     def G(self, a):
@@ -126,31 +128,31 @@ class GreenFunction(object):
     
     # third order time integrals
     def mU1d(self, a): 
-        return quad(self.IU1d,0,a,args=(a,))[0] 
+        return quad(self.IU1d,0,a,args=(a,), epsrel=self.epsrel)[0] 
     def mU2d(self, a): 
-        return quad(self.IU2d,0,a,args=(a,))[0] 
+        return quad(self.IU2d,0,a,args=(a,), epsrel=self.epsrel)[0] 
     def mU1t(self, a): 
-        return quad(self.IU1t,0,a,args=(a,))[0] 
+        return quad(self.IU1t,0,a,args=(a,), epsrel=self.epsrel)[0] 
     def mU2t(self, a): 
-        return quad(self.IU2t,0,a,args=(a,))[0] 
+        return quad(self.IU2t,0,a,args=(a,), epsrel=self.epsrel)[0] 
 
     def mV11d(self, a): 
-        return quad(self.IV11d,0,a,args=(a,))[0] 
+        return quad(self.IV11d,0,a,args=(a,), epsrel=self.epsrel)[0] 
     def mV12d(self, a): 
-        return quad(self.IV12d,0,a,args=(a,))[0]
+        return quad(self.IV12d,0,a,args=(a,), epsrel=self.epsrel)[0]
     def mV21d(self, a): 
-        return quad(self.IV21d,0,a,args=(a,))[0] 
+        return quad(self.IV21d,0,a,args=(a,), epsrel=self.epsrel)[0] 
     def mV22d(self, a): 
-        return quad(self.IV22d,0,a,args=(a,))[0] 
+        return quad(self.IV22d,0,a,args=(a,), epsrel=self.epsrel)[0] 
 
     def mV11t(self, a): 
-        return quad(self.IV11t,0,a,args=(a,))[0] 
+        return quad(self.IV11t,0,a,args=(a,), epsrel=self.epsrel)[0] 
     def mV12t(self, a): 
-        return quad(self.IV12t,0,a,args=(a,))[0] 
+        return quad(self.IV12t,0,a,args=(a,), epsrel=self.epsrel)[0] 
     def mV21t(self, a): 
-        return quad(self.IV21t,0,a,args=(a,))[0] 
+        return quad(self.IV21t,0,a,args=(a,), epsrel=self.epsrel)[0] 
     def mV22t(self, a): 
-        return quad(self.IV22t,0,a,args=(a,))[0] 
+        return quad(self.IV22t,0,a,args=(a,), epsrel=self.epsrel)[0] 
     
     def Y(self, a):
         return -3/14. + self.mV11d(a) + self.mV12d(a)

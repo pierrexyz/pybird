@@ -455,16 +455,18 @@ class Correlator(object):
 
         def marg(loop, ct, b1, f1, Pst=None, model=model):
 
-            if self.config["with_redshift_bin"]: f = 1.
-            else: f = f1
+            # if self.config["with_redshift_bin"]: f = 1. #### This is wrong: the redshift integration is with f(z)/f(z_fid) ; f(z_fid) is given in setBias(), not before.
+            # else: f = f1
+            f = f1
 
             if loop.ndim is 3:
                 loop = np.swapaxes(loop, axis1=0, axis2=1)
                 ct = np.swapaxes(ct, axis1=0, axis2=1)
                 if Pst is not None: Pst = np.swapaxes(Pst, axis1=0, axis2=1)
             
-            if self.config["with_time"]: Pb3 = loop[3] + b1 * loop[7]
-            else: Pb3 = f * loop[8] + b1 * loop[16]
+            if self.co.Nloop is 12: Pb3 = loop[3] + b1 * loop[7]            # config["with_time"] = True
+            elif self.co.Nloop is 22: Pb3 = f * loop[8] + b1 * loop[16]     # config["with_time"] = False, config["with_exact_time"] = False
+            elif self.co.Nloop is 35: Pb3 = f * loop[18] + b1 * loop[29]    # config["with_time"] = False, config["with_exact_time"] = True
 
             m = np.array([ Pb3.reshape(-1), 2 * (f * ct[0+3] + b1 * ct[0]).reshape(-1) / self.config["km"]**2 ])
             
@@ -880,7 +882,7 @@ class Correlator(object):
 
             M = Class()
             M.set(cosmo_dict)
-            M.set({'output': 'mPk', 'P_k_max_1/Mpc': 1.0, 'z_max_pk': zmax })
+            M.set({'output': 'mPk', 'P_k_max_h/Mpc': 1.0, 'z_max_pk': zmax })
             M.compute()
 
             cosmo = {}

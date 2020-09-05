@@ -7,6 +7,13 @@ from scipy.special import legendre, spherical_jn, j1
 from copy import deepcopy 
 from fftlog import FFTLog, MPC
 from common import co
+from greenfunction import GreenFunction
+
+# import importlib, sys
+# importlib.reload(sys.modules['greenfunction'])
+# from greenfunction import GreenFunction
+
+# from time import time
 
 def cH(Om, a):
     """ LCDM growth rate auxiliary function """
@@ -529,7 +536,18 @@ class Projection(object):
 
         f11 = np.array([fp0, fp1, fp2])
         fct = np.array([fp0, fp0, fp0, fp1, fp1, fp1])
-        floop = np.array([fp2, fp3, fp4, fp1, fp2, fp3, fp1, fp2, fp1, fp1, fp2, fp0, fp1, fp2, fp0, fp1, fp0, fp0, fp1, fp0, fp0, fp0])
+        if self.co.exact_time: 
+            GF = GreenFunction(bird.Omega0_m, w=bird.w0)
+            aa = 1/(1.+self.zz)
+            Y1 = np.array([ GF.Y(ai) for ai in aa ]) / bird.Y1
+            G1t = np.array([ GF.mG1t(ai) for ai in aa ]) / bird.G1t
+            V12t = np.array([ GF.mV12t(ai) for ai in aa ]) / bird.V12t 
+            Y1 = self.mesheval1d(self.zz, self.zm, Y1)
+            G1t = self.mesheval1d(self.zz, self.zm, G1t)
+            V12t = self.mesheval1d(self.zz, self.zm, V12t)
+            floop = np.array([fp2, fp2*G1t, fp2*G1t**2, fp2*Y1, fp2*V12t, fp3, fp3*G1t, fp4, fp1, fp1*G1t, fp1*Y1, fp1*V12t, fp2, fp2*G1t, fp3, fp1, fp1*G1t, fp2, fp1, fp1, fp1*G1t, fp2, fp0, Y1, fp1, fp1*G1t, fp2, fp0, fp1, fp0, fp0, fp1, fp0, fp0, fp0])
+        else: floop = np.array([fp2, fp3, fp4, fp1, fp2, fp3, fp1, fp2, fp1, fp1, fp2, fp0, fp1, fp2, fp0, fp1, fp0, fp0, fp1, fp0, fp0, fp0])
+
 
         tlin = np.einsum('n...,...->n...', f11, Dp2 * self.np2)
         tct = np.einsum('n...,...->n...', fct, Dp2 * self.np2)
