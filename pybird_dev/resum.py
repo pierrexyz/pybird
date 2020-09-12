@@ -124,13 +124,11 @@ class Resum(object):
     def setXM(self):
         """ Compute the matrices to evaluate the IR-filters X and Y. Called at instantiation. """
         self.XM = np.empty(shape=(2, self.Xfft.Pow.shape[0]), dtype='complex')
-        for l in range(2):
-            self.XM[l] = MPC(2 * l, -0.5 * self.Xfft.Pow)
+        for l in range(2): self.XM[l] = MPC(2 * l, -0.5 * self.Xfft.Pow)
 
     def IRFilters(self, bird, soffset=1., LambdaIR=None, RescaleIR=1., window=None):
         """ Compute the IR-filters X and Y. """
-        if LambdaIR is None:
-            LambdaIR = self.LambdaIR
+        if LambdaIR is None: LambdaIR = self.LambdaIR
         Coef = self.Xfft.Coef(bird.kin, bird.Pin * exp(-bird.kin**2 / LambdaIR**2) / bird.kin**2, window=window)
         CoefsPow = np.einsum('n,ns->ns', Coef, self.XsPow)
         X02 = np.real(np.einsum('ns,ln->ls', CoefsPow, self.XM))
@@ -138,6 +136,8 @@ class Resum(object):
         X02[0] = X0offset - X02[0]
         X = RescaleIR * 2. / 3. * (X02[0] - X02[1])
         Y = 2. * X02[1]
+        # X = 2. * X02[0]
+        # Y = 2./3. * (X02[0] + 2. * X02[1])
         return X, Y
 
     def setkPow(self):
@@ -147,8 +147,7 @@ class Resum(object):
     def setM(self, Nl=3):
         """ Compute the matrices to evaluate the IR-corrections. Called at instantiation. """
         self.M = np.empty(shape=(Nl, self.fft.Pow.shape[0]), dtype='complex')
-        for l in range(Nl):
-            self.M[l] = 8.*pi**3 * MPC(2 * l, -0.5 * self.fft.Pow)
+        for l in range(Nl): self.M[l] = 8.*pi**3 * MPC(2 * l, -0.5 * self.fft.Pow)
 
     def IRn(self, XpYpC, window=None):
         """ Compute the spherical Bessel transform in the IR correction of order n given [XY]^n """

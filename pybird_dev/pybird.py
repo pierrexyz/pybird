@@ -10,22 +10,22 @@ from projection import Projection
 from angular import Angular
 from greenfunction import GreenFunction
 
-# import importlib, sys
-# importlib.reload(sys.modules['common'])
-# importlib.reload(sys.modules['bird'])
-# importlib.reload(sys.modules['nonlinear'])
-# importlib.reload(sys.modules['resum'])
-# importlib.reload(sys.modules['projection'])
-# importlib.reload(sys.modules['angular'])
-# importlib.reload(sys.modules['greenfunction'])
+import importlib, sys
+importlib.reload(sys.modules['common'])
+importlib.reload(sys.modules['bird'])
+importlib.reload(sys.modules['nonlinear'])
+importlib.reload(sys.modules['resum'])
+importlib.reload(sys.modules['projection'])
+importlib.reload(sys.modules['angular'])
+importlib.reload(sys.modules['greenfunction'])
 
-# from common import Common, co
-# from bird import Bird
-# from nonlinear import NonLinear
-# from resum import Resum
-# from projection import Projection
-# from angular import Angular
-# from greenfunction import GreenFunction
+from common import Common, co
+from bird import Bird
+from nonlinear import NonLinear
+from resum import Resum
+from projection import Projection
+from angular import Angular
+from greenfunction import GreenFunction
 
 class Correlator(object):
     
@@ -894,11 +894,10 @@ class Correlator(object):
                     raise
 
             if self.config["skycut"] == 1: zfid = self.config["z"]
-            elif self.config["skycut"] > 1: 
-                zfid = self.config["z"][0]
+            elif self.config["skycut"] > 1: zfid = self.config["z"][0]
 
             cosmo["k11"] = np.logspace(-5, 0, 200) # k in h/Mpc
-            cosmo["P11"] = [M.pk(k*M.h(), zfid)*M.h()**3 for k in cosmo["k11"]] # P(k) in (Mpc/h)**3
+            cosmo["P11"] = np.array([M.pk(k*M.h(), zfid)*M.h()**3 for k in cosmo["k11"]]) # P(k) in (Mpc/h)**3
 
             if self.config["skycut"] == 1:
                 if self.config["multipole"] is not 0: cosmo["f"] = M.scale_independent_growth_factor_f(self.config["z"])
@@ -940,13 +939,21 @@ class Correlator(object):
                 if self.config["skycut"] == 1: cosmo["rz"] = np.array([comoving_distance(z) for z in self.config["zz"]])
                 elif self.config["skycut"] > 1: cosmo["rz"] = np.array([ [comoving_distance(z) for z in zz] for zz in self.config["zz"] ])
 
+            if self.config["with_quintessence"]: 
+                # starting deep inside matter domination and evolving to the total adiabatic linear power spectrum. 
+                # This does not work in the general case, e.g. with massive neutrinos (okish for minimal mass though)
+                # This does not work for multi skycuts nor for redshift bins.
+                zm = 5. # z in matter domination
+                def scale_factor(z): return 1/(1.+z)
+                Omega0_m = cosmo["Omega0_m"]
+                w = cosmo["w0_fld"]
+                GF = GreenFunction(Omega0_m, w=w, quintessence=True)
+                Dq = GF.D(scale_factor(zfid)) / GF.D(scale_factor(zm))
+                Dm = M.scale_independent_growth_factor(zfid) / M.scale_independent_growth_factor(zm)
+                cosmo["P11"] *= Dq**2 / Dm**2 * ( 1 + (1+w)/(1.-3*w) * (1-Omega0_m)/Omega0_m * (1+zm)**(3*w) ) # 1611.07966 eq. (4.15)
+            
             return cosmo
 
-
-class BiasCorrelator(Correlator):
-
-    def __init__(self, config_dict=None, load_engines=False):
-        Correlator.__init__(self, config_dict, load_engines=load_engines)
 
 
 def translate_catalog_to_dict(catalog):
