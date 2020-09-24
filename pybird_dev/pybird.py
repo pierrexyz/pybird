@@ -10,22 +10,22 @@ from projection import Projection
 from angular import Angular
 from greenfunction import GreenFunction
 
-import importlib, sys
-importlib.reload(sys.modules['common'])
-importlib.reload(sys.modules['bird'])
-importlib.reload(sys.modules['nonlinear'])
-importlib.reload(sys.modules['resum'])
-importlib.reload(sys.modules['projection'])
-importlib.reload(sys.modules['angular'])
-importlib.reload(sys.modules['greenfunction'])
+# import importlib, sys
+# importlib.reload(sys.modules['common'])
+# importlib.reload(sys.modules['bird'])
+# importlib.reload(sys.modules['nonlinear'])
+# importlib.reload(sys.modules['resum'])
+# importlib.reload(sys.modules['projection'])
+# importlib.reload(sys.modules['angular'])
+# importlib.reload(sys.modules['greenfunction'])
 
-from common import Common, co
-from bird import Bird
-from nonlinear import NonLinear
-from resum import Resum
-from projection import Projection
-from angular import Angular
-from greenfunction import GreenFunction
+# from common import Common, co
+# from bird import Bird
+# from nonlinear import NonLinear
+# from resum import Resum
+# from projection import Projection
+# from angular import Angular
+# from greenfunction import GreenFunction
 
 class Correlator(object):
     
