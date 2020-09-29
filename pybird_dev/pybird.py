@@ -178,7 +178,7 @@ class Correlator(object):
                 default=False) ,
             "w_integrator": Option("w_integrator", str,
                 description="Type of integration for \'output\': \'w\' : \'trapz\', \'cuba\' or \'fast\'. \'fast\' is tuned for DESY1 precision.",
-                default='fast') ,
+                default='cuba') ,
             "w_theta_cut": Option("w_theta_cut", (float, list, np.ndarray),
                 description="Angle cut for \'output\': \'w\'. ",
                 default=0) ,

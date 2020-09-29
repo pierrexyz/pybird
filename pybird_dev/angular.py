@@ -75,8 +75,7 @@ class Angular(object):
 
         for i, (which, fdim) in enumerate(zip(['lin', 'loop', 'ct'], [self.co.N11, self.co.Nloop-11, self.co.Nct-4])):
             for j, t in enumerate(self.theta):
-                tam = t / np.pi * (60. * 180.)
-                if tam > theta_cut:
+                if t > theta_cut:
                     val, err = cubature(integrand, 2, fdim, zmin, zmax, args=(t,), kwargs={'which':which}, abserr=1e-07 * t**-1.5, relerr=2e-1 * t**0.5, maxEval=0, adaptive='p', vectorized=True)
                     if 'lin' in which: bird.wlin[:, j] = val
                     elif 'loop' in which: bird.wloop[11:, j] = val
@@ -130,8 +129,8 @@ class Angular(object):
 
         for i, (which, fdim) in enumerate(zip(['lin', 'loop', 'ct'], [self.co.N11, self.co.Nloop, self.co.Nct])):
             for j, t in enumerate(self.theta):
-                tam = t / np.pi * (60. * 180.)
-                if tam > theta_cut:
+                # tam = t / np.pi * (60. * 180.)
+                if t > theta_cut:
                     val, err = cubature(integrand, 2, fdim, zmin, zmax, args=(t,), kwargs={'which':which}, abserr=1e-07 * t**-1.5, relerr=2e-1 * t**0.5, maxEval=0, adaptive='p', vectorized=True)
                     if 'lin' in which: bird.wlin[:, j] = val
                     elif 'loop' in which: bird.wloop[:, j] = val
