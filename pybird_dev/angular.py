@@ -5,7 +5,7 @@ from scipy.interpolate import interp1d, UnivariateSpline, RectBivariateSpline
 from scipy.special import legendre
 from scipy.integrate import quad, dblquad, simps
 from common import co
-
+from cubature import cubature
 
 
 class Angular(object):
@@ -13,6 +13,7 @@ class Angular(object):
     def __init__(self, theta, co=co):
         self.co = co
         self.theta = theta
+        self.Nt = len(self.theta)
 
     def mesheval1d(self, z1d, zm, func):
         ifunc = interp1d(z1d, func, axis=-1, kind='cubic')
@@ -22,7 +23,119 @@ class Angular(object):
         ifunc = interp1d(z1d, func, axis=-1, kind='cubic')
         return ifunc(z1), ifunc(z2)
 
-    def w(self, bird, Dz, fz, rz, z, nz):
+    def w(self, bird, Dz, fz, rz, z, nz, which='trapz', theta_cut=0):
+        if 'trapz' in which: self.wtrapz(bird, Dz, fz, rz, z, nz)
+        elif 'cuba' in which: self.wcuba(bird, Dz, fz, rz, z, nz)
+        elif 'fast' in which: self.wfast(bird, Dz, fz, rz, z, nz, theta_cut=theta_cut)
+
+    def wfast(self, bird, Dz, fz, rz, z, nz, theta_cut=0): 
+        '''
+        Neglecting loops #0 to #10 and counterterm #1 to #5
+        '''
+
+        def interp(x, func):
+            return interp1d(x, func, axis=-1, kind='cubic', bounds_error=False, fill_value='extrapolate')
+
+        inz = interp(z, nz)
+        iDz = interp(z, Dz/bird.D)
+        ifz = interp(z, fz/bird.f)
+        icf = interp(self.co.s, bird.C11l)
+        irz = interp(z, rz)
+
+        def kernel(z, which='lin'):
+            f = ifz(z)
+            D = iDz(z)
+            n = inz(z)
+            if 'lin' in which: ker = np.einsum('...,n...->n...', n**2 * D**2, np.array([f**0, f, f**2]) )
+            elif 'loop' in which: ker =  np.einsum('...,n...->n...', n**2 * D**4, np.array([f**0, f**1, f**2, f**0, f**1, f**0, f**0, f**1, f**0, f**0, f**0]) )
+            elif 'ct' in which: ker = np.einsum('...,n...->n...', n**2 * D**2, np.array([f**0, f**1]) )
+            return ker
+
+        def integrand(zz, theta, which='lin'):
+            z1 = zz[:, 0]
+            z2 = zz[:, 1]
+            zm = 0.5 * (z1 + z2)
+            ker = kernel(zm, which=which)  
+            r1 = irz(z1)
+            r2 = irz(z2)
+            s = np.sqrt(r1**2 + r2**2 - 2*r1*r2*np.cos(theta))
+            mu = (r2-r1)/s
+            L = np.array([legendre(2*l)(mu) for l in range(self.co.Nl)])
+            if 'lin' in which: C = interp(self.co.s, bird.C11l)(s)
+            elif 'loop' in which: C = interp(self.co.s, bird.Cloopl[:, 11:])(s)
+            elif 'ct' in which: C = interp(self.co.s, bird.Cctl[:, [0,3]])(s)
+            return np.einsum('lp,lnp,np->pn', L, C, ker)
+
+        zmin = np.array([z[0], z[0]])
+        zmax = np.array([z[-1], z[-1]])
+
+        bird.wlin = np.zeros(shape=(self.co.N11, self.Nt))
+        bird.wloop = np.zeros(shape=(self.co.Nloop, self.Nt))
+        bird.wct = np.zeros(shape=(self.co.Nct, self.Nt))
+
+        for i, (which, fdim) in enumerate(zip(['lin', 'loop', 'ct'], [self.co.N11, self.co.Nloop-11, self.co.Nct-4])):
+            for j, t in enumerate(self.theta):
+                tam = t / np.pi * (60. * 180.)
+                if tam > theta_cut:
+                    val, err = cubature(integrand, 2, fdim, zmin, zmax, args=(t,), kwargs={'which':which}, abserr=1e-05 * t**1.5, relerr=5e-1 * t**0.5, maxEval=0, adaptive='p', vectorized=True)
+                    if 'lin' in which: bird.wlin[:, j] = val
+                    elif 'loop' in which: bird.wloop[11:, j] = val
+                    elif 'ct' in which: bird.wct[[0,3], j] = val
+
+
+
+
+    def wcuba(self, bird, Dz, fz, rz, z, nz):
+
+        def interp(x, func):
+            return interp1d(x, func, axis=-1, kind='cubic', bounds_error=False, fill_value='extrapolate')
+
+        inz = interp(z, nz)
+        iDz = interp(z, Dz/bird.D)
+        ifz = interp(z, fz/bird.f)
+        icf = interp(self.co.s, bird.C11l)
+        irz = interp(z, rz)
+
+        def kernel(z, which='lin'):
+            f = ifz(z)
+            D = iDz(z)
+            n = inz(z)
+            if 'lin' in which: ker = np.einsum('...,n...->n...', n**2 * D**2, np.array([f**0, f, f**2]) )
+            elif 'loop' in which: ker =  np.einsum('...,n...->n...', n**2 * D**4, np.array([f**2, f**3, f**4, f**1, f**2, f**3, f**1, f**2, f**1, f**1, f**2, f**0, f**1, f**2, f**0, f**1, f**0, f**0, f**1, f**0, f**0, f**0]) )
+            elif 'ct' in which: ker = np.einsum('...,n...->n...', n**2 * D**2, np.array([f**0, f**0, f**0, f**1, f**1, f**1]) )
+            return ker
+
+        def integrand(zz, theta, which='lin'):
+            # z1, z2 = zz
+            z1 = zz[:, 0]
+            z2 = zz[:, 1]
+            zm = 0.5 * (z1 + z2)
+            ker = kernel(zm, which=which)  
+            r1 = irz(z1)
+            r2 = irz(z2)
+            s = np.sqrt(r1**2 + r2**2 - 2*r1*r2*np.cos(theta))
+            mu = (r2-r1)/s
+            L = np.array([legendre(2*l)(mu) for l in range(self.co.Nl)])
+            if 'lin' in which: C = interp(self.co.s, bird.C11l)(s)
+            elif 'loop' in which: C = interp(self.co.s, bird.Cloopl)(s)
+            elif 'ct' in which: C = interp(self.co.s, bird.Cctl)(s)
+            return np.einsum('lp,lnp,np->pn', L, C, ker)
+
+        zmin = np.array([z[0], z[0]])
+        zmax = np.array([z[-1], z[-1]])
+
+        bird.wlin = np.zeros(shape=(self.co.N11, self.Nt))
+        bird.wloop = np.zeros(shape=(self.co.Nloop, self.Nt))
+        bird.wct = np.zeros(shape=(self.co.Nct, self.Nt))
+
+        for i, (which, fdim) in enumerate(zip(['lin', 'loop', 'ct'], [self.co.N11, self.co.Nloop, self.co.Nct])):
+            for j, t in enumerate(self.theta):
+                val, err = cubature(integrand, 2, fdim, zmin, zmax, args=(t,), kwargs={'which':which}, abserr=5e-06 * t**1.5, relerr=2e-1 * t**0.5, maxEval=0, adaptive='p', vectorized=True)
+                if 'lin' in which: bird.wlin[:, j] = val
+                elif 'loop' in which: bird.wloop[:, j] = val
+                elif 'ct' in which: bird.wct[:, j] = val
+
+    def wtrapz(self, bird, Dz, fz, rz, z, nz):
 
         x, z1, z2 = np.meshgrid(self.theta, z, z, indexing='ij')
 

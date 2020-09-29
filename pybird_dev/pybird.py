@@ -10,22 +10,22 @@ from projection import Projection
 from angular import Angular
 from greenfunction import GreenFunction
 
-# import importlib, sys
-# importlib.reload(sys.modules['common'])
-# importlib.reload(sys.modules['bird'])
-# importlib.reload(sys.modules['nonlinear'])
-# importlib.reload(sys.modules['resum'])
-# importlib.reload(sys.modules['projection'])
-# importlib.reload(sys.modules['angular'])
-# importlib.reload(sys.modules['greenfunction'])
+import importlib, sys
+importlib.reload(sys.modules['common'])
+importlib.reload(sys.modules['bird'])
+importlib.reload(sys.modules['nonlinear'])
+importlib.reload(sys.modules['resum'])
+importlib.reload(sys.modules['projection'])
+importlib.reload(sys.modules['angular'])
+importlib.reload(sys.modules['greenfunction'])
 
-# from common import Common, co
-# from bird import Bird
-# from nonlinear import NonLinear
-# from resum import Resum
-# from projection import Projection
-# from angular import Angular
-# from greenfunction import GreenFunction
+from common import Common, co
+from bird import Bird
+from nonlinear import NonLinear
+from resum import Resum
+from projection import Projection
+from angular import Angular
+from greenfunction import GreenFunction
 
 class Correlator(object):
     
@@ -176,6 +176,12 @@ class Correlator(object):
             "with_quintessence": Option("with_quintessence", bool,
                 description="Clustering quintessence. Automatically set \'with_exact_time\' to True.",
                 default=False) ,
+            "w_integrator": Option("w_integrator", str,
+                description="Type of integration for \'output\': \'w\' : \'trapz\', \'cuba\' or \'fast\'. \'fast\' is tuned for DESY1 precision.",
+                default='fast') ,
+            "w_theta_cut": Option("w_theta_cut", (float, list, np.ndarray),
+                description="Angle cut for \'output\': \'w\'. ",
+                default=0) ,
         }
         
         if config_dict is not None: self.set(config_dict, load_engines=load_engines)
@@ -305,7 +311,7 @@ class Correlator(object):
 
             for i in range(self.config["skycut"]):
                 if "w" in self.config["output"]: 
-                    self.angular[i].w(self.birds[i], self.cosmo["Dz"][i], self.cosmo["fz"][i], self.cosmo["rz"][i], self.config["zz"][i], self.config["nz"][i])
+                    self.angular[i].w(self.birds[i], self.cosmo["Dz"][i], self.cosmo["fz"][i], self.cosmo["rz"][i], self.config["zz"][i], self.config["nz"][i], which=self.config["w_integrator"], theta_cut=self.config["w_theta_cut"][i])
                 else:
                     if self.config["with_redshift_bin"] and self.config["nz"][i] is not None: self.projection[i].redshift(self.birds[i], self.cosmo["Dz"][i], self.cosmo["fz"][i], self.cosmo["DAz"][i], self.cosmo["Hz"][i])
                     elif self.config["with_AP"]: self.projection[i].AP(self.birds[i])
@@ -781,6 +787,9 @@ class Correlator(object):
                     self.config["with_time"] = True 
                     #self.config["z"] = self.config["z"][0]
                 else: self.config["with_time"] = False
+            elif "w" in self.config["output"]:
+                if isinstance(self.config["w_theta_cut"], (float, int)): self.config["w_theta_cut"] = self.config["w_theta_cut"] * np.ones(shape=(self.config["skycut"]))
+
                 
         
         if self.config["xdata"] is None:
@@ -852,7 +861,7 @@ class Correlator(object):
             elif self.config["skycut"] > 1:
                 self.config["zz"] = np.asarray(self.config["zz"])
                 self.config["nz"] = np.asarray(self.config["nz"])
-                print (len(self.config["zz"]), len(self.config["nz"]))
+                # print (len(self.config["zz"]), len(self.config["nz"]))
                 if len(self.config["zz"]) == self.config["skycut"] and len(self.config["nz"]) == self.config["skycut"]: 
                     for zz, nz in zip(self.config["zz"], self.config["nz"]): is_conflict_zz(zz, nz)
                 else:
