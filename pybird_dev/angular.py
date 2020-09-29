@@ -25,7 +25,7 @@ class Angular(object):
 
     def w(self, bird, Dz, fz, rz, z, nz, which='trapz', theta_cut=0):
         if 'trapz' in which: self.wtrapz(bird, Dz, fz, rz, z, nz)
-        elif 'cuba' in which: self.wcuba(bird, Dz, fz, rz, z, nz)
+        elif 'cuba' in which: self.wcuba(bird, Dz, fz, rz, z, nz, theta_cut=theta_cut)
         elif 'fast' in which: self.wfast(bird, Dz, fz, rz, z, nz, theta_cut=theta_cut)
 
     def wfast(self, bird, Dz, fz, rz, z, nz, theta_cut=0): 
@@ -77,7 +77,7 @@ class Angular(object):
             for j, t in enumerate(self.theta):
                 tam = t / np.pi * (60. * 180.)
                 if tam > theta_cut:
-                    val, err = cubature(integrand, 2, fdim, zmin, zmax, args=(t,), kwargs={'which':which}, abserr=1e-05 * t**1.5, relerr=5e-1 * t**0.5, maxEval=0, adaptive='p', vectorized=True)
+                    val, err = cubature(integrand, 2, fdim, zmin, zmax, args=(t,), kwargs={'which':which}, abserr=1e-07 * t**-1.5, relerr=2e-1 * t**0.5, maxEval=0, adaptive='p', vectorized=True)
                     if 'lin' in which: bird.wlin[:, j] = val
                     elif 'loop' in which: bird.wloop[11:, j] = val
                     elif 'ct' in which: bird.wct[[0,3], j] = val
@@ -85,7 +85,7 @@ class Angular(object):
 
 
 
-    def wcuba(self, bird, Dz, fz, rz, z, nz):
+    def wcuba(self, bird, Dz, fz, rz, z, nz, theta_cut=0):
 
         def interp(x, func):
             return interp1d(x, func, axis=-1, kind='cubic', bounds_error=False, fill_value='extrapolate')
@@ -130,10 +130,12 @@ class Angular(object):
 
         for i, (which, fdim) in enumerate(zip(['lin', 'loop', 'ct'], [self.co.N11, self.co.Nloop, self.co.Nct])):
             for j, t in enumerate(self.theta):
-                val, err = cubature(integrand, 2, fdim, zmin, zmax, args=(t,), kwargs={'which':which}, abserr=5e-06 * t**1.5, relerr=2e-1 * t**0.5, maxEval=0, adaptive='p', vectorized=True)
-                if 'lin' in which: bird.wlin[:, j] = val
-                elif 'loop' in which: bird.wloop[:, j] = val
-                elif 'ct' in which: bird.wct[:, j] = val
+                tam = t / np.pi * (60. * 180.)
+                if tam > theta_cut:
+                    val, err = cubature(integrand, 2, fdim, zmin, zmax, args=(t,), kwargs={'which':which}, abserr=1e-07 * t**-1.5, relerr=2e-1 * t**0.5, maxEval=0, adaptive='p', vectorized=True)
+                    if 'lin' in which: bird.wlin[:, j] = val
+                    elif 'loop' in which: bird.wloop[:, j] = val
+                    elif 'ct' in which: bird.wct[:, j] = val
 
     def wtrapz(self, bird, Dz, fz, rz, z, nz):
 
