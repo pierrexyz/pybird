@@ -2886,9 +2886,9 @@ class Likelihood_bird(Likelihood):
             except:
                 self.config["with_exact_time"] = False
             try:
-                self.config["with_assembly_bias"]
+                self.config["with_tidal_alignments"]
             except:
-                self.config["with_assembly_bias"] = False
+                self.config["with_tidal_alignments"] = False
             try:
                 self.config["with_nlo_bias"]
             except:
@@ -2905,6 +2905,14 @@ class Likelihood_bird(Likelihood):
                 self.config["with_derived_bias"]
             except:
                 self.config["with_derived_bias"] = False
+            try:
+                self.config["with_quintessence"]
+            except:
+                self.config["with_quintessence"] = False
+            try:
+                self.config["get_chi2_from_marg"]
+            except:
+                self.config["get_chi2_from_marg"] = False
 
             print ("output: %s" % self.config["output"])
             print ("multipole: %s" % self.config["multipole"])
@@ -2933,14 +2941,17 @@ class Likelihood_bird(Likelihood):
         else:
             if self.config["multipole"] == 2: bdict = {"b1": bs[0], "b2": bs[1], "b3": bs[2], "b4": bs[3], "cct": bs[4], "cr1": bs[5]}
             elif self.config["multipole"] == 3: bdict = {"b1": bs[0], "b2": bs[1], "b3": bs[2], "b4": bs[3], "cct": bs[4], "cr1": bs[5], "cr2": bs[6]}
-        if self.config["with_assembly_bias"]: bdict["bq"] = bs[-2]
+        if self.config["with_tidal_alignments"]: bdict["bq"] = bs[-2]
         if self.config["with_nlo_bias"]: bdict["bnlo"] = bs[-1]
         # print (bdict)
         return bdict
 
     def bias_custom_to_all(self, bs):
-        if self.config["with_nlo_bias"]: return [bs[0], bs[1] / np.sqrt(2.), 0., bs[1] / np.sqrt(2.), 0., 0., 0., 0., 0., 0., bs[-2]]
-        else: return [bs[0], bs[1] / np.sqrt(2.), 0., bs[1] / np.sqrt(2.), 0., 0., 0., 0., 0., 0., 0.]
+        # b1, b2, b3, b4, cct, cr1, cr2, ce0, ce1, ce2, bq (opt), bnlo (opt) # bnlo is actually b_nnlo * k^4 P11
+        ball = [bs[0], bs[1] / np.sqrt(2.), 0., bs[1] / np.sqrt(2.), 0., 0., 0., 0., 0., 0., 0., 0.]
+        if self.config["with_nlo_bias"]: ball[-1] = bs[-1] # these two may conflit,
+        if self.config["with_tidal_alignments"]: ball[-2] = bs[-1] # careful
+        return ball
 
     def bias_nonmarg_to_all(self, bs, bg, with_nlo_bias=False):
         biaslist = []
@@ -2974,11 +2985,14 @@ class Likelihood_bird(Likelihood):
         bdict = np.array([self.bias_array_to_dict(self.bias_custom_to_all(bs)) for bs in bval])
         b1 = np.array([bval[i, 0] for i in range(self.config["skycut"])])
 
+        if self.config["with_tidal_alignments"]: bq = np.array([bdicti["bq"] for bdicti in bdict])
+        else: bq = np.zeros(shape=(self.config["skycut"]))
+
         correlator = self.correlator.get(bdict)
-        marg_correlator = self.correlator.getmarg(b1, model=self.config["model"])
+        marg_correlator = self.correlator.getmarg(b1, model=self.config["model"], bq=bq)
 
         chi2 = 0.
-        if self.config["with_nlo_bias_2loop"]: bg = []
+        if self.config["with_nlo_bias_2loop"] or self.config["get_chi2_from_marg"]: bg = []
 
         if "w" in self.config["output"]:
             modelX = np.asarray(correlator).reshape(-1)[self.tmask]
@@ -3015,7 +3029,31 @@ class Likelihood_bird(Likelihood):
                 c2, bgi = self.__get_chi2(modelX, Pi, self.invcov[i], self.invcovdata[i], self.chi2data[i], self.priormat[i], data, isky=i)
                 chi2 += c2
 
-                if self.config["with_nlo_bias_2loop"]: bg.append(bgi)
+                if self.config["with_nlo_bias_2loop"] or self.config["get_chi2_from_marg"]: bg.append(bgi)
+
+            if self.config["get_chi2_from_marg"]: 
+
+                chi2 = 0.
+
+                nonmarg_bdict = np.array([self.bias_array_to_dict(self.bias_nonmarg_to_all(bs, bgi, with_nlo_bias=False)) for (bs, bgi) in zip(bval, bg) ])
+                nonmarg_correlator = self.correlator.get(nonmarg_bdict)
+
+                for i in range(self.config["skycut"]):
+                    if self.config["skycut"] is 1: modelX = nonmarg_correlator.reshape(-1)
+                    elif self.config["skycut"] > 1: modelX = nonmarg_correlator[i].reshape(-1)
+
+                    if self.config["with_bao"]:  # BAO
+                        DM_at_z = cosmo.angular_distance(self.config["zbao"][i]) * (1. + self.config["zbao"][i])
+                        H_at_z = cosmo.Hubble(self.config["zbao"][i]) * conts.c / 1000.0
+                        rd = cosmo.rs_drag() * self.config["rs_rescale"][i]
+                        theo_DM_rdfid_by_rd_in_Mpc = DM_at_z / rd * self.config["rd_fid_in_Mpc"][i]
+                        theo_H_rd_by_rdfid = H_at_z * rd / self.config["rd_fid_in_Mpc"][i]
+                        modelX = np.concatenate((modelX, [theo_H_rd_by_rdfid, theo_DM_rdfid_by_rd_in_Mpc]))
+                    
+                    modelX = modelX[self.xmask[i]]
+
+                    chi2i = self.__get_chi2_non_marg(modelX, self.invcov[i], self.ydata[i])
+                    chi2 += chi2i
 
             if self.config["with_nlo_bias_2loop"]: 
                 
@@ -3052,10 +3090,17 @@ class Likelihood_bird(Likelihood):
 
         if self.config["with_cf_sys"]: 
             for i in range(self.config["skycut"]): prior += - 0.5 * ( (bs[i,-1]/0.003)**2 + (bs[i,-2]/3.)**2 + (bs[i,-3]/20.)**2 )
+
+        if self.config["with_tidal_alignments"]:
+            for i in range(self.config["skycut"]): prior += - 0.5 * ( (bval[i,-1]+0.05)/0.05 )**2
         
         lkl = - 0.5 * chi2 + prior
 
         return lkl
+
+    def __get_chi2_non_marg(self, modelX, invcov, ydata):
+        chi2 = np.dot(modelX-ydata, np.dot(invcov, modelX-ydata))
+        return chi2
 
     def __get_chi2(self, modelX, Pi, invcov, invcovdata, chi2data, priormat, data, isky=0):
 
@@ -3066,7 +3111,7 @@ class Likelihood_bird(Likelihood):
         chi2mar = - np.dot(vectorbi, np.dot(Cinvbi, vectorbi)) + np.log(np.abs(np.linalg.det(Covbi)))
         chi2tot = chi2mar + chi2nomar - priormat.shape[0] * np.log(2. * np.pi)
 
-        if self.config["with_derived_bias"] or self.config["with_nlo_bias_2loop"]: 
+        if self.config["with_derived_bias"] or self.config["with_nlo_bias_2loop"] or self.config["get_chi2_from_marg"]: 
             bg = - np.dot(Cinvbi, vectorbi)
             if self.config["with_derived_bias"]:
                 Ng = len(bg)
@@ -3074,7 +3119,7 @@ class Likelihood_bird(Likelihood):
                     if i >= isky * Ng and i < (isky + 1) * Ng:
                         data.derived_lkl[elem] = bg[i - isky * Ng]
 
-        if self.config["with_nlo_bias_2loop"]: return chi2tot, bg
+        if self.config["with_nlo_bias_2loop"] or self.config["get_chi2_from_marg"]: return chi2tot, bg
         else: return chi2tot, None
 
     def __get_Pi_for_marg(self, marg_correlator, xmask):
@@ -3097,7 +3142,7 @@ class Likelihood_bird(Likelihood):
         cosmo = {}
 
         cosmo["k11"] = self.kin  # k in h/Mpc
-        cosmo["P11"] = [M.pk(k * M.h(), zfid) * M.h()**3 for k in self.kin]  # P(k) in (Mpc/h)**3
+        cosmo["P11"] = np.array([M.pk(k * M.h(), zfid) * M.h()**3 for k in self.kin])  # P(k) in (Mpc/h)**3
 
         if self.config["skycut"] == 1:
             # if self.config["multipole"] is not 0:
@@ -3155,6 +3200,19 @@ class Likelihood_bird(Likelihood):
                 cosmo["rz"] = np.array([comoving_distance(z) for z in self.config["zz"]])
             elif self.config["skycut"] > 1:
                 cosmo["rz"] = np.array([[comoving_distance(z) for z in zz] for zz in self.config["zz"]])
+
+        if self.config["with_quintessence"]: 
+            # starting deep inside matter domination and evolving to the total adiabatic linear power spectrum. 
+            # This does not work in the general case, e.g. with massive neutrinos (okish for minimal mass though)
+            # This does not work for multi skycuts nor for redshift bins.
+            zm = 5. # z in matter domination
+            def scale_factor(z): return 1/(1.+z)
+            Omega0_m = cosmo["Omega0_m"]
+            w = cosmo["w0_fld"]
+            GF = pb.GreenFunction(Omega0_m, w=w, quintessence=True)
+            Dq = GF.D(scale_factor(zfid)) / GF.D(scale_factor(zm))
+            Dm = M.scale_independent_growth_factor(zfid) / M.scale_independent_growth_factor(zm)
+            cosmo["P11"] *= Dq**2 / Dm**2 * ( 1 + (1+w)/(1.-3*w) * (1-Omega0_m)/Omega0_m * (1+zm)**(3*w) ) # 1611.07966 eq. (4.15)
 
         return cosmo
 
@@ -3378,6 +3436,7 @@ class Likelihood_bird(Likelihood):
         priormat = np.diagflat(1. / priors**2)
 
         return priormat
+
 
 
 

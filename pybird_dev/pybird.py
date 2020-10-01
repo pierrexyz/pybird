@@ -10,22 +10,22 @@ from projection import Projection
 from angular import Angular
 from greenfunction import GreenFunction
 
-import importlib, sys
-importlib.reload(sys.modules['common'])
-importlib.reload(sys.modules['bird'])
-importlib.reload(sys.modules['nonlinear'])
-importlib.reload(sys.modules['resum'])
-importlib.reload(sys.modules['projection'])
-importlib.reload(sys.modules['angular'])
-importlib.reload(sys.modules['greenfunction'])
+# import importlib, sys
+# importlib.reload(sys.modules['common'])
+# importlib.reload(sys.modules['bird'])
+# importlib.reload(sys.modules['nonlinear'])
+# importlib.reload(sys.modules['resum'])
+# importlib.reload(sys.modules['projection'])
+# importlib.reload(sys.modules['angular'])
+# importlib.reload(sys.modules['greenfunction'])
 
-from common import Common, co
-from bird import Bird
-from nonlinear import NonLinear
-from resum import Resum
-from projection import Projection
-from angular import Angular
-from greenfunction import GreenFunction
+# from common import Common, co
+# from bird import Bird
+# from nonlinear import NonLinear
+# from resum import Resum
+# from projection import Projection
+# from angular import Angular
+# from greenfunction import GreenFunction
 
 class Correlator(object):
     
@@ -461,9 +461,9 @@ class Correlator(object):
             elif "Cf" in self.config["output"]: return [self.birds[i].fullCf for i in range(self.config["skycut"])]
             elif "w" in self.config["output"]: return [self.birds[i].fullw for i in range(self.config["skycut"])]
 
-    def getmarg(self, b1, model=1):
+    def getmarg(self, b1, model=1, bq=0):
 
-        def marg(loop, ct, b1, f1, Pst=None, model=model):
+        def marg(loop, ct, b1, f1, Pst=None, model=model, bq=0):
 
             # if self.config["with_redshift_bin"]: f = 1. #### This is wrong: the redshift integration is with f(z)/f(z_fid) ; f(z_fid) is given in setBias(), not before.
             # else: f = f1
@@ -474,9 +474,10 @@ class Correlator(object):
                 ct = np.swapaxes(ct, axis1=0, axis2=1)
                 if Pst is not None: Pst = np.swapaxes(Pst, axis1=0, axis2=1)
             
-            if self.co.Nloop is 12: Pb3 = loop[3] + b1 * loop[7]            # config["with_time"] = True
-            elif self.co.Nloop is 22: Pb3 = f * loop[8] + b1 * loop[16]     # config["with_time"] = False, config["with_exact_time"] = False
-            elif self.co.Nloop is 35: Pb3 = f * loop[18] + b1 * loop[29]    # config["with_time"] = False, config["with_exact_time"] = True
+            if self.co.Nloop is 12: Pb3 = loop[3] + b1 * loop[7]                            # config["with_time"] = True
+            elif self.co.Nloop is 18: Pb3 = loop[3] + b1 * loop[7] + bq * loop[16]          # config["with_time"] = True, config["with_tidal_alignments"] = True
+            elif self.co.Nloop is 22: Pb3 = f * loop[8] + b1 * loop[16]                     # config["with_time"] = False, config["with_exact_time"] = False
+            elif self.co.Nloop is 35: Pb3 = f * loop[18] + b1 * loop[29]                    # config["with_time"] = False, config["with_exact_time"] = True
 
             m = np.array([ Pb3.reshape(-1), 2 * (f * ct[0+3] + b1 * ct[0]).reshape(-1) / self.config["km"]**2 ])
             
@@ -493,13 +494,13 @@ class Correlator(object):
             return m
 
         if self.config["skycut"] == 1:
-            if "Pk" in self.config["output"]: return marg(self.bird.Ploopl, self.bird.Pctl, b1=b1, f1=self.bird.f, Pst=self.bird.Pstl)
-            elif "Cf" in self.config["output"]: return marg(self.bird.Cloopl, self.bird.Cctl, b1=b1, f1=self.bird.f, Pst=self.bird.Cstl)
-            elif "w" in self.config["output"]: return marg(self.bird.wloop, self.bird.wct, b1=b1, f1=self.bird.f)
+            if "Pk" in self.config["output"]: return marg(self.bird.Ploopl, self.bird.Pctl, b1=b1, f1=self.bird.f, Pst=self.bird.Pstl, bq=bq)
+            elif "Cf" in self.config["output"]: return marg(self.bird.Cloopl, self.bird.Cctl, b1=b1, f1=self.bird.f, Pst=self.bird.Cstl, bq=bq)
+            elif "w" in self.config["output"]: return marg(self.bird.wloop, self.bird.wct, b1=b1, f1=self.bird.f, bq=bq)
         elif self.config["skycut"] > 1:
-            if "Pk" in self.config["output"]: return [ marg(self.birds[i].Ploopl, self.birds[i].Pctl, b1=b1[i], f1=self.birds[i].f, Pst=self.birds[i].Pstl) for i in range(self.config["skycut"]) ]
-            elif "Cf" in self.config["output"]: return [ marg(self.birds[i].Cloopl, self.birds[i].Cctl, b1=b1[i], f1=self.birds[i].f, Pst=self.birds[i].Cstl) for i in range(self.config["skycut"]) ]
-            elif "w" in self.config["output"]: return [ marg(self.birds[i].wloop, self.birds[i].wct, b1=b1[i], f1=self.birds[i].f) for i in range(self.config["skycut"]) ]
+            if "Pk" in self.config["output"]: return [ marg(self.birds[i].Ploopl, self.birds[i].Pctl, b1=b1[i], f1=self.birds[i].f, Pst=self.birds[i].Pstl, bq=bq[i]) for i in range(self.config["skycut"]) ]
+            elif "Cf" in self.config["output"]: return [ marg(self.birds[i].Cloopl, self.birds[i].Cctl, b1=b1[i], f1=self.birds[i].f, Pst=self.birds[i].Cstl, bq=bq[i]) for i in range(self.config["skycut"]) ]
+            elif "w" in self.config["output"]: return [ marg(self.birds[i].wloop, self.birds[i].wct, b1=b1[i], f1=self.birds[i].f, bq=bq[i]) for i in range(self.config["skycut"]) ]
 
     def getnlo(self, model=1):
         if self.config["skycut"] == 1:
