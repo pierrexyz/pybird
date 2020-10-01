@@ -78,7 +78,7 @@ class Correlator(object):
                 description="Comoving distance in [Mpc/h] over redshift bin. To specify if \'output\':\'w\'.", 
                 default=None) ,
         }
-        
+
         self.config_catalog = {
             "output": Option("output", str, ["bPk", "bCf", "mPk", "mCf", "bmPk", "bmCf", "w"], 
                 description="Correlator: biased tracers / matter / biased tracers-matter -- power spectrum / correlation function ; \'w\': angular correlation function. ", 
@@ -170,8 +170,8 @@ class Correlator(object):
             "with_nlo_bias": Option("with_nlo_bias", bool,
                 description="With next-to-leading bias.",
                 default=False) ,
-            "with_assembly_bias": Option("with_assembly_bias", bool,
-                description="With assembly bias.",
+            "with_tidal_alignments": Option("with_tidal_alignments", bool,
+                description="With tidal alignements: bq * (\mu^2 - 1/3) \delta_m ",
                 default=False) ,
             "with_quintessence": Option("with_quintessence", bool,
                 description="Clustering quintessence. Automatically set \'with_exact_time\' to True.",
@@ -228,14 +228,18 @@ class Correlator(object):
 
 
     def compute(self, cosmo_dict, module=None):
+
+        cosmo_dict_local = cosmo_dict.copy()
         
-        if module is 'class': cosmo_dict = self.setcosmo(cosmo_dict, module='class')
+        if module is 'class': 
+            cosmo_dict_class = self.setcosmo(cosmo_dict, module='class')
+            cosmo_dict_local.update(cosmo_dict_class)
         
-        self.__read_cosmo(cosmo_dict)
+        self.__read_cosmo(cosmo_dict_local)
         self.__is_cosmo_conflict()
 
         if self.config["skycut"] == 1:
-            self.bird = Bird(self.cosmo, with_bias=self.config["with_bias"], with_stoch=self.config["with_stoch"], with_nlo_bias=self.config["with_nlo_bias"], with_assembly_bias=self.config["with_assembly_bias"], co=self.co)
+            self.bird = Bird(self.cosmo, with_bias=self.config["with_bias"], with_stoch=self.config["with_stoch"], with_nlo_bias=self.config["with_nlo_bias"], co=self.co)
             self.nonlinear.PsCf(self.bird)
             if self.config["with_bias"]: self.bird.setPsCf(self.bias)
             else: self.bird.setPsCfl()
@@ -261,7 +265,7 @@ class Correlator(object):
                 if self.config["with_AP"] and not self.config["with_redshift_bin"]: 
                     cosmoi["DA"] = self.cosmo["DA"][0]
                     cosmoi["H"] = self.cosmo["H"][0]
-                self.bird = Bird(cosmoi, with_bias=False, with_stoch=self.config["with_stoch"], with_nlo_bias=self.config["with_nlo_bias"], with_assembly_bias=self.config["with_assembly_bias"], co=self.co)
+                self.bird = Bird(cosmoi, with_bias=False, with_stoch=self.config["with_stoch"], with_nlo_bias=self.config["with_nlo_bias"], co=self.co)
                 self.nonlinear.PsCf(self.bird)
                 self.bird.setPsCfl()
                 if self.config["with_resum"]:
@@ -290,7 +294,7 @@ class Correlator(object):
                         cosmoi["H"] = self.cosmo["H"][i]
 
                     if i == zbins[0]:
-                        self.bird = Bird(cosmoi, with_bias=False, with_stoch=self.config["with_stoch"], with_nlo_bias=self.config["with_nlo_bias"], with_assembly_bias=self.config["with_assembly_bias"], co=self.co)
+                        self.bird = Bird(cosmoi, with_bias=False, with_stoch=self.config["with_stoch"], with_nlo_bias=self.config["with_nlo_bias"], co=self.co)
                         self.nonlinear.PsCf(self.bird)
                         self.bird.setPsCfl()
                         if self.config["with_resum"]: self.resum.Ps(self.bird, makeIR=True, makeQ=True, setPs=False)
@@ -513,7 +517,7 @@ class Correlator(object):
 
         self.co = Common(Nl=self.config["multipole"], kmax=self.config["kmax"], km=self.config["km"], nd=self.config["nd"], halohalo=self.config["halohalo"], 
             with_cf=self.config["with_cf"], with_time=self.config["with_time"], optiresum=self.config["optiresum"], 
-            exact_time=self.config["with_exact_time"], quintessence=self.config["with_quintessence"])
+            exact_time=self.config["with_exact_time"], quintessence=self.config["with_quintessence"], with_tidal_alignments=self.config["with_tidal_alignments"])
         
         if not only_common:
             self.nonlinear = NonLinear(load=True, save=True, co=self.co)
@@ -705,7 +709,7 @@ class Correlator(object):
 
             Nextra = 0
             if self.config["with_nlo_bias"]: Nextra += 1
-            if self.config["with_assembly_bias"]: Nextra += 1
+            if self.config["with_tidal_alignments"]: Nextra += 1
 
             if not self.config["with_stoch"]:
                 if self.config["multipole"] == 0 or "w" in self.config["output"]:
@@ -732,9 +736,9 @@ class Correlator(object):
                 try: self.bias["bnlo"] = self.cosmo["bias"]["bnlo"]
                 except: raise Exception ("Please specify the next-to-leading bias \'bnlo\'.  ")
 
-            if self.config["with_assembly_bias"]: 
+            if self.config["with_tidal_alignments"]: 
                 try: self.bias["bq"] = self.cosmo["bias"]["bq"]
-                except: raise Exception ("Please specify the assembly bias \'bq\'.  ")
+                except: raise Exception ("Please specify the tidal alignments bias \'bq\'.  ")
 
     def __read_config(self, config_dict):
 
@@ -889,8 +893,11 @@ class Correlator(object):
                     zmax = max(self.config["zz"][maxbin])
                 else: zmax = max(self.config["z"])
 
+            cosmo_dict_local = cosmo_dict.copy()
+            if self.config["with_bias"]: del cosmo_dict_local["bias"] # Class does not like dictionary with keys other than the ones it reads...
+
             M = Class()
-            M.set(cosmo_dict)
+            M.set(cosmo_dict_local)
             M.set({'output': 'mPk', 'P_k_max_h/Mpc': 1.0, 'z_max_pk': zmax })
             M.compute()
 
@@ -962,6 +969,17 @@ class Correlator(object):
                 cosmo["P11"] *= Dq**2 / Dm**2 * ( 1 + (1+w)/(1.-3*w) * (1-Omega0_m)/Omega0_m * (1+zm)**(3*w) ) # 1611.07966 eq. (4.15)
             
             return cosmo
+
+
+
+
+class BiasCorrelator(Correlator): 
+    '''
+    Class to load pre-computed correlator
+    '''
+    def __init__(self, config_dict=None, load_engines=False):
+        Correlator.__init__(self, config_dict, load_engines=load_engines)
+
 
 
 

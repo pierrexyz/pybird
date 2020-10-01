@@ -26,18 +26,17 @@ class Common(object):
         The maximum multipole to calculate (default 2)
     """
 
-    def __init__(self, Nl=2, kmin=0.001, kmax=0.25, km=1., nd=3e-4, halohalo=True, with_cf=False, with_time=True, accboost=1., optiresum=False, orderresum=16, exact_time=False, quintessence=False, angular=False):
+    def __init__(self, Nl=2, kmin=0.001, kmax=0.25, km=1., nd=3e-4, halohalo=True, with_cf=False, with_time=True, accboost=1., optiresum=False, orderresum=16, exact_time=False, quintessence=False, with_tidal_alignments=False, angular=False):
         
         self.halohalo = halohalo
         self.nd = nd
         self.km = km
-
-
         self.optiresum = optiresum
         self.with_time = with_time
         self.exact_time = exact_time
         self.quintessence = quintessence
         if self.quintessence: self.exact_time = True
+        self.with_tidal_alignments = with_tidal_alignments
 
         self.angular = angular
 
@@ -62,14 +61,19 @@ class Common(object):
             if self.exact_time or self.quintessence:
                 self.N22 = 36  # number of 22-loops
                 self.N13 = 15  # number of 13-loops
+            elif self.with_tidal_alignments:
+                self.N22 = 44
+                self.N13 = 24
             else:
                 self.N22 = 28  # number of 22-loops
                 self.N13 = 10  # number of 13-loops
             
-            if self.with_time: self.Nloop = 12 # giving f (and other time functions e.g. Y if != EdS)
+            if self.with_time: # giving f (and other time functions e.g. Y if != EdS)
+                if self.with_tidal_alignments: self.Nloop = 18          
+                else: self.Nloop = 12
             else: 
-                if self.exact_time or self.quintessence: self.Nloop = 35 # giving nothing but more terms than in EdS
-                else: self.Nloop = 22          # giving nothing (this is EdS)
+                if self.exact_time or self.quintessence: self.Nloop = 35 # giving nothing, however, more terms than in EdS
+                else: self.Nloop = 22                                    # giving nothing (this is EdS)
             #elif self.redshift is 'geom': self.Nloop = self.N13+self.N22
             #else: self.Nloop = 12
 
@@ -134,6 +138,9 @@ class Common(object):
                         + 3 * [mu[4][l]] + [mu[6][l], mu[4][l], mu[6][l], mu[4][l], mu[6][l], mu[8][l]] 
                         + 3 * [mu[2][l]] + 3 * [mu[4][l]] + [mu[6][l], mu[4][l]] ])
                     self.l13[i] = np.array([ 2 * [mu[0][l]] + 2 * [mu[2][l]] + [mu[4][l], mu[0][l], mu[2][l], mu[4][l], mu[2][l], mu[2][l], mu[4][l], mu[4][l], mu[6][l], mu[2][l], mu[4][l]] ])
+                elif self.with_tidal_alignments:
+                    self.l22[i] = np.array([ mu[2][l], mu[2][l], mu[2][l], mu[2][l], mu[4][l], mu[0][l], mu[0][l], mu[0][l], mu[0][l], mu[0][l], mu[0][l], mu[0][l], mu[0][l], mu[0][l], mu[0][l], mu[2][l], mu[2][l], mu[2][l], mu[2][l], mu[4][l], mu[2][l], mu[2][l], mu[2][l], mu[2][l], mu[4][l], mu[2][l], mu[4][l], mu[2][l], mu[4][l], mu[2][l], mu[4][l], mu[2][l], mu[4][l], mu[2][l], mu[4][l], mu[6][l], mu[4][l], mu[4][l], mu[6][l], mu[4][l], mu[6][l], mu[4][l], mu[6][l], mu[8][l] ])
+                    self.l13[i] = np.array([ mu[2][l], mu[2][l], mu[2][l], mu[4][l], mu[0][l], mu[0][l], mu[0][l], mu[0][l], mu[0][l], mu[2][l], mu[2][l], mu[4][l], mu[2][l], mu[2][l], mu[2][l], mu[4][l], mu[2][l], mu[4][l], mu[2][l], mu[4][l], mu[6][l], mu[4][l], mu[4][l], mu[6][l] ])
                 else:
                     self.l22[i] = np.array([ 6 * [mu[0][l]] + 7 * [mu[2][l]] + [mu[4][l], mu[2][l], mu[4][l], mu[2][l], mu[4][l], mu[2][l]] 
                         + 3 * [mu[4][l]] + [mu[6][l], mu[4][l], mu[6][l], mu[4][l], mu[6][l], mu[8][l]] ])

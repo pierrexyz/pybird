@@ -15,13 +15,20 @@ class Angular(object):
         self.theta = theta
         self.Nt = len(self.theta)
 
-    def mesheval1d(self, z1d, zm, func):
-        ifunc = interp1d(z1d, func, axis=-1, kind='cubic')
-        return ifunc(zm)
+    # def gammat(self, bird, Dz, fz, rz, z, nz, theta_cut=0):
 
-    def mesheval2d(self, z1d, z1, z2, func):
-        ifunc = interp1d(z1d, func, axis=-1, kind='cubic')
-        return ifunc(z1), ifunc(z2)
+    #     def interp(x, func):
+    #         return interp1d(x, func, axis=-1, kind='cubic', bounds_error=False, fill_value='extrapolate')
+        
+    #     def wp(rp, which='lin'):
+    #         def integrand(r):
+    #             s = (r**2+rp**2)**0.5
+    #             if 'lin' in which: C = interp(self.co.s, bird.C11l)(s)
+    #             mu = r/s
+    #             L = np.array([legendre(2*l)(mu) for l in range(self.co.Nl)])
+    #             return np.einsum('l,ln->n', L, C)
+    #         res, err = quad_vec(2*integrand, 0, numpy.inf, epsabs=1e-200, epsrel=1e-08)
+    #         return res
 
     def w(self, bird, Dz, fz, rz, z, nz, which='trapz', theta_cut=0):
         if 'trapz' in which: self.wtrapz(bird, Dz, fz, rz, z, nz)
@@ -76,13 +83,11 @@ class Angular(object):
         for i, (which, fdim) in enumerate(zip(['lin', 'loop', 'ct'], [self.co.N11, self.co.Nloop-11, self.co.Nct-4])):
             for j, t in enumerate(self.theta):
                 if t > theta_cut:
-                    val, err = cubature(integrand, 2, fdim, zmin, zmax, args=(t,), kwargs={'which':which}, abserr=1e-07 * t**-1.5, relerr=2e-1 * t**0.5, maxEval=0, adaptive='p', vectorized=True)
+                    try: val, err = cubature(integrand, 2, fdim, zmin, zmax, args=(t,), kwargs={'which':which}, abserr=1e-07 * t**-1.5, relerr=2e-1 * t**0.5, maxEval=0, adaptive='p', vectorized=True)
+                    except KeyboardInterrupt: pass
                     if 'lin' in which: bird.wlin[:, j] = val
                     elif 'loop' in which: bird.wloop[11:, j] = val
                     elif 'ct' in which: bird.wct[[0,3], j] = val
-
-
-
 
     def wcuba(self, bird, Dz, fz, rz, z, nz, theta_cut=0):
 
@@ -131,10 +136,19 @@ class Angular(object):
             for j, t in enumerate(self.theta):
                 # tam = t / np.pi * (60. * 180.)
                 if t > theta_cut:
-                    val, err = cubature(integrand, 2, fdim, zmin, zmax, args=(t,), kwargs={'which':which}, abserr=1e-07 * t**-1.5, relerr=2e-1 * t**0.5, maxEval=0, adaptive='p', vectorized=True)
+                    try: val, err = cubature(integrand, 2, fdim, zmin, zmax, args=(t,), kwargs={'which':which}, abserr=1e-07 * t**-1.5, relerr=2e-1 * t**0.5, maxEval=0, adaptive='p', vectorized=True)
+                    except KeyboardInterrupt: pass
                     if 'lin' in which: bird.wlin[:, j] = val
                     elif 'loop' in which: bird.wloop[:, j] = val
                     elif 'ct' in which: bird.wct[:, j] = val
+
+    def mesheval1d(self, z1d, zm, func):
+        ifunc = interp1d(z1d, func, axis=-1, kind='cubic')
+        return ifunc(zm)
+
+    def mesheval2d(self, z1d, z1, z2, func):
+        ifunc = interp1d(z1d, func, axis=-1, kind='cubic')
+        return ifunc(z1), ifunc(z2)
 
     def wtrapz(self, bird, Dz, fz, rz, z, nz):
 
