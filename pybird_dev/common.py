@@ -26,7 +26,7 @@ class Common(object):
         The maximum multipole to calculate (default 2)
     """
 
-    def __init__(self, Nl=2, kmin=0.001, kmax=0.25, km=1., nd=3e-4, halohalo=True, with_cf=False, with_time=True, accboost=1., optiresum=False, orderresum=16, exact_time=False, quintessence=False, with_tidal_alignments=False, angular=False):
+    def __init__(self, Nl=2, kmin=0.001, kmax=0.25, km=1., nd=3e-4, halohalo=True, with_cf=False, with_time=True, accboost=1., optiresum=False, orderresum=16, exact_time=False, quintessence=False, with_tidal_alignments=False, angular=False, nonequaltime=False):
         
         self.halohalo = halohalo
         self.nd = nd
@@ -35,10 +35,10 @@ class Common(object):
         self.with_time = with_time
         self.exact_time = exact_time
         self.quintessence = quintessence
-        if self.quintessence: self.exact_time = True
+        # if self.quintessence: self.exact_time = True
         self.with_tidal_alignments = with_tidal_alignments
-
         self.angular = angular
+        self.nonequaltime = nonequaltime
 
         if self.angular: 
             self.Ng = 3
@@ -58,7 +58,7 @@ class Common(object):
             self.N11 = 3  # number of linear terms
             self.Nct = 6  # number of counterterms
 
-            if self.exact_time or self.quintessence:
+            if self.exact_time:
                 self.N22 = 36  # number of 22-loops
                 self.N13 = 15  # number of 13-loops
             elif self.with_tidal_alignments:
@@ -72,10 +72,10 @@ class Common(object):
                 if self.with_tidal_alignments: self.Nloop = 18          
                 else: self.Nloop = 12
             else: 
-                if self.exact_time or self.quintessence: self.Nloop = 35 # giving nothing, however, more terms than in EdS
+                if self.exact_time: self.Nloop = 35 # giving nothing, however, more terms than in EdS
+                elif self.nonequaltime: self.Nloop = self.N13+self.N22
                 else: self.Nloop = 22                                    # giving nothing (this is EdS)
-            #elif self.redshift is 'geom': self.Nloop = self.N13+self.N22
-            #else: self.Nloop = 12
+                
 
         else: # halo-matter
             self.N11 = 4  # number of linear terms
@@ -133,7 +133,7 @@ class Common(object):
             if self.halohalo:
                 self.l11[i] = np.array([mu[0][l], mu[2][l], mu[4][l]])
                 self.lct[i] = np.array([mu[0][l], mu[2][l], mu[4][l], mu[2][l], mu[4][l], mu[6][l]])
-                if self.exact_time or self.quintessence:
+                if self.exact_time:
                     self.l22[i] = np.array([ 6 * [mu[0][l]] + 7 * [mu[2][l]] + [mu[4][l], mu[2][l], mu[4][l], mu[2][l], mu[4][l], mu[2][l]] 
                         + 3 * [mu[4][l]] + [mu[6][l], mu[4][l], mu[6][l], mu[4][l], mu[6][l], mu[8][l]] 
                         + 3 * [mu[2][l]] + 3 * [mu[4][l]] + [mu[6][l], mu[4][l]] ])

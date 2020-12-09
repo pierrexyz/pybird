@@ -191,7 +191,7 @@ class Bird(object):
             self.Y1 = GF.Y(self.a)
             self.G1t = GF.mG1t(self.a)
             self.V12t = GF.mV12t(self.a)
-            if self.co.quintessence: 
+            if self.co.quintessence:
                 self.G1 = GF.G(self.a)
                 self.f = GF.fplus(self.a)
             else: self.G1 = 1.
@@ -202,6 +202,13 @@ class Bird(object):
             #     self.G1t = 3/7.
             #     self.V12t = 1/7.
             #     self.G1 = 1.
+
+        if self.co.nonequaltime:
+            self.D = cosmo["D"]
+            self.D1 = cosmo["D1"]
+            self.D2 = cosmo["D2"]
+            self.f1 = cosmo["f1"]
+            self.f2 = cosmo["f2"]
 
     def setBias(self, bias):
         """ Given an array of EFT parameters, set them among linear, loops and counter terms, and among multipoles
@@ -375,12 +382,6 @@ class Bird(object):
 
     def reducePsCfl(self):
         """ For option: which='all'. Regroups terms that share the same EFT parameter(s) (more generally, the same time functions) """
-
-        # if self.co.Nloop is self.co.N22 + self.co.N13:
-        #     self.Ploopl[:, :self.co.N22] = self.P22l
-        #     self.Ploopl[:, self.co.N22:] = self.P13l
-        #     self.Cloopl[:, :self.co.N22] = self.C22l
-        #     self.Cloopl[:, self.co.N22:] = self.C13l
 
         if self.co.halohalo:
 
@@ -636,6 +637,12 @@ class Bird(object):
                     self.Cloopl[:, 16] = self.C13l[:, 1] + self.C13l[:, 7] # *bq*b3
                     self.Cloopl[:, 17] = self.C22l[:, 2] + self.C22l[:, 13] # *bq*b4
 
+                if self.co.Nloop is self.co.N22 + self.co.N13: 
+                    self.Ploopl[:, :self.co.N22] = self.P22l
+                    self.Ploopl[:, self.co.N22:] = self.P13l
+                    self.Cloopl[:, :self.co.N22] = self.C22l
+                    self.Cloopl[:, self.co.N22:] = self.C13l
+
         else: # halo-matter
             if self.co.Nloop is 5:
                 f1 = self.f
@@ -785,25 +792,46 @@ class Bird(object):
 
     def settime(self, cosmo):
 
-        Dfid = self.D
-        self.setcosmo(cosmo)
-        Dp1 = self.D/Dfid
-        Dp2 = Dp1**2
-        
-        if self.co.with_cf:
-            self.C11l *= Dp2
-            self.Cctl *= Dp2
-            self.Cloopl *= Dp2**2
+        if self.co.nonequaltime:
+            Dfid = self.D
+            self.setcosmo(cosmo)
+            D1 = self.D1 / Dfid
+            D2 = self.D2 / Dfid
+            Dp2 = D1 * D2
+            Dp22 = Dp2 * Dp2 
+            Dp13 = 0.5 * (D1**3*D2 + D2**3*D1) 
+            tloop = np.concatenate([ self.co.N22*[Dp22], self.co.N13*[Dp13] ])
+            
+            if self.co.with_cf:
+                self.C11l *= Dp2
+                self.Cctl *= Dp2
+                self.Cloopl = np.einsum('n,lns->lns', tloop, self.Cloopl)
+            else:
+                self.P11l *= Dp2
+                self.Pctl *= Dp2
+                self.Ploopl = np.einsum('n,lnk->lnk', tloop, self.Ploopl)
+
         else:
-            self.P11l *= Dp2
-            self.Pctl *= Dp2
-            self.Ploopl *= Dp2**2
+            Dfid = self.D
+            self.setcosmo(cosmo)
+            Dp1 = self.D/Dfid
+            Dp2 = Dp1**2
+            
+            if self.co.with_cf:
+                self.C11l *= Dp2
+                self.Cctl *= Dp2
+                self.Cloopl *= Dp2**2
+            else:
+                self.P11l *= Dp2
+                self.Pctl *= Dp2
+                self.Ploopl *= Dp2**2
 
-        Dp2n = np.concatenate(( 2*[self.co.Na*[Dp2**(n+1)] for n in range(self.co.NIR)] ))
+            Dp2n = np.concatenate(( 2*[self.co.Na*[Dp2**(n+1)] for n in range(self.co.NIR)] ))
 
-        self.IRPs11 = np.einsum('n,lnk->lnk', Dp2*Dp2n, self.IRPs11)
-        self.IRPsct = np.einsum('n,lnk->lnk', Dp2*Dp2n, self.IRPsct)
-        self.IRPsloop = np.einsum('n,lmnk->lmnk', Dp2**2*Dp2n, self.IRPsloop)
+            self.IRPs11 = np.einsum('n,lnk->lnk', Dp2*Dp2n, self.IRPs11)
+            self.IRPsct = np.einsum('n,lnk->lnk', Dp2*Dp2n, self.IRPsct)
+            self.IRPsloop = np.einsum('n,lmnk->lmnk', Dp2**2*Dp2n, self.IRPsloop)
+        
 
     def setw(self, bs):
         

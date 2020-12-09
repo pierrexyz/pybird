@@ -39,7 +39,7 @@ class Correlator(object):
                 description="k-array in [h/Mpc] on which P11 is evaluated",
                 default=None) ,
             "D": Option("D", (float, list, np.ndarray),
-                description="Scale independent growth function. To specify if \'skycut\' > 1.", 
+                description="Scale independent growth function. To specify if \'skycut\' > 1 or \'with_nonequal_time\' / \'with_redshift_bin\' is True.", 
                 default=None) ,
             "f": Option("f", (float, list, np.ndarray),
                 description="Scale independent growth rate (for RSD). Automatically set to 0 for \'output\': \'m__\'.", 
@@ -76,6 +76,18 @@ class Correlator(object):
                 default=None) ,
             "rz": Option("rz", (list, np.ndarray),
                 description="Comoving distance in [Mpc/h] over redshift bin. To specify if \'output\':\'w\'.", 
+                default=None) ,
+            "D1": Option("D1", float,
+                description="Scale independent growth function at redshift z1. To specify if \'with_nonequal_time\' is True.", 
+                default=None) ,
+            "D2": Option("D2", float,
+                description="Scale independent growth function at redshift z2. To specify if \'with_nonequal_time\' is True.", 
+                default=None) ,
+            "f1": Option("f1", float,
+                description="Scale independent growth rate at redshift z1. To specify if \'with_nonequal_time\' is True.", 
+                default=None) ,
+            "f2": Option("f2", float,
+                description="Scale independent growth rate at redshift z2. To specify if \'with_nonequal_time\' is True.", 
                 default=None) ,
         }
 
@@ -174,14 +186,26 @@ class Correlator(object):
                 description="With tidal alignements: bq * (\mu^2 - 1/3) \delta_m ",
                 default=False) ,
             "with_quintessence": Option("with_quintessence", bool,
-                description="Clustering quintessence. Automatically set \'with_exact_time\' to True.",
+                description="Clustering quintessence.",
                 default=False) ,
             "w_integrator": Option("w_integrator", str,
-                description="Type of integration for \'output\': \'w\' : \'trapz\', \'cuba\' or \'fast\'. \'fast\' is tuned for DESY1 precision.",
+                description="Type of integration for \'output\': \'w\' : \'trapz\' or \'cuba\'",
                 default='cuba') ,
             "w_theta_cut": Option("w_theta_cut", (float, list, np.ndarray),
                 description="Angle cut for \'output\': \'w\'. ",
                 default=0) ,
+            "with_nonequal_time": Option("with_nonequal_time", bool,
+                description="Non equal time correlator. Automatically set to \'with_time\' to False ",
+                default=False) ,
+            "with_redshift_bin_nonequal_time": Option("with_redshift_bin_nonequal_time", bool,
+                description="Non equal time correlator in redshift bin integration. Automatically set \'with_redshift_bin\' to True.",
+                default=False) ,
+            "z1": Option("z1", (float, list, np.ndarray),
+                description="Redshift z_1 for non equal time correlator.",
+                default=None) ,
+            "z2": Option("z2", (float, list, np.ndarray),
+                description="Redshift z_2 for non equal time correlator.",
+                default=None) ,
         }
         
         if config_dict is not None: self.set(config_dict, load_engines=load_engines)
@@ -243,12 +267,14 @@ class Correlator(object):
             self.nonlinear.PsCf(self.bird)
             if self.config["with_bias"]: self.bird.setPsCf(self.bias)
             else: self.bird.setPsCfl()
+            if self.config["with_nonequal_time"]: self.bird.settime(self.cosmo) # set D1*D2 / D1**2*D2**2 / 0.5 (D1**2*D2 + D2**2*D1) on 11 / 22 / 13
             if self.config["with_resum"]:
                 if self.config["with_cf"]: self.resum.PsCf(self.bird)
                 else: self.resum.Ps(self.bird)
             if "w" in self.config["output"]: self.angular.w(self.bird, self.cosmo["Dz"], self.cosmo["fz"], self.cosmo["rz"], self.config["zz"], self.config["nz"])
             else:
-                if self.config["with_redshift_bin"]: self.projection.redshift(self.bird, self.cosmo["Dz"], self.cosmo["fz"], self.cosmo["DAz"], self.cosmo["Hz"])
+                if self.config["with_redshift_bin_nonequal_time"]: self.projection.redshift(self.bird, self.cosmo["Dz"], self.cosmo["fz"], self.cosmo["DAz"], self.cosmo["Hz"], AP=self.config["with_AP"])
+                elif self.config["with_redshift_bin"]: self.projection.redshift(self.bird, self.cosmo["Dz"], self.cosmo["fz"], self.cosmo["DAz"], self.cosmo["Hz"], AP=self.config["with_AP"])
                 elif self.config["with_AP"]: self.projection.AP(self.bird)
                 if self.config["with_window"]: self.projection.Window(self.bird)
                 if self.config["with_fibercol"]: self.projection.fibcolWindow(self.bird)
@@ -279,11 +305,16 @@ class Correlator(object):
 
                 def mycycle(skycut, first=0, L=None):
                     if L is None: L = [i for i in range(skycut)]
-                    if first == 0: first = (skycut+1)//2
-                    else: first = skycut//2
+                    if (skycut % 2) == 0: 
+                        first = skycut//2
+                    else:
+                        if first == 0: first = (skycut+1)//2
+                        else: first = skycut//2
                     return [item for i, item in enumerate(L+L) if i < skycut+first and first <= i]
 
                 zbins = mycycle(self.config["skycut"], first=2) # cycle to get the middle redshift
+                # zbins = range(5)
+
                 for i in zbins:
                     cosmoi["f"] = self.cosmo["f"][i]
                     cosmoi["D"] = self.cosmo["D"][i]
@@ -301,7 +332,7 @@ class Correlator(object):
                         self.birds.append(self.bird)
                     else:
                         birdi = deepcopy(self.bird)
-                        birdi.settime(cosmoi) # rescale by (Dnew/Dold)**(2p) # f if not given yet at this stage?
+                        birdi.settime(cosmoi) # set new cosmo (in particular, f), and rescale by (Dnew/Dold)**(2p)
                         if self.config["with_resum"]:
                             if self.config["with_cf"]: self.resum.PsCf(birdi, makeIR=False, makeQ=True, setPs=False, setCf=True)
                             else: self.resum.Ps(birdi, makeIR=False, makeQ=True, setPs=True)
@@ -311,14 +342,16 @@ class Correlator(object):
                     if self.config["with_cf"]: self.resum.PsCf(self.birds[0], makeIR=False, makeQ=False, setPs=False, setCf=True)
                     else: self.resum.Ps(self.birds[0], makeIR=False, makeQ=False, setPs=True)
 
+                # print (self.birds[0].D, self.birds[1].D)
                 self.birds = mycycle(self.config["skycut"], first=0, L=self.birds) # cycle back the birds 
+                # print (self.birds[0].D, self.birds[1].D)
 
             for i in range(self.config["skycut"]):
                 if "w" in self.config["output"]: 
                     self.angular[i].w(self.birds[i], self.cosmo["Dz"][i], self.cosmo["fz"][i], self.cosmo["rz"][i], self.config["zz"][i], self.config["nz"][i], which=self.config["w_integrator"], theta_cut=self.config["w_theta_cut"][i])
                 else:
-                    if self.config["with_redshift_bin"] and self.config["nz"][i] is not None: self.projection[i].redshift(self.birds[i], self.cosmo["Dz"][i], self.cosmo["fz"][i], self.cosmo["DAz"][i], self.cosmo["Hz"][i])
-                    elif self.config["with_AP"]: self.projection[i].AP(self.birds[i])
+                    if self.config["with_redshift_bin"] and self.config["nz"][i] is not None: self.projection[i].redshift(self.birds[i], self.cosmo["Dz"][i], self.cosmo["fz"][i], self.cosmo["DAz"][i], self.cosmo["Hz"][i], AP=self.config["with_AP"])
+                    elif self.config["with_AP"]: self.projection[i].AP(self.birds[i]) # this means if self.config["with_redshift_bin"] = False but self.config["with_AP"] = True
                     if self.config["with_window"]: self.projection[i].Window(self.birds[i])
                     if self.config["with_fibercol"]: self.projection[i].fibcolWindow(self.birds[i])
                     if self.config["wedge"] is not 0: self.projection[i].Wedges(self.birds[i]) 
@@ -498,6 +531,7 @@ class Correlator(object):
             elif "Cf" in self.config["output"]: return marg(self.bird.Cloopl, self.bird.Cctl, b1=b1, f1=self.bird.f, Pst=self.bird.Cstl, bq=bq)
             elif "w" in self.config["output"]: return marg(self.bird.wloop, self.bird.wct, b1=b1, f1=self.bird.f, bq=bq)
         elif self.config["skycut"] > 1:
+            if not self.config["with_tidal_alignments"]: bq = [0] * self.config["skycut"]
             if "Pk" in self.config["output"]: return [ marg(self.birds[i].Ploopl, self.birds[i].Pctl, b1=b1[i], f1=self.birds[i].f, Pst=self.birds[i].Pstl, bq=bq[i]) for i in range(self.config["skycut"]) ]
             elif "Cf" in self.config["output"]: return [ marg(self.birds[i].Cloopl, self.birds[i].Cctl, b1=b1[i], f1=self.birds[i].f, Pst=self.birds[i].Cstl, bq=bq[i]) for i in range(self.config["skycut"]) ]
             elif "w" in self.config["output"]: return [ marg(self.birds[i].wloop, self.birds[i].wct, b1=b1[i], f1=self.birds[i].f, bq=bq[i]) for i in range(self.config["skycut"]) ]
@@ -518,7 +552,7 @@ class Correlator(object):
 
         self.co = Common(Nl=self.config["multipole"], kmax=self.config["kmax"], km=self.config["km"], nd=self.config["nd"], halohalo=self.config["halohalo"], 
             with_cf=self.config["with_cf"], with_time=self.config["with_time"], optiresum=self.config["optiresum"], 
-            exact_time=self.config["with_exact_time"], quintessence=self.config["with_quintessence"], with_tidal_alignments=self.config["with_tidal_alignments"])
+            exact_time=self.config["with_exact_time"], quintessence=self.config["with_quintessence"], with_tidal_alignments=self.config["with_tidal_alignments"], nonequaltime=self.config["with_common_nonequal_time"])
         
         if not only_common:
             self.nonlinear = NonLinear(load=True, save=True, co=self.co)
@@ -671,6 +705,10 @@ class Correlator(object):
                 elif len(self.cosmo["rz"]) is not self.config["skycut"]:
                     raise Exception("Please specify (in a list) as many \'rz\'as the corresponding skycuts.")
 
+        if self.config["with_nonequal_time"]:
+            if self.cosmo["D1"] is None or self.cosmo["D2"] is None or self.cosmo["f1"] is None or self.cosmo["f2"] is None:
+                raise Exception("You asked nonequal time correlator. Pleas specify: \'D1\', \'D2\', \'f1\', \'f2\'.  ")
+
     def __is_bias_conflict(self, bias=None):
 
         ###raise Exception("Input error in \'%s\'; input configs: %s. Check Correlator.info() in any doubt." % ())
@@ -794,8 +832,6 @@ class Correlator(object):
                 else: self.config["with_time"] = False
             elif "w" in self.config["output"]:
                 if isinstance(self.config["w_theta_cut"], (float, int)): self.config["w_theta_cut"] = self.config["w_theta_cut"] * np.ones(shape=(self.config["skycut"]))
-
-                
         
         if self.config["xdata"] is None:
             raise Exception("Please specify a data point array \'xdata\'.")
@@ -823,6 +859,22 @@ class Correlator(object):
         #         else:
         #             raise Exception("Please provide a commmon data point array \'xdata\' or as many arrays (in a list) as the corresponding skycuts.")
         
+        self.config["with_common_nonequal_time"] = False # this is to pass for the common Class to setup the numbers of loops (22 and 13 gathered by default)
+
+        if self.config["with_nonequal_time"]:
+
+            self.config["with_common_nonequal_time"] = True # this is to pass for the common Class to setup the numbers of loops (22 and 13 seperated since they have different time dependence)
+
+            if self.config["skycut"] > 1: raise Exception("Nonequal time correlator available only for skycut = 1. ")
+            try:
+                self.config["z1"]
+                self.config["z2"]
+            except:
+                print("Please specify \'z1\' and \'z2\' for nonequaltime correlator. ")
+
+            self.config["with_time"] = False
+            self.config["with_bias"] = False
+
         if self.config["with_AP"]:
             if self.config["Omega_m_AP"] is None: raise Exception("You asked to apply the AP effect. Please specify \'Omega_m_AP\'.")
             if self.config["z_AP"] is None: self.config["z_AP"] = self.config["z"]
@@ -851,8 +903,11 @@ class Correlator(object):
             self.config["windowPk"] = None
             self.config["windowCf"] = None
 
-        if self.config["with_redshift_bin"]:
+        if self.config["with_redshift_bin_nonequal_time"]: 
+            self.config["with_redshift_bin"] = True 
+            self.config["with_common_nonequal_time"] = True # this is to pass for the common Class to setup the numbers of loops (22 and 13 seperated)
 
+        if self.config["with_redshift_bin"]:
             self.config["with_bias"] = False
             self.config["with_time"] = False
 
@@ -875,7 +930,7 @@ class Correlator(object):
             self.config["zz"] = None
             self.config["nz"] = None 
 
-        if self.config["with_quintessence"]: self.config["with_exact_time"] = True
+        # if self.config["with_quintessence"]: self.config["with_exact_time"] = True
 
 
     def setcosmo(self, cosmo_dict, module='class'):
@@ -911,14 +966,20 @@ class Correlator(object):
                     raise
 
             if self.config["skycut"] == 1: zfid = self.config["z"]
-            elif self.config["skycut"] > 1: zfid = self.config["z"][0]
+            elif self.config["skycut"] > 1: zfid = self.config["z"][self.config["skycut"]//2]
 
             cosmo["k11"] = np.logspace(-5, 0, 200) # k in h/Mpc
             cosmo["P11"] = np.array([M.pk(k*M.h(), zfid)*M.h()**3 for k in cosmo["k11"]]) # P(k) in (Mpc/h)**3
 
             if self.config["skycut"] == 1:
                 if self.config["multipole"] is not 0: cosmo["f"] = M.scale_independent_growth_factor_f(self.config["z"])
-                if self.config["with_exact_time"]: 
+                if self.config["with_nonequal_time"]:
+                    cosmo["D"] = M.scale_independent_growth_factor(self.config["z"]) 
+                    cosmo["D1"] = M.scale_independent_growth_factor(self.config["z1"]) 
+                    cosmo["D2"] = M.scale_independent_growth_factor(self.config["z2"]) 
+                    cosmo["f1"] = M.scale_independent_growth_factor_f(self.config["z1"]) 
+                    cosmo["f2"] = M.scale_independent_growth_factor_f(self.config["z2"]) 
+                if self.config["with_exact_time"] or self.config["with_quintessence"]: 
                     cosmo["z"] = self.config["z"]
                     cosmo["Omega0_m"] = M.Omega0_m()
                     try: cosmo["w0_fld"] = cosmo_dict["w0_fld"]
@@ -967,8 +1028,9 @@ class Correlator(object):
                 GF = GreenFunction(Omega0_m, w=w, quintessence=True)
                 Dq = GF.D(scale_factor(zfid)) / GF.D(scale_factor(zm))
                 Dm = M.scale_independent_growth_factor(zfid) / M.scale_independent_growth_factor(zm)
-                cosmo["P11"] *= Dq**2 / Dm**2 * ( 1 + (1+w)/(1.-3*w) * (1-Omega0_m)/Omega0_m * (1+zm)**(3*w) ) # 1611.07966 eq. (4.15)
-            
+                cosmo["P11"] *= Dq**2 / Dm**2 * ( 1 + (1+w)/(1.-3*w) * (1-Omega0_m)/Omega0_m * (1+zm)**(3*w) )**2 # 1611.07966 eq. (4.15)
+                cosmo["f"] = GF.fplus(1/(1.+cosmo["z"]))
+                
             return cosmo
 
 

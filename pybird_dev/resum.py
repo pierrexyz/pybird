@@ -134,10 +134,12 @@ class Resum(object):
         X02 = np.real(np.einsum('ns,ln->ls', CoefsPow, self.XM))
         X0offset = np.real(np.einsum('n,n->', np.einsum('n,n->n', Coef, soffset**(-self.Xfft.Pow - 3.)), self.XM[0]))
         X02[0] = X0offset - X02[0]
-        X = RescaleIR * 2. / 3. * (X02[0] - X02[1])
-        Y = 2. * X02[1]
-        # X = 2. * X02[0]
-        # Y = 2./3. * (X02[0] + 2. * X02[1])
+        if self.co.nonequaltime:
+            X = RescaleIR * 2/3. * bird.D1*bird.D2/bird.D**2 * (X02[0] - X02[1]) + 1/3. * (bird.D1-bird.D2)**2/bird.D**2 * X0offset
+            Y = 2. * bird.D1*bird.D2/bird.D**2 * X02[1]
+        else:
+            X = RescaleIR * 2. / 3. * (X02[0] - X02[1])
+            Y = 2. * X02[1]
         return X, Y
 
     def setkPow(self):

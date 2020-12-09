@@ -2,13 +2,13 @@ from scipy.integrate import quad
 from scipy.special import hyp2f1
 
 class GreenFunction(object):
-    
-    def __init__(self, Omega0_m, w=None, quintessence=False):
+   
+    def __init__(self, Omega0_m, w=None, quintessence=False, Omega0_k=0.):
         self.Omega0_m = Omega0_m
-        self.OmegaL_by_Omega_m = (1.-self.Omega0_m)/self.Omega0_m
+        self.OmegaL_by_Omega_m = (1.-self.Omega0_m-Omega0_k)/self.Omega0_m
         self.wcdm = False
         self.quintessence = False
-        if w is not None: 
+        if w is not None:
             self.w = w
             if quintessence: self.quintessence = True
             else: self.wcdm = True
@@ -20,23 +20,23 @@ class GreenFunction(object):
         else: return 1.
 
     def H(self, a):
-        """Conformal Hubble"""  
+        """Conformal Hubble"""
         if self.wcdm or self.quintessence: return ( self.Omega0_m/a + (1.-self.Omega0_m)*a**2 * a**(-3.*(1.+self.w)) )**.5
         else: return (self.Omega0_m/a + (1.-self.Omega0_m)*a**2)**.5
-    
+   
     def H3(self, a):
         return self.C(a)/self.H(a)**3
 
     def Omega_m(self, a):
         return self.Omega0_m / (self.H(a)**2 * a)
 
-    def D(self, a): 
+    def D(self, a):
         """Growth factor"""
         if self.wcdm: return a*hyp2f1((self.w-1)/(2*self.w),-1/(3*self.w),1-(5/(6*self.w)),-(a**(-3*self.w))*self.OmegaL_by_Omega_m)
         else:
             I = quad(self.H3, 0, a, epsrel=self.epsrel)[0]
             return 5 * self.Omega0_m * I * self.H(a) / (2.*a)
-    
+   
     def DD(self, a):
         """Derivative of growth factor"""
         if self.wcdm: return -(a**(-3.*self.w))*self.OmegaL_by_Omega_m*((3*(self.w-1))/(6.*self.w-5.))*hyp2f1(1.5-0.5*(1/self.w),1-(1/(3.*self.w)),2-(5/(6.*self.w)),-(a**(-3.*self.w))*self.OmegaL_by_Omega_m)+hyp2f1((self.w-1)/(2.*self.w),-1/(3.*self.w),1-(5/(6.*self.w)),-(a**(-3.*self.w))*self.OmegaL_by_Omega_m)
@@ -76,22 +76,22 @@ class GreenFunction(object):
 
     # second order coefficients
     def I1d(self, ai, a):
-        return self.fplus(ai)*self.D(ai)**2*self.G1d(a,ai)/self.D(a)**2 / self.C(a)
+        return self.fplus(ai)*self.D(ai)**2*self.G1d(a,ai)/self.D(a)**2 / self.C(ai)
     def I2d(self, ai, a):
-        return self.fplus(ai)*self.D(ai)**2*self.G2d(a,ai)/self.D(a)**2 / self.C(a)
+        return self.fplus(ai)*self.D(ai)**2*self.G2d(a,ai)/self.D(a)**2 / self.C(ai)
     def I1t(self, ai, a):
-        return self.fplus(ai)*self.D(ai)**2*self.G1t(a,ai)/self.D(a)**2 / self.C(a)
+        return self.fplus(ai)*self.D(ai)**2*self.G1t(a,ai)/self.D(a)**2 / self.C(ai)
     def I2t(self, ai, a):
-        return self.fplus(ai)*self.D(ai)**2*self.G2t(a,ai)/self.D(a)**2 / self.C(a)
+        return self.fplus(ai)*self.D(ai)**2*self.G2t(a,ai)/self.D(a)**2 / self.C(ai)
 
     # second order time integrals
-    def mG1d(self, a): 
+    def mG1d(self, a):
         return quad(self.I1d,0,a,args=(a,), epsrel=self.epsrel)[0]
-    def mG2d(self, a): 
+    def mG2d(self, a):
         return quad(self.I2d,0,a,args=(a,), epsrel=self.epsrel)[0]
-    def mG1t(self, a): 
+    def mG1t(self, a):
         return quad(self.I1t,0,a,args=(a,), epsrel=self.epsrel)[0]
-    def mG2t(self, a): 
+    def mG2t(self, a):
         return quad(self.I2t,0,a,args=(a,), epsrel=self.epsrel)[0]
 
     # quintessence time function
@@ -100,60 +100,60 @@ class GreenFunction(object):
 
     # third order coefficients
     def IU1d(self, ai, a):
-        return self.fplus(ai)*self.mG1d(ai)*self.G1d(a,ai)*(self.D(ai)/self.D(a))**3 / self.C(a)
+        return self.fplus(ai)*self.mG1d(ai)*self.G1d(a,ai)*(self.D(ai)/self.D(a))**3 / self.C(ai)
     def IU2d(self, ai, a):
-        return self.fplus(ai)*self.mG2d(ai)*self.G1d(a,ai)*(self.D(ai)/self.D(a))**3 / self.C(a)
+        return self.fplus(ai)*self.mG2d(ai)*self.G1d(a,ai)*(self.D(ai)/self.D(a))**3 / self.C(ai)
     def IU1t(self, ai, a):
-        return self.fplus(ai)*self.mG1d(ai)*self.G1t(a,ai)*(self.D(ai)/self.D(a))**3 / self.C(a)
+        return self.fplus(ai)*self.mG1d(ai)*self.G1t(a,ai)*(self.D(ai)/self.D(a))**3 / self.C(ai)
     def IU2t(self, ai, a):
-        return self.fplus(ai)*self.mG2d(ai)*self.G1t(a,ai)*(self.D(ai)/self.D(a))**3 / self.C(a)
+        return self.fplus(ai)*self.mG2d(ai)*self.G1t(a,ai)*(self.D(ai)/self.D(a))**3 / self.C(ai)
 
     def IV11d(self, ai, a):
-        return self.fplus(ai)*self.mG1t(ai)*self.G1d(a,ai)*(self.D(ai)/self.D(a))**3 / self.C(a)
+        return self.fplus(ai)*self.mG1t(ai)*self.G1d(a,ai)*(self.D(ai)/self.D(a))**3 / self.C(ai)
     def IV12d(self, ai, a):
-        return self.fplus(ai)*self.mG1t(ai)*self.G2d(a,ai)*(self.D(ai)/self.D(a))**3 / self.C(a)
+        return self.fplus(ai)*self.mG1t(ai)*self.G2d(a,ai)*(self.D(ai)/self.D(a))**3 / self.C(ai)
     def IV21d(self, ai, a):
-        return self.fplus(ai)*self.mG2t(ai)*self.G1d(a,ai)*(self.D(ai)/self.D(a))**3 / self.C(a)
+        return self.fplus(ai)*self.mG2t(ai)*self.G1d(a,ai)*(self.D(ai)/self.D(a))**3 / self.C(ai)
     def IV22d(self, ai, a):
-        return self.fplus(ai)*self.mG2t(ai)*self.G2d(a,ai)*(self.D(ai)/self.D(a))**3 / self.C(a)
+        return self.fplus(ai)*self.mG2t(ai)*self.G2d(a,ai)*(self.D(ai)/self.D(a))**3 / self.C(ai)
 
     def IV11t(self, ai,a):
-        return self.fplus(ai)*self.mG1t(ai)*self.G1t(a,ai)*(self.D(ai)/self.D(a))**3 / self.C(a)
+        return self.fplus(ai)*self.mG1t(ai)*self.G1t(a,ai)*(self.D(ai)/self.D(a))**3 / self.C(ai)
     def IV12t(self, ai,a):
-        return self.fplus(ai)*self.mG1t(ai)*self.G2t(a,ai)*(self.D(ai)/self.D(a))**3 / self.C(a)
+        return self.fplus(ai)*self.mG1t(ai)*self.G2t(a,ai)*(self.D(ai)/self.D(a))**3 / self.C(ai)
     def IV21t(self, ai,a):
-        return self.fplus(ai)*self.mG2t(ai)*self.G1t(a,ai)*(self.D(ai)/self.D(a))**3 / self.C(a)
+        return self.fplus(ai)*self.mG2t(ai)*self.G1t(a,ai)*(self.D(ai)/self.D(a))**3 / self.C(ai)
     def IV22t(self, ai,a):
-        return self.fplus(ai)*self.mG2t(ai)*self.G2t(a,ai)*(self.D(ai)/self.D(a))**3 / self.C(a)
-    
+        return self.fplus(ai)*self.mG2t(ai)*self.G2t(a,ai)*(self.D(ai)/self.D(a))**3 / self.C(ai)
+   
     # third order time integrals
-    def mU1d(self, a): 
-        return quad(self.IU1d,0,a,args=(a,), epsrel=self.epsrel)[0] 
-    def mU2d(self, a): 
-        return quad(self.IU2d,0,a,args=(a,), epsrel=self.epsrel)[0] 
-    def mU1t(self, a): 
-        return quad(self.IU1t,0,a,args=(a,), epsrel=self.epsrel)[0] 
-    def mU2t(self, a): 
-        return quad(self.IU2t,0,a,args=(a,), epsrel=self.epsrel)[0] 
+    def mU1d(self, a):
+        return quad(self.IU1d,0,a,args=(a,), epsrel=self.epsrel)[0]
+    def mU2d(self, a):
+        return quad(self.IU2d,0,a,args=(a,), epsrel=self.epsrel)[0]
+    def mU1t(self, a):
+        return quad(self.IU1t,0,a,args=(a,), epsrel=self.epsrel)[0]
+    def mU2t(self, a):
+        return quad(self.IU2t,0,a,args=(a,), epsrel=self.epsrel)[0]
 
-    def mV11d(self, a): 
-        return quad(self.IV11d,0,a,args=(a,), epsrel=self.epsrel)[0] 
-    def mV12d(self, a): 
+    def mV11d(self, a):
+        return quad(self.IV11d,0,a,args=(a,), epsrel=self.epsrel)[0]
+    def mV12d(self, a):
         return quad(self.IV12d,0,a,args=(a,), epsrel=self.epsrel)[0]
-    def mV21d(self, a): 
-        return quad(self.IV21d,0,a,args=(a,), epsrel=self.epsrel)[0] 
-    def mV22d(self, a): 
-        return quad(self.IV22d,0,a,args=(a,), epsrel=self.epsrel)[0] 
+    def mV21d(self, a):
+        return quad(self.IV21d,0,a,args=(a,), epsrel=self.epsrel)[0]
+    def mV22d(self, a):
+        return quad(self.IV22d,0,a,args=(a,), epsrel=self.epsrel)[0]
 
-    def mV11t(self, a): 
-        return quad(self.IV11t,0,a,args=(a,), epsrel=self.epsrel)[0] 
-    def mV12t(self, a): 
-        return quad(self.IV12t,0,a,args=(a,), epsrel=self.epsrel)[0] 
-    def mV21t(self, a): 
-        return quad(self.IV21t,0,a,args=(a,), epsrel=self.epsrel)[0] 
-    def mV22t(self, a): 
-        return quad(self.IV22t,0,a,args=(a,), epsrel=self.epsrel)[0] 
-    
+    def mV11t(self, a):
+        return quad(self.IV11t,0,a,args=(a,), epsrel=self.epsrel)[0]
+    def mV12t(self, a):
+        return quad(self.IV12t,0,a,args=(a,), epsrel=self.epsrel)[0]
+    def mV21t(self, a):
+        return quad(self.IV21t,0,a,args=(a,), epsrel=self.epsrel)[0]
+    def mV22t(self, a):
+        return quad(self.IV22t,0,a,args=(a,), epsrel=self.epsrel)[0]
+   
     def Y(self, a):
-        return -3/14. + self.mV11d(a) + self.mV12d(a)
-    
+        if self.quintessence: return -3/14.*self.G(a)**2 + self.mV11d(a) + self.mV12d(a)
+        else: return -3/14. + self.mV11d(a) + self.mV12d(a)
