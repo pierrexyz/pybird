@@ -2,9 +2,9 @@ import os
 import numpy as np
 from numpy import pi, cos, sin, log, exp, sqrt, trapz
 from scipy.interpolate import interp1d
-from common import co, mu
+from . common import co, mu
 
-from greenfunction import GreenFunction
+from . greenfunction import GreenFunction
 
 class Bird(object):
     """
@@ -356,11 +356,11 @@ class Bird(object):
 
     def setfullPs(self):
         """ For option: which='full'. Adds together the linear and the loop parts to get the full power spectrum multipoles """
-        self.fullPs = np.sum(self.Ps, axis=0)
+        self.fullPs = self.Ps[0]#np.sum(self.Ps, axis=0)
 
     def setfullCf(self):
         """ For option: which='full'. Adds together the linear and the loop parts to get the full correlation function multipoles """
-        self.fullCf = np.sum(self.Cf, axis=0)
+        self.fullCf = self.Cf[0]#np.sum(self.Cf, axis=0)
 
     def setPsCfl(self):
         """ For option: which='all'. Creates multipoles for each term weighted accordingly """
@@ -692,28 +692,11 @@ class Bird(object):
             An array of 7 EFT parameters: b_1, b_2, b_3, b_4, c_{ct}/k_{nl}^2, c_{r,1}/k_{m}^2, c_{r,2}/k_{m}^2
         """
         self.setBias(bs)
-
-        ### For some reasons this was commented a while ago....
-        # self.Ps[0] = np.einsum('b,lbx->lx', b11, self.P11l)
-        # self.Ps[1] = np.einsum('b,lbx->lx', bloop, self.Ploopl)
-        # for l in range(self.co.Nl): self.Ps[1,l] -= self.Ps[1,l,0]
-        # self.Ps[1] += np.einsum('b,lbx->lx', bct, self.Pctl)
-        ### ... And replace by this... Because of the wedge replacement to multipoles...
-        # Ps0 = np.einsum('b,lbx->lx', self.b11, self.P11l)
-        # Ps1 = np.einsum('b,lbx->lx', self.bloop, self.Ploopl) + np.einsum('b,lbx->lx', self.bct, self.Pctl)
-        ### Putting it back to original form for the nlo bias = 1-loop^2 / Plin
-        ### First redefine self.Ps to the correct shape (potentially modified by the interpolation / binning on data bins)
-        # self.Ps = np.empty(shape=(2, self.co.Nl, self.P11l.shape[-1]))
-        # self.Ps[0] = np.einsum('b,lbx->lx', self.b11, self.P11l)
-        # self.Ps[1] = np.einsum('b,lbx->lx', self.bloop, self.Ploopl) + np.einsum('b,lbx->lx', self.bct, self.Pctl)
-        # if self.with_stoch: self.Ps[1] += np.einsum('b,lbx->lx', self.bst, self.Pstl)
-        # if self.with_nlo_bias: self.Ps[1] += np.einsum('l,lbx->lx', self.bnlo, self.Pnlol)
-        # self.setfullPs()
-        ### NNLO depreciated: putting back the code for wedges format
-        Ps0 = np.einsum('b,lbx->lx', self.b11, self.P11l)
-        Ps1 = np.einsum('b,lbx->lx', self.bloop, self.Ploopl) + np.einsum('b,lbx->lx', self.bct, self.Pctl)
-        if self.with_stoch: Ps1 += np.einsum('b,lbx->lx', self.bst, self.Pstl)
-        self.fullPs = Ps0 + Ps1
+        self.Ps = np.empty(shape=(2, self.P11l.shape[0], self.P11l.shape[-1])) # using P11l.shape since it can be either M multipoles or N wedges
+        self.Ps[0] = np.einsum('b,lbx->lx', self.b11, self.P11l)
+        self.Ps[1] = np.einsum('b,lbx->lx', self.bloop, self.Ploopl) + np.einsum('b,lbx->lx', self.bct, self.Pctl)
+        if self.with_stoch: self.Ps[1] += np.einsum('b,lbx->lx', self.bst, self.Pstl)
+        self.setfullPs()
 
     def setreduceCflb(self, bs):
         """ For option: which='all'. Given an array of EFT parameters, multiply them accordingly to the correlation multipole regrouped terms and adds the resulting terms together per loop order.
@@ -724,14 +707,11 @@ class Bird(object):
             An array of 7 EFT parameters: b_1, b_2, b_3, b_4, c_{ct}/k_{nl}^2, c_{r,1}/k_{m}^2, c_{r,2}/k_{m}^2
         """
         self.setBias(bs)
-
-        self.Cf = np.empty(shape=(2, self.co.Nl, self.C11l.shape[-1]))
+        self.Cf = np.empty(shape=(2, self.C11l.shape[0], self.C11l.shape[-1]))
         self.Cf[0] = np.einsum('b,lbx->lx', self.b11, self.C11l)
         self.Cf[1] = np.einsum('b,lbx->lx', self.bloop, self.Cloopl) + np.einsum('b,lbx->lx', self.bct, self.Cctl)
-
         if self.with_stoch: self.Cf[1] += np.einsum('b,lbx->lx', self.bst, self.Cstl)
         if self.with_nlo_bias: self.Cf[1] += np.einsum('l,lbx->lx', self.bnlo, self.Cnlol)
-
         self.setfullCf()
 
         #Cf0 = np.einsum('b,lbx->lx', self.b11, self.C11l)

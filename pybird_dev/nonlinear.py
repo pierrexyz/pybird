@@ -3,8 +3,8 @@ import numpy as np
 from numpy import pi, cos, sin, log, exp, sqrt, trapz
 from scipy.interpolate import interp1d
 from scipy.special import gamma
-from fftlog import FFTLog, MPC
-from common import co
+from . fftlog import FFTLog, MPC
+from . common import co
 
 class NonLinear(object):
     """

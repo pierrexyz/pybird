@@ -5,9 +5,9 @@ from scipy.interpolate import interp1d
 from scipy.integrate import quad
 from scipy.special import legendre, spherical_jn, j1
 from copy import deepcopy 
-from fftlog import FFTLog, MPC
-from common import co
-from greenfunction import GreenFunction
+from . fftlog import FFTLog, MPC
+from . common import co
+from . greenfunction import GreenFunction
 
 # import importlib, sys
 # importlib.reload(sys.modules['greenfunction'])
@@ -114,7 +114,7 @@ class Projection(object):
             self.setWindow(Nl=self.co.Nl)
             self.with_window = True
 
-        if binning:
+        if binning: 
             self.loadBinning(self.xout)
 
         # wedges
@@ -125,10 +125,12 @@ class Projection(object):
         if zz is not None and nz is not None:
             self.zz = zz
             self.nz = nz
-            self.z1, self.z2 = np.meshgrid(self.zz, self.zz, indexing='ij')
-            self.n1, self.n2 = self.mesheval2d(self.zz, self.z1, self.z2, self.nz)
-            self.np2 = self.n1 * self.n2
-            self.zm = 0.5 * (self.z1 + self.z2)
+            mu = np.linspace(0, 1, 100)
+            self.s, self.z1, self.mu = np.meshgrid(self.co.s, self.zz, mu, indexing='ij')
+            self.n1 = self.mesheval1d(self.zz, self.z1, nz)
+            self.L = np.array([legendre(2*l)(self.mu) for l in range(self.co.Nl)]) # Legendre to reconstruct the 3D 2pt function
+            self.Lp = 2. * np.array([(2*l+1)/2. * legendre(2*l)(self.mu) for l in range(self.co.Nl)]) # Legendre in the integrand to get the multipoles ; factor 2 in front because mu integration goes from 0 to 1
+
 
     def get_AP_param(self, bird=None, DA=None, H=None):
         """
@@ -512,146 +514,54 @@ class Projection(object):
         return self.integrWedges(P, many=False)
 
     def mesheval1d(self, z1d, zm, func):
-        ifunc = interp1d(z1d, func, axis=-1, kind='cubic')
+        ifunc = interp1d(z1d, func, axis=-1, kind='cubic', bounds_error=False, fill_value=0.)
         return ifunc(zm)
 
-    def mesheval2d(self, z1d, z1, z2, func):
-        ifunc = interp1d(z1d, func, axis=-1, kind='cubic')
-        return ifunc(z1), ifunc(z2)
+    # def mesheval2d(self, z1d, z1, z2, func):
+    #     ifunc = interp1d(z1d, func, axis=-1, kind='cubic')
+    #     return ifunc(z1), ifunc(z2)
 
-    def redshift(self, bird, Dz, fz, DAz, Hz, AP=True):
+    def redshift(self, bird, rz, Dz, fz):
 
-        if self.co.nonequaltime: # integrand evaluated at z_1, z_2, usually not used (but implemented for check)
-            D1, D2 = self.mesheval2d(self.zz, self.z1, self.z2, Dz/bird.D)
-            f1, f2 = self.mesheval2d(self.zz, self.z1, self.z2, fz/bird.f) 
-            Dp2 = D1 * D2
-            Dp22 = Dp2 * Dp2
-            Dp13 = 0.5 * (D1**2 + D2**2) * Dp2
-            fp0 = f1**0
-            fp1 = 0.5 * (f1 + f2)   # this one is exact, 
-            fp2 = fp1**2            # but this one is approximate, since f**2 = f1 * f2 or 0.5 * (f1**2+f2**2), instead we use mean f approximation
-            fp3 = fp1 * fp2         # and similar here
-            fp4 = f1**2 * f2**2     # however this one is exact
-            f11 = np.array([fp0, fp1, fp2])
-            fct = np.array([fp0, fp0, fp0, fp1, fp1, fp1])
-            floop = np.concatenate([6*[fp0], 6*[fp1], 9*[fp2], 4*[fp3], 3*[fp4], 2*[fp0],  3*[fp1], 3*[fp2], 2*[fp3]])
+        # if self.co.nonequaltime: # integrand evaluated at z_1, z_2
 
-            tlin = np.einsum('n...,...->n...', f11, Dp2 * self.np2)
-            tct = np.einsum('n...,...->n...', fct, Dp2 * self.np2)
-            tloop = np.empty_like(floop)
-            tloop[:self.co.N22] = np.einsum('n...,...->n...', floop[:self.co.N22], Dp22 * self.np2)
-            tloop[self.co.N22:] = np.einsum('n...,...->n...', floop[self.co.N22:], Dp13 * self.np2)
-
-            # P11l = np.empty(shape=(len(self.zz), len(self.zz), self.co.Nl, self.co.N11, self.co.Nk))
-            # Pctl = np.empty(shape=(len(self.zz), len(self.zz), self.co.Nl, self.co.Nct, self.co.Nk))
-            # Ploopl = np.empty(shape=(len(self.zz), len(self.zz), self.co.Nl, self.co.Nloop, self.co.Nk))
-
-            # no AP here (not coded up)
-            # if resum is not None: # for the resummation we do something approximate for the growth rate: we use f1 ~ f2 and compute on f = 0.5 * (f1 + f2)
-            #     for i, (D1, f1) in enumerate(zip(Dz, fz)):
-            #         for j, (D2, f2) in enumerate(zip(Dz, fz)):
-            #             birdi = deepcopy(bird)
-            #             birdi.f = 0.5 * (f1+f2)
-            #             birdi.D1 = D1
-            #             birdi.D2 = D2
-            #             resum.Ps(birdi)
-            #             P11l[i,j] = birdi.P11l
-            #             Pctl[i,j] = birdi.Pctl
-            #             Ploopl[i,j] = birdi.Ploopl
-
-            P11l = np.einsum('nyz,lnk->lnkyz', tlin, bird.P11l)
-            bird.P11l = np.trapz(np.trapz(P11l, x=self.z2, axis=-1), x=self.zz, axis=-1)
-
-            Pctl = np.einsum('nyz,lnk->lnkyz', tct, bird.Pctl)
-            bird.Pctl = np.trapz(np.trapz(Pctl, x=self.z2, axis=-1), x=self.zz, axis=-1)
-
-            Ploopl = np.einsum('nyz,lnk->lnkyz', tloop, bird.Ploopl)
-            bird.Ploopl = np.trapz(np.trapz(Ploopl, x=self.z2, axis=-1), x=self.zz, axis=-1)
+        norm = np.trapz(self.nz**2 * rz**2, x=rz)
         
-        else: # integrand evaluated at mean redshift \bar z = 0.5 * (z_1 + z_2)
-            Dm = self.mesheval1d(self.zz, self.zm, Dz/bird.D)
-            fm = self.mesheval1d(self.zz, self.zm, fz/bird.f)
-            
-            Dp2 = Dm**2
-            Dp4 = Dp2**2
-            fp0 = fm**0
-            fp1 = fm
-            fp2 = fm**2
-            fp3 = fp2*fm
-            fp4 = fp2**2
+        r1 = self.mesheval1d(self.zz, self.z1, rz)
+        D1 = self.mesheval1d(self.zz, self.z1, Dz/bird.D) 
+        f1 = self.mesheval1d(self.zz, self.z1, fz/bird.f) 
+        s1 = self.mesheval1d(self.zz, self.z1, rz) 
+        s2 = (self.s**2 + s1**2 + 2*self.s*s1*self.mu)**0.5
+        n2 = self.mesheval1d(rz, s2, self.nz) 
+        D2 = self.mesheval1d(rz, s2, Dz) 
+        f2 = self.mesheval1d(rz, s2, fz) 
 
-            f11 = np.array([fp0, fp1, fp2])
-            fct = np.array([fp0, fp0, fp0, fp1, fp1, fp1])
-            if self.co.exact_time: 
-                GF = GreenFunction(bird.Omega0_m, w=bird.w0)
-                aa = 1/(1.+self.zz)
-                Y1 = np.array([ GF.Y(ai) for ai in aa ]) / bird.Y1
-                G1t = np.array([ GF.mG1t(ai) for ai in aa ]) / bird.G1t
-                V12t = np.array([ GF.mV12t(ai) for ai in aa ]) / bird.V12t 
-                Y1 = self.mesheval1d(self.zz, self.zm, Y1)
-                G1t = self.mesheval1d(self.zz, self.zm, G1t)
-                V12t = self.mesheval1d(self.zz, self.zm, V12t)
-                floop = np.array([fp2, fp2*G1t, fp2*G1t**2, fp2*Y1, fp2*V12t, fp3, fp3*G1t, fp4, fp1, fp1*G1t, fp1*Y1, fp1*V12t, fp2, fp2*G1t, fp3, fp1, fp1*G1t, fp2, fp1, fp1, fp1*G1t, fp2, fp0, Y1, fp1, fp1*G1t, fp2, fp0, fp1, fp0, fp0, fp1, fp0, fp0, fp0])
-            else: floop = np.array([fp2, fp3, fp4, fp1, fp2, fp3, fp1, fp2, fp1, fp1, fp2, fp0, fp1, fp2, fp0, fp1, fp0, fp0, fp1, fp0, fp0, fp0])
+        Dp2 = D1 * D2
+        Dp22 = Dp2 * Dp2
+        Dp13 = 0.5 * (D1**2 + D2**2) * Dp2
+        fp0 = f1**0
+        fp1 = 0.5 * (f1 + f2)   # this one is exact, 
+        fp2 = fp1**2            # but this one is approximate, since f**2 = f1 * f2 or 0.5 * (f1**2+f2**2), instead we use mean f approximation
+        fp3 = fp1 * fp2         # and similar here
+        fp4 = f1**2 * f2**2     # however this one is exact
+        f11 = np.array([fp0, fp1, fp2])
+        fct = np.array([fp0, fp0, fp0, fp1, fp1, fp1])
+        floop = np.concatenate([6*[fp0], 6*[fp1], 9*[fp2], 4*[fp3], 3*[fp4], 2*[fp0],  3*[fp1], 3*[fp2], 2*[fp3]])
+        tlin = np.einsum('n...,...->n...', f11, Dp2 * self.n1 * n2)
+        tct = np.einsum('n...,...->n...', fct, Dp2 * self.n1 * n2)
+        tloop = np.empty_like(floop)
+        tloop[:self.co.N22] = np.einsum('n...,...->n...', floop[:self.co.N22], Dp22 * self.n1 * n2)
+        tloop[self.co.N22:] = np.einsum('n...,...->n...', floop[self.co.N22:], Dp13 * self.n1 * n2)
 
-            tlin = np.einsum('n...,...->n...', f11, Dp2 * self.np2)
-            tct = np.einsum('n...,...->n...', fct, Dp2 * self.np2)
-            tloop = np.einsum('n...,...->n...', floop, Dp4 * self.np2)
+        def integrand(t, c): 
+            cmesh = interp1d(self.co.s, c, axis=-1, kind='cubic')(self.s) # l: multipole, n: number of linear/loop terms, (s, z1, mu)
+            print (self.Lp.shape, self.L.shape, cmesh.shape, t.shape)
+            return np.einsum('p...,l...,ln...,n...,...->pn...', self.Lp, self.L, cmesh, t, r1**2) # l..., ln...,n...->n...
 
-            if self.co.with_cf:
-                C11l = np.empty(shape=(len(self.zz), self.co.Nl, self.co.N11, self.co.Ns))
-                Cctl = np.empty(shape=(len(self.zz), self.co.Nl, self.co.Nct, self.co.Ns))
-                Cloopl = np.empty(shape=(len(self.zz), self.co.Nl, self.co.Nloop, self.co.Ns))
-            else:
-                P11l = np.empty(shape=(len(self.zz), self.co.Nl, self.co.N11, self.co.Nk))
-                Pctl = np.empty(shape=(len(self.zz), self.co.Nl, self.co.Nct, self.co.Nk))
-                Ploopl = np.empty(shape=(len(self.zz), self.co.Nl, self.co.Nloop, self.co.Nk))
-
-            if AP:
-                for i, (zi, DAi, Hi) in enumerate(zip(self.zz, DAz, Hz)):
-                    self.DA = DA(self.Om_AP, zi)
-                    self.H = Hubble(self.Om_AP, zi)
-                    qperp, qpar = self.get_AP_param(DA=DAi, H=Hi)
-                    birdi = deepcopy(bird)
-                    self.AP(birdi, q=(qperp, qpar))
-                    if self.co.with_cf:
-                        C11l[i] = birdi.C11l
-                        Cctl[i] = birdi.Cctl
-                        Cloopl[i] = birdi.Cloopl
-                    else:
-                        P11l[i] = birdi.P11l
-                        Pctl[i] = birdi.Pctl
-                        Ploopl[i] = birdi.Ploopl
-
-                if self.co.with_cf:
-                    C11l = np.einsum('nyz,yzlnk->lnkyz', tlin, interp1d(self.zz, C11l, axis=0, kind='cubic')(self.zm))
-                    bird.C11l = np.trapz(np.trapz(C11l, x=self.z2, axis=-1), x=self.zz, axis=-1)
-                    Cctl = np.einsum('nyz,yzlnk->lnkyz', tct, interp1d(self.zz, Cctl, axis=0, kind='cubic')(self.zm))
-                    bird.Cctl = np.trapz(np.trapz(Cctl, x=self.z2, axis=-1), x=self.zz, axis=-1)
-                    Cloopl = np.einsum('nyz,yzlnk->lnkyz', tloop, interp1d(self.zz, Cloopl, axis=0, kind='cubic')(self.zm))
-                    bird.Cloopl = np.trapz(np.trapz(Cloopl, x=self.z2, axis=-1), x=self.zz, axis=-1)
-                else:
-                    P11l = np.einsum('nyz,yzlnk->lnkyz', tlin, interp1d(self.zz, P11l, axis=0, kind='cubic')(self.zm))
-                    bird.P11l = np.trapz(np.trapz(P11l, x=self.z2, axis=-1), x=self.zz, axis=-1)
-                    Pctl = np.einsum('nyz,yzlnk->lnkyz', tct, interp1d(self.zz, Pctl, axis=0, kind='cubic')(self.zm))
-                    bird.Pctl = np.trapz(np.trapz(Pctl, x=self.z2, axis=-1), x=self.zz, axis=-1)
-                    Ploopl = np.einsum('nyz,yzlnk->lnkyz', tloop, interp1d(self.zz, Ploopl, axis=0, kind='cubic')(self.zm))
-                    bird.Ploopl = np.trapz(np.trapz(Ploopl, x=self.z2, axis=-1), x=self.zz, axis=-1)
-
-            else:
-                if self.co.with_cf:
-                    C11l = np.einsum('nyz,lnk->lnkyz', tlin, bird.C11l)
-                    bird.C11l = np.trapz(np.trapz(C11l, x=self.z2, axis=-1), x=self.zz, axis=-1)
-                    Cctl = np.einsum('nyz,lnk->lnkyz', tct, bird.Cctl)
-                    bird.Cctl = np.trapz(np.trapz(Cctl, x=self.z2, axis=-1), x=self.zz, axis=-1)
-                    Cloopl = np.einsum('nyz,lnk->lnkyz', tloop, bird.Cloopl)
-                    bird.Cloopl = np.trapz(np.trapz(Cloopl, x=self.z2, axis=-1), x=self.zz, axis=-1)
-                else:
-                    P11l = np.einsum('nyz,lnk->lnkyz', tlin, bird.P11l)
-                    bird.P11l = np.trapz(np.trapz(P11l, x=self.z2, axis=-1), x=self.zz, axis=-1)
-                    Pctl = np.einsum('nyz,lnk->lnkyz', tct, bird.Pctl)
-                    bird.Pctl = np.trapz(np.trapz(Pctl, x=self.z2, axis=-1), x=self.zz, axis=-1)
-                    Ploopl = np.einsum('nyz,lnk->lnkyz', tloop, bird.Ploopl)
-                    bird.Ploopl = np.trapz(np.trapz(Ploopl, x=self.z2, axis=-1), x=self.zz, axis=-1)
-
+        def integration(t, c):
+            return np.trapz(np.trapz(integrand(t, c), x=self.mu, axis=-1), x=rz, axis=-1) / norm
+        
+        bird.C11l = integration(tlin, bird.C11l)
+        # bird.Cctl = integration(tct, bird.Cctl)
+        # bird.Cloopl = integration(tloop, bird.Cloopl)
             

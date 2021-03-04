@@ -68,14 +68,8 @@ class Correlator(object):
             "fz": Option("fz", (list, np.ndarray),
                 description="Scale independent growth rate over redshift bin. To specify if \'with_redshift_bin\' is True.", 
                 default=None) ,
-            "DAz": Option("DAz", (list, np.ndarray),
-                description="Angular distance times H_0 over redshift bin. To specify if \'with_redshift_bin\' and \'with_AP\' are True.", 
-                default=None) ,
-            "Hz": Option("Hz", (list, np.ndarray),
-                description="Hubble parameter by H_0 over redshift bin. To specify if \'with_redshift_bin\' and \'with_AP\' are True.", 
-                default=None) ,
             "rz": Option("rz", (list, np.ndarray),
-                description="Comoving distance in [Mpc/h] over redshift bin. To specify if \'output\':\'w\'.", 
+                description="Comoving distance in [Mpc/h] over redshift bin. To specify if \'with_redshift_bin\' or if \'output\':\'w\'.", 
                 default=None) ,
             "D1": Option("D1", float,
                 description="Scale independent growth function at redshift z1. To specify if \'with_nonequal_time\' is True.", 
@@ -273,9 +267,9 @@ class Correlator(object):
                 else: self.resum.Ps(self.bird)
             if "w" in self.config["output"]: self.angular.w(self.bird, self.cosmo["Dz"], self.cosmo["fz"], self.cosmo["rz"], self.config["zz"], self.config["nz"], which=self.config["w_integrator"], theta_cut=self.config["w_theta_cut"])
             else:
-                if self.config["with_redshift_bin_nonequal_time"]: self.projection.redshift(self.bird, self.cosmo["Dz"], self.cosmo["fz"], self.cosmo["DAz"], self.cosmo["Hz"], AP=self.config["with_AP"])
-                elif self.config["with_redshift_bin"]: self.projection.redshift(self.bird, self.cosmo["Dz"], self.cosmo["fz"], self.cosmo["DAz"], self.cosmo["Hz"], AP=self.config["with_AP"])
-                elif self.config["with_AP"]: self.projection.AP(self.bird)
+                if self.config["with_redshift_bin_nonequal_time"]: self.projection.redshift(self.bird, self.cosmo["rz"], self.cosmo["Dz"], self.cosmo["fz"])
+                elif self.config["with_redshift_bin"]: self.projection.redshift(self.bird, self.cosmo["rz"], self.cosmo["Dz"], self.cosmo["fz"])
+                if self.config["with_AP"]: self.projection.AP(self.bird)
                 if self.config["with_window"]: self.projection.Window(self.bird)
                 if self.config["with_fibercol"]: self.projection.fibcolWindow(self.bird)
                 if self.config["wedge"] is not 0: self.projection.Wedges(self.bird)
@@ -350,8 +344,8 @@ class Correlator(object):
                 if "w" in self.config["output"]: 
                     self.angular[i].w(self.birds[i], self.cosmo["Dz"][i], self.cosmo["fz"][i], self.cosmo["rz"][i], self.config["zz"][i], self.config["nz"][i], which=self.config["w_integrator"], theta_cut=self.config["w_theta_cut"][i])
                 else:
-                    if self.config["with_redshift_bin"] and self.config["nz"][i] is not None: self.projection[i].redshift(self.birds[i], self.cosmo["Dz"][i], self.cosmo["fz"][i], self.cosmo["DAz"][i], self.cosmo["Hz"][i], AP=self.config["with_AP"])
-                    elif self.config["with_AP"]: self.projection[i].AP(self.birds[i]) # this means if self.config["with_redshift_bin"] = False but self.config["with_AP"] = True
+                    if self.config["with_redshift_bin"] and self.config["nz"][i] is not None: self.projection[i].redshift(self.birds[i], self.cosmo["rz"][i], self.cosmo["Dz"][i], self.cosmo["fz"][i])
+                    if self.config["with_AP"]: self.projection[i].AP(self.birds[i]) 
                     if self.config["with_window"]: self.projection[i].Window(self.birds[i])
                     if self.config["with_fibercol"]: self.projection[i].fibcolWindow(self.birds[i])
                     if self.config["wedge"] is not 0: self.projection[i].Wedges(self.birds[i]) 
@@ -685,16 +679,6 @@ class Correlator(object):
             elif len(self.cosmo["Dz"]) != self.config["skycut"] or len(self.cosmo["fz"]) != self.config["skycut"]:
                 raise Exception("Please specify (in lists) as many \'Dz\' and \'fz\' as the corresponding skycuts.")
 
-            if self.config["with_AP"]:
-                if self.cosmo["DAz"] is None or self.cosmo["Hz"] is None:
-                    raise Exception("You asked to account the galaxy counts distribution and apply the AP effect. Please specify \'DAz\' and \'Hz\'. ")
-
-                if self.config["skycut"] == 1:
-                    if len(self.cosmo["DAz"]) != len(self.config["zz"]) or len(self.cosmo["Hz"]) != len(self.config["zz"]):
-                        raise Exception("Please specify \'DAz\' and \'Hz\' with same length as \'zz\'. ")
-                elif len(self.cosmo["DAz"]) != self.config["skycut"] or len(self.cosmo["Hz"]) != self.config["skycut"]:
-                    raise Exception("Please specify (in lists) as many \'DAz\' and \'Hz\' as the corresponding skycuts.")
-
             if "w" in self.config["output"]:
                 if self.cosmo["rz"] is None:
                     raise Exception("You asked angular statistics. Please specify \'rz\'. ")
@@ -919,6 +903,7 @@ class Correlator(object):
         if self.config["with_redshift_bin"]:
             self.config["with_bias"] = False
             self.config["with_time"] = False
+            self.config["with_common_nonequal_time"] = True
 
             def is_conflict_zz(zz, nz):
                 if zz is None or nz is None:
@@ -1000,31 +985,22 @@ class Correlator(object):
             elif self.config["skycut"] > 1:
                 if self.config["multipole"] is not 0: cosmo["f"] = np.array([M.scale_independent_growth_factor_f(z) for z in self.config["z"]])
                 cosmo["D"] = np.array([M.scale_independent_growth_factor(z) for z in self.config["z"]])
-                if self.config["with_AP"] and not self.config["with_redshift_bin"]:
+                if self.config["with_AP"]:
                     cosmo["DA"] = np.array([M.angular_distance(z) * M.Hubble(0.) for z in self.config["z"]])
                     cosmo["H"] = np.array([M.Hubble(z) / M.Hubble(0.) for z in self.config["z"]])
 
             if self.config["with_redshift_bin"]:
+                def comoving_distance(z): return M.angular_distance(z)*(1+z)*M.h()
                 if self.config["skycut"] == 1:
                     cosmo["D"] = M.scale_independent_growth_factor(self.config["z"])
-                    
                     cosmo["Dz"] = np.array([M.scale_independent_growth_factor(z) for z in self.config["zz"]])
                     cosmo["fz"] = np.array([M.scale_independent_growth_factor_f(z) for z in self.config["zz"]])
-
-                    cosmo["DAz"] = np.array([M.angular_distance(z) * M.Hubble(0.) for z in self.config["zz"]])
-                    cosmo["Hz"] = np.array([M.Hubble(z) / M.Hubble(0.) for z in self.config["zz"]])
+                    cosmo["rz"] = np.array([comoving_distance(z) for z in self.config["zz"]])
 
                 elif self.config["skycut"] > 1:
                     cosmo["Dz"] = np.array([ [M.scale_independent_growth_factor(z) for z in zz] for zz in self.config["zz"] ])
                     cosmo["fz"] = np.array([ [M.scale_independent_growth_factor_f(z) for z in zz] for zz in self.config["zz"] ])
-
-                    cosmo["DAz"] = np.array([ [M.angular_distance(z) * M.Hubble(0.) for z in zz] for zz in self.config["zz"] ])
-                    cosmo["Hz"] = np.array([ [M.Hubble(z) / M.Hubble(0.)  for z in zz] for zz in self.config["zz"] ])
-
-            if "w" in self.config["output"]:
-                def comoving_distance(z): return M.angular_distance(z)*(1+z)*M.h()
-                if self.config["skycut"] == 1: cosmo["rz"] = np.array([comoving_distance(z) for z in self.config["zz"]])
-                elif self.config["skycut"] > 1: cosmo["rz"] = np.array([ [comoving_distance(z) for z in zz] for zz in self.config["zz"] ])
+                    cosmo["rz"] = np.array([ [comoving_distance(z) for z in zz] for zz in self.config["zz"] ])
 
             if self.config["with_quintessence"]: 
                 # starting deep inside matter domination and evolving to the total adiabatic linear power spectrum. 
@@ -1051,7 +1027,6 @@ class BiasCorrelator(Correlator):
     '''
     def __init__(self, config_dict=None, load_engines=False):
         Correlator.__init__(self, config_dict, load_engines=load_engines)
-
 
 
 
