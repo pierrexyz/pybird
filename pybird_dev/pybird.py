@@ -2,13 +2,13 @@ import os
 import numpy as np
 from copy import deepcopy
 
-from common import Common, co
-from bird import Bird
-from nonlinear import NonLinear
-from resum import Resum
-from projection import Projection
-from angular import Angular
-from greenfunction import GreenFunction
+from . common import Common, co
+from . bird import Bird
+from . nonlinear import NonLinear
+from . resum import Resum
+from . projection import Projection
+from . angular import Angular
+from . greenfunction import GreenFunction
 
 # import importlib, sys
 # importlib.reload(sys.modules['common'])
@@ -19,13 +19,13 @@ from greenfunction import GreenFunction
 # importlib.reload(sys.modules['angular'])
 # importlib.reload(sys.modules['greenfunction'])
 
-# from common import Common, co
-# from bird import Bird
-# from nonlinear import NonLinear
-# from resum import Resum
-# from projection import Projection
-# from angular import Angular
-# from greenfunction import GreenFunction
+# from . common import Common, co
+# from . bird import Bird
+# from . nonlinear import NonLinear
+# from . resum import Resum
+# from . projection import Projection
+# from . angular import Angular
+# from . greenfunction import GreenFunction
 
 class Correlator(object):
     
@@ -190,7 +190,7 @@ class Correlator(object):
                 default=False) ,
             "w_integrator": Option("w_integrator", str,
                 description="Type of integration for \'output\': \'w\' : \'trapz\' or \'cuba\'",
-                default='cuba') ,
+                default='trapz') ,
             "w_theta_cut": Option("w_theta_cut", (float, list, np.ndarray),
                 description="Angle cut for \'output\': \'w\'. ",
                 default=0) ,
@@ -271,7 +271,7 @@ class Correlator(object):
             if self.config["with_resum"]:
                 if self.config["with_cf"]: self.resum.PsCf(self.bird)
                 else: self.resum.Ps(self.bird)
-            if "w" in self.config["output"]: self.angular.w(self.bird, self.cosmo["Dz"], self.cosmo["fz"], self.cosmo["rz"], self.config["zz"], self.config["nz"])
+            if "w" in self.config["output"]: self.angular.w(self.bird, self.cosmo["Dz"], self.cosmo["fz"], self.cosmo["rz"], self.config["zz"], self.config["nz"], which=self.config["w_integrator"], theta_cut=self.config["w_theta_cut"])
             else:
                 if self.config["with_redshift_bin_nonequal_time"]: self.projection.redshift(self.bird, self.cosmo["Dz"], self.cosmo["fz"], self.cosmo["DAz"], self.cosmo["Hz"], AP=self.config["with_AP"])
                 elif self.config["with_redshift_bin"]: self.projection.redshift(self.bird, self.cosmo["Dz"], self.cosmo["fz"], self.cosmo["DAz"], self.cosmo["Hz"], AP=self.config["with_AP"])
@@ -672,7 +672,7 @@ class Correlator(object):
             if self.config["skycut"] == 1:
                 if not isinstance(self.cosmo["DA"], float) and not isinstance(self.cosmo["H"], float):
                     raise Exception("Please provide a single pair of \'DA\' and \'H\'.")
-            elif len(self.cosmo["DA"]) is not self.config["skycut"] or len(self.cosmo["H"]) is not self.config["skycut"]:
+            elif len(self.cosmo["DA"]) != self.config["skycut"] or len(self.cosmo["H"]) != self.config["skycut"]:
                 raise Exception("Please specify (in lists) as many \'DA\' and \'H\' as the corresponding skycuts.")
 
         if self.config["with_redshift_bin"]:
@@ -680,9 +680,9 @@ class Correlator(object):
                 raise Exception("You asked to account the galaxy counts distribution. Please specify \'Dz\' and \'fz\'. ")
 
             if self.config["skycut"] == 1:
-                if len(self.cosmo["Dz"]) is not len(self.config["zz"]) or len(self.cosmo["fz"]) is not len(self.config["zz"]):
+                if len(self.cosmo["Dz"]) != len(self.config["zz"]) or len(self.cosmo["fz"]) != len(self.config["zz"]):
                     raise Exception("Please specify \'Dz\' and \'fz\' with same length as \'zz\'. ")
-            elif len(self.cosmo["Dz"]) is not self.config["skycut"] or len(self.cosmo["fz"]) is not self.config["skycut"]:
+            elif len(self.cosmo["Dz"]) != self.config["skycut"] or len(self.cosmo["fz"]) != self.config["skycut"]:
                 raise Exception("Please specify (in lists) as many \'Dz\' and \'fz\' as the corresponding skycuts.")
 
             if self.config["with_AP"]:
@@ -690,9 +690,9 @@ class Correlator(object):
                     raise Exception("You asked to account the galaxy counts distribution and apply the AP effect. Please specify \'DAz\' and \'Hz\'. ")
 
                 if self.config["skycut"] == 1:
-                    if len(self.cosmo["DAz"]) is not len(self.config["zz"]) or len(self.cosmo["Hz"]) is not len(self.config["zz"]):
+                    if len(self.cosmo["DAz"]) != len(self.config["zz"]) or len(self.cosmo["Hz"]) != len(self.config["zz"]):
                         raise Exception("Please specify \'DAz\' and \'Hz\' with same length as \'zz\'. ")
-                elif len(self.cosmo["DAz"]) is not self.config["skycut"] or len(self.cosmo["Hz"]) is not self.config["skycut"]:
+                elif len(self.cosmo["DAz"]) != self.config["skycut"] or len(self.cosmo["Hz"]) != self.config["skycut"]:
                     raise Exception("Please specify (in lists) as many \'DAz\' and \'Hz\' as the corresponding skycuts.")
 
             if "w" in self.config["output"]:
@@ -700,9 +700,9 @@ class Correlator(object):
                     raise Exception("You asked angular statistics. Please specify \'rz\'. ")
 
                 if self.config["skycut"] == 1:
-                    if len(self.cosmo["rz"]) is not len(self.config["zz"]):
+                    if len(self.cosmo["rz"]) != len(self.config["zz"]):
                         raise Exception("Please specify \'rz\' with same length as \'zz\'. ")
-                elif len(self.cosmo["rz"]) is not self.config["skycut"]:
+                elif len(self.cosmo["rz"]) != self.config["skycut"]:
                     raise Exception("Please specify (in a list) as many \'rz\'as the corresponding skycuts.")
 
         if self.config["with_nonequal_time"]:
@@ -719,19 +719,28 @@ class Correlator(object):
         if isinstance(self.cosmo["bias"], (list, np.ndarray)): self.cosmo["bias"] = self.cosmo["bias"][0]
         if not isinstance(self.cosmo["bias"], dict): raise Exception("Please specify bias in a dict. ")
 
-        if "bm" in self.config["output"]:
+        if "bm" in self.config["output"]: # redshift halo - real-space matter
             if not self.config["with_stoch"]:
                 if self.config["multipole"] == 0:
-                    if len(self.cosmo["bias"]) is not 6: raise Exception("Please specify a dict of 6 biases: \{ \'b1\', \'b2\', \'b3\', \'b4\', \'cct\' + matter counterterm: \'dct\' \}. ")
-                    else: self.bias = { "b1": self.cosmo["bias"]["b1"], "b2": self.cosmo["bias"]["b2"], "b3": self.cosmo["bias"]["b3"], "b4": self.cosmo["bias"]["b4"], "cct": self.cosmo["bias"]["cct"], "cr1": 0., "cr2": 0., "ce0": 0., "ce1": 0., "ce2": 0., "dct": self.cosmo["bias"]["dct"], "dr1": 0., "dr2": 0. }
-                elif self.config["multipole"] == 2:
-                    if len(self.cosmo["bias"]) is not 8: raise Exception("Please specify a dict of 8 biases: \{ \'b1\', \'b2\', \'b3\', \'b4\', \'cct\', \'cr1\' + matter counterterms: \'dct\', \'dr1\' \}. ")
-                    else: self.bias = { "b1": self.cosmo["bias"]["b1"], "b2": self.cosmo["bias"]["b2"], "b3": self.cosmo["bias"]["b3"], "b4": self.cosmo["bias"]["b4"], "cct": self.cosmo["bias"]["cct"], "cr1": self.cosmo["bias"]["cr1"], "cr2": 0., "ce0": 0., "ce1": 0., "ce2": 0., "dct": self.cosmo["bias"]["dct"], "dr1": self.cosmo["bias"]["dr1"], "dr2": 0. }
-                elif self.config["multipole"] == 3:
-                    if len(self.cosmo["bias"]) is not 10: raise Exception("Please specify a dict of 10 biases: \{ \'b1\', \'b2\', \'b3\', \'b4\', \'cct\', \'cr1\', \'cr2\' + matter counterterms: \'dct\', \'dr1\', \'dr2\' \}. ")
-                    else: self.bias = { "b1": self.cosmo["bias"]["b1"], "b2": self.cosmo["bias"]["b2"], "b3": self.cosmo["bias"]["b3"], "b4": self.cosmo["bias"]["b4"], "cct": self.cosmo["bias"]["cct"], "cr1": self.cosmo["bias"]["cr1"], "cr2": self.cosmo["bias"]["cr2"], "ce0": 0., "ce1": 0., "ce2": 0., "dct": self.cosmo["bias"]["dct"], "dr1": self.cosmo["bias"]["dr1"], "dr2": self.cosmo["bias"]["dr2"] }
-            else:
-                pass # to code up
+                    if len(self.cosmo["bias"]) is not 5: raise Exception("Please specify a dict of 5 biases: \{ \'b1\', \'b2\', \'b3\', \'b4\', \'cct\' \}. ")
+                    else: self.bias = { "b1": self.cosmo["bias"]["b1"], "b2": self.cosmo["bias"]["b2"], "b3": self.cosmo["bias"]["b3"], "b4": self.cosmo["bias"]["b4"], "cct": self.cosmo["bias"]["cct"], "cr1": 0., "cr2": 0., "ce0": 0., "ce1": 0., "ce2": 0. }
+                elif self.config["multipole"] == 2 or self.config["multipole"] == 3:
+                    if len(self.cosmo["bias"]) is not 6: raise Exception("Please specify a dict of 6 biases: \{ \'b1\', \'b2\', \'b3\', \'b4\', \'cct\', \'cr1\' \} ")
+                    else: self.bias = { "b1": self.cosmo["bias"]["b1"], "b2": self.cosmo["bias"]["b2"], "b3": self.cosmo["bias"]["b3"], "b4": self.cosmo["bias"]["b4"], "cct": self.cosmo["bias"]["cct"], "cr1": self.cosmo["bias"]["cr1"], "cr2": 0., "ce0": 0., "ce1": 0., "ce2": 0. }
+
+        # if "bm" in self.config["output"]: # redshift halo - redshift matter
+        #     if not self.config["with_stoch"]:
+        #         if self.config["multipole"] == 0:
+        #             if len(self.cosmo["bias"]) is not 6: raise Exception("Please specify a dict of 6 biases: \{ \'b1\', \'b2\', \'b3\', \'b4\', \'cct\' + matter counterterm: \'dct\' \}. ")
+        #             else: self.bias = { "b1": self.cosmo["bias"]["b1"], "b2": self.cosmo["bias"]["b2"], "b3": self.cosmo["bias"]["b3"], "b4": self.cosmo["bias"]["b4"], "cct": self.cosmo["bias"]["cct"], "cr1": 0., "cr2": 0., "ce0": 0., "ce1": 0., "ce2": 0., "dct": self.cosmo["bias"]["dct"], "dr1": 0., "dr2": 0. }
+        #         elif self.config["multipole"] == 2:
+        #             if len(self.cosmo["bias"]) is not 8: raise Exception("Please specify a dict of 8 biases: \{ \'b1\', \'b2\', \'b3\', \'b4\', \'cct\', \'cr1\' + matter counterterms: \'dct\', \'dr1\' \}. ")
+        #             else: self.bias = { "b1": self.cosmo["bias"]["b1"], "b2": self.cosmo["bias"]["b2"], "b3": self.cosmo["bias"]["b3"], "b4": self.cosmo["bias"]["b4"], "cct": self.cosmo["bias"]["cct"], "cr1": self.cosmo["bias"]["cr1"], "cr2": 0., "ce0": 0., "ce1": 0., "ce2": 0., "dct": self.cosmo["bias"]["dct"], "dr1": self.cosmo["bias"]["dr1"], "dr2": 0. }
+        #         elif self.config["multipole"] == 3:
+        #             if len(self.cosmo["bias"]) is not 10: raise Exception("Please specify a dict of 10 biases: \{ \'b1\', \'b2\', \'b3\', \'b4\', \'cct\', \'cr1\', \'cr2\' + matter counterterms: \'dct\', \'dr1\', \'dr2\' \}. ")
+        #             else: self.bias = { "b1": self.cosmo["bias"]["b1"], "b2": self.cosmo["bias"]["b2"], "b3": self.cosmo["bias"]["b3"], "b4": self.cosmo["bias"]["b4"], "cct": self.cosmo["bias"]["cct"], "cr1": self.cosmo["bias"]["cr1"], "cr2": self.cosmo["bias"]["cr2"], "ce0": 0., "ce1": 0., "ce2": 0., "dct": self.cosmo["bias"]["dct"], "dr1": self.cosmo["bias"]["dr1"], "dr2": self.cosmo["bias"]["dr2"] }
+        #     else:
+        #         pass # to code up
 
         elif "m" in self.config["output"]:
             if self.config["multipole"] == 0:

@@ -4,7 +4,7 @@ from numpy import pi, cos, sin, log, exp, sqrt, trapz
 from scipy.interpolate import interp1d, UnivariateSpline, RectBivariateSpline
 from scipy.special import legendre
 from scipy.integrate import quad, dblquad, simps
-from common import co
+from . common import co
 from cubature import cubature
 
 
@@ -30,35 +30,54 @@ class Angular(object):
     #         res, err = quad_vec(2*integrand, 0, numpy.inf, epsabs=1e-200, epsrel=1e-08)
     #         return res
 
-    def w(self, bird, Dz, fz, rz, z, nz, which='cuba', theta_cut=0):
-        if 'trapz' in which: self.wtrapz(bird, Dz, fz, rz, z, nz)
-        elif 'cuba' in which: self.wcuba(bird, Dz, fz, rz, z, nz, theta_cut=theta_cut)
-        elif 'fast' in which: self.wfast(bird, Dz, fz, rz, z, nz, theta_cut=theta_cut)
+    # def gammat(self, bird, Dz, fz, rz, z, nl, ns, theta_cut=0):
 
-    # def wfast(self, bird, Dz, fz, rz, z, nz, theta_cut=0): 
-    #     '''
-    #     Neglecting loops #0 to #10 and counterterm #1 to #5
-    #     '''
+    #     rt = np.linspace(self.theta[0] * rz[0], self.theta[-1] * rz[-1], 100) # transverse seperation
+    #     st, s = np.meshgrid(rt, self.co.s, indexing='ij')
+    #     rp = (s**2 - st**2)**.5 # parallel 'projected' seperation # hopefully this does not crash
+    #     mu = rp / s 
+    #     L = np.array([legendre(2*l)(mu) for l in range(self.co.Nl)])
 
-    #     def interp(x, func):
-    #         return interp1d(x, func, axis=-1, kind='cubic', bounds_error=False, fill_value='extrapolate')
+    #     C11l = interp1d(self.co.s, bird.C11l, axis=-1, kind='cubic', bounds_error=False, fill_value='extrapolate')(s) # l: multipole, n: number linear terms, (theta, z1, z2)
+    #     C11 = np.einsum('l...,ln...,n...->n...', L, C11l, tlin) # l..., ln...,n...->n...
 
-    #     inz = interp(z, nz)
+    #     Cctl = interp1d(self.co.s, bird.Cctl, axis=-1, kind='cubic', bounds_error=False, fill_value='extrapolate')(s)
+    #     Cct = np.einsum('l...,ln...,n...->n...', L, Cctl, tct)
+
+    #     Cloopl = interp1d(self.co.s, bird.Cloopl, axis=-1, kind='cubic', bounds_error=False, fill_value='extrapolate')(s)
+    #     Cloop = np.einsum('l...,ln...,n...->n...', L, Cloopl, tloop)
+
+    #     bird.glin = np.trapz(np.trapz(C11, x=z2, axis=-1), x=z, axis=-1)
+    #     bird.gct = np.trapz(np.trapz(Cct, x=z2, axis=-1), x=z, axis=-1)
+    #     bird.gloop = np.trapz(np.trapz(Cloop, x=z2, axis=-1), x=z, axis=-1)
+
+    #     #### 
+
+    #     def interp(x, func): return interp1d(x, func, axis=-1, kind='cubic', bounds_error=False, fill_value='extrapolate')
+
+    #     inl = interp(z, nl)
+    #     ins = interp(z, ns)
     #     iDz = interp(z, Dz/bird.D)
     #     ifz = interp(z, fz/bird.f)
-    #     icf = interp(self.co.s, bird.C11l)
+    #     # icf = interp(self.co.s, bird.C11l)
     #     irz = interp(z, rz)
 
     #     def kernel(z, which='lin'):
     #         f = ifz(z)
     #         D = iDz(z)
-    #         n = inz(z)
-    #         if 'lin' in which: ker = np.einsum('...,n...->n...', n**2 * D**2, np.array([f**0, f, f**2]) )
-    #         elif 'loop' in which: ker =  np.einsum('...,n...->n...', n**2 * D**4, np.array([f**0, f**1, f**2, f**0, f**1, f**0, f**0, f**1, f**0, f**0, f**0]) )
+    #         nlz = inl(z)
+    #         nsz = ins(z)
+    #         if 'lin' in which: ker = np.einsum('...,n...->n...', n**2 * D**2, np.array([f**0, f]) )
+    #         self.bloop = np.array([f, f**2, b1 * f, b1, b2, b3, b4])
+    #         elif 'loop' in which: ker =  np.einsum('...,n...->n...', n**2 * D**4, np.array([f**1, f**2, f**1, f**0, f**0, f**0, f**0]) )
     #         elif 'ct' in which: ker = np.einsum('...,n...->n...', n**2 * D**2, np.array([f**0, f**1]) )
     #         return ker
 
+    #     self.f13 = np.array( 2*[fp0] + 2*[fp0] + 2*[fp1] + 2*[fp2] + 2*[fp0] + 3*[fp1] + 3*[fp2] + 2*[fp3] )
+    #     self.f22 = np.array( 2*[fp0] + 3*[fp0] + 2*[fp1] + 2*[fp2] + 6*[fp0] + 6*[fp1] + 9*[fp2] + 4*[fp3] + 3*[fp4] )
+
     #     def integrand(zz, theta, which='lin'):
+    #         # z1, z2 = zz
     #         z1 = zz[:, 0]
     #         z2 = zz[:, 1]
     #         zm = 0.5 * (z1 + z2)
@@ -69,84 +88,37 @@ class Angular(object):
     #         mu = (r2-r1)/s
     #         L = np.array([legendre(2*l)(mu) for l in range(self.co.Nl)])
     #         if 'lin' in which: C = interp(self.co.s, bird.C11l)(s)
-    #         elif 'loop' in which: C = interp(self.co.s, bird.Cloopl[:, 11:])(s)
-    #         elif 'ct' in which: C = interp(self.co.s, bird.Cctl[:, [0,3]])(s)
-    #         return np.einsum('lp,lnp,np->pn', L, C, ker)
+    #         elif 'loop' in which: C = interp(self.co.s, bird.Cloopl)(s)
+    #         elif 'ct' in which: C = interp(self.co.s, bird.Cctl)(s)
+    #         if 'loop' in which or 'ct' in which: C = C * np.heaviside(s - configuration_space_cut, 0.)
+    #         return np.einsum('lp,lnp,np->pn', L, C, ker) # l: multipoles, p: cuba parallelized processes, n: number of lin / loop / ct terms
 
     #     zmin = np.array([z[0], z[0]])
     #     zmax = np.array([z[-1], z[-1]])
 
-    #     bird.wlin = np.zeros(shape=(self.co.N11, self.Nt))
-    #     bird.wloop = np.zeros(shape=(self.co.Nloop, self.Nt))
-    #     bird.wct = np.zeros(shape=(self.co.Nct, self.Nt))
+    #     bird.glin = np.zeros(shape=(self.co.N11, self.Nt))
+    #     bird.gloop = np.zeros(shape=(self.co.Nloop, self.Nt))
+    #     bird.gct = np.zeros(shape=(self.co.Nct, self.Nt))
 
-    #     for i, (which, fdim) in enumerate(zip(['lin', 'loop', 'ct'], [self.co.N11, self.co.Nloop-11, self.co.Nct-4])):
+    #     for i, (which, fdim) in enumerate(zip(['lin', 'loop', 'ct'], [self.co.N11, self.co.Nloop, self.co.Nct])):
     #         for j, t in enumerate(self.theta):
     #             if t > theta_cut:
-    #                 try: val, err = cubature(integrand, 2, fdim, zmin, zmax, args=(t,), kwargs={'which':which}, abserr=1e-06 * t**-0.5, relerr=1e-2 * t**0.5, maxEval=0, adaptive='p', vectorized=True)
+    #                 try: 
+    #                     #val, err = cubature(integrand, 2, fdim, zmin, zmax, args=(t,), kwargs={'which':which}, abserr=1e-09 * t**-0.5, relerr=1e-5 * t**0.5, maxEval=0, adaptive='p', vectorized=True)
+    #                     val, err = cubature(integrand, 2, fdim, zmin, zmax, args=(t,), kwargs={'which':which}, abserr=1e-07 * t**-0.5, relerr=1e-3 * t**0.5, maxEval=0, adaptive='p', vectorized=True)
     #                 except KeyboardInterrupt: raise Exception('Process stopped by keyboard interrupted')
-    #                 if 'lin' in which: bird.wlin[:, j] = val
-    #                 elif 'loop' in which: bird.wloop[11:, j] = val
-    #                 elif 'ct' in which: bird.wct[[0,3], j] = val
+    #                 if 'lin' in which: bird.glin[:, j] = val
+    #                 elif 'loop' in which: bird.gloop[:, j] = val
+    #                 elif 'ct' in which: bird.gct[:, j] = val
+    #                 # if 'lin' in which: bird.glin[:, j] = err
+    #                 # elif 'loop' in which: bird.gloop[:, j] = err
+    #                 # elif 'ct' in which: bird.gct[:, j] = err
 
-    def wcuba(self, bird, Dz, fz, rz, z, nz, theta_cut=0):
-
-        def interp(x, func):
-            return interp1d(x, func, axis=-1, kind='cubic', bounds_error=False, fill_value='extrapolate')
-
-        inz = interp(z, nz)
-        iDz = interp(z, Dz/bird.D)
-        ifz = interp(z, fz/bird.f)
-        icf = interp(self.co.s, bird.C11l)
-        irz = interp(z, rz)
-
-        def kernel(z, which='lin'):
-            f = ifz(z)
-            D = iDz(z)
-            n = inz(z)
-            if 'lin' in which: ker = np.einsum('...,n...->n...', n**2 * D**2, np.array([f**0, f, f**2]) )
-            elif 'loop' in which: ker =  np.einsum('...,n...->n...', n**2 * D**4, np.array([f**2, f**3, f**4, f**1, f**2, f**3, f**1, f**2, f**1, f**1, f**2, f**0, f**1, f**2, f**0, f**1, f**0, f**0, f**1, f**0, f**0, f**0]) )
-            elif 'ct' in which: ker = np.einsum('...,n...->n...', n**2 * D**2, np.array([f**0, f**0, f**0, f**1, f**1, f**1]) )
-            return ker
-
-        def integrand(zz, theta, which='lin'):
-            # z1, z2 = zz
-            z1 = zz[:, 0]
-            z2 = zz[:, 1]
-            zm = 0.5 * (z1 + z2)
-            ker = kernel(zm, which=which)  
-            r1 = irz(z1)
-            r2 = irz(z2)
-            s = np.sqrt(r1**2 + r2**2 - 2*r1*r2*np.cos(theta))
-            mu = (r2-r1)/s
-            L = np.array([legendre(2*l)(mu) for l in range(self.co.Nl)])
-            if 'lin' in which: C = interp(self.co.s, bird.C11l)(s)
-            elif 'loop' in which: C = interp(self.co.s, bird.Cloopl)(s)
-            elif 'ct' in which: C = interp(self.co.s, bird.Cctl)(s)
-            return np.einsum('lp,lnp,np->pn', L, C, ker)
-
-        zmin = np.array([z[0], z[0]])
-        zmax = np.array([z[-1], z[-1]])
-
-        bird.wlin = np.zeros(shape=(self.co.N11, self.Nt))
-        bird.wloop = np.zeros(shape=(self.co.Nloop, self.Nt))
-        bird.wct = np.zeros(shape=(self.co.Nct, self.Nt))
-
-        for i, (which, fdim) in enumerate(zip(['lin', 'loop', 'ct'], [self.co.N11, self.co.Nloop, self.co.Nct])):
-            for j, t in enumerate(self.theta):
-                # tam = t / np.pi * (60. * 180.)
-                if t > theta_cut:
-                    try: 
-                        #val, err = cubature(integrand, 2, fdim, zmin, zmax, args=(t,), kwargs={'which':which}, abserr=1e-09 * t**-0.5, relerr=1e-5 * t**0.5, maxEval=0, adaptive='p', vectorized=True)
-                        val, err = cubature(integrand, 2, fdim, zmin, zmax, args=(t,), kwargs={'which':which}, abserr=1e-07 * t**-0.5, relerr=1e-3 * t**0.5, maxEval=0, adaptive='p', vectorized=True)
-                        #val, err = cubature(integrand, 2, fdim, zmin, zmax, args=(t,), kwargs={'which':which}, abserr=1e-06 * t**-0.5, relerr=1e-2 * t**0.5, maxEval=0, adaptive='p', vectorized=True)
-                    except KeyboardInterrupt: raise Exception('Process stopped by keyboard interrupted')
-                    if 'lin' in which: bird.wlin[:, j] = val
-                    elif 'loop' in which: bird.wloop[:, j] = val
-                    elif 'ct' in which: bird.wct[:, j] = val
-                    # if 'lin' in which: bird.wlin[:, j] = err
-                    # elif 'loop' in which: bird.wloop[:, j] = err
-                    # elif 'ct' in which: bird.wct[:, j] = err
+    def w(self, bird, Dz, fz, rz, z, nz, which='trapz', theta_cut=0, configuration_space_cut=10.):
+        if 'trapz' in which: self.wtrapz(bird, Dz, fz, rz, z, nz, configuration_space_cut=configuration_space_cut)
+        elif 'cuba' in which: self.wcuba(bird, Dz, fz, rz, z, nz, theta_cut=theta_cut, configuration_space_cut=configuration_space_cut)
+        elif 'quad' in which: self.wquad(bird, Dz, fz, rz, z, nz, theta_cut=theta_cut, configuration_space_cut=configuration_space_cut)
+        # elif 'fast' in which: self.wfast(bird, Dz, fz, rz, z, nz, theta_cut=theta_cut)
 
     def mesheval1d(self, z1d, zm, func):
         ifunc = interp1d(z1d, func, axis=-1, kind='cubic')
@@ -156,7 +128,7 @@ class Angular(object):
         ifunc = interp1d(z1d, func, axis=-1, kind='cubic')
         return ifunc(z1), ifunc(z2)
 
-    def wtrapz(self, bird, Dz, fz, rz, z, nz):
+    def wtrapz(self, bird, Dz, fz, rz, z, nz, configuration_space_cut=0.):
 
         x, z1, z2 = np.meshgrid(self.theta, z, z, indexing='ij')
 
@@ -212,8 +184,8 @@ class Angular(object):
 
         L = np.array([legendre(2*l)(mu) for l in range(self.co.Nl)])
         
-        C11l = interp1d(self.co.s, bird.C11l, axis=-1, kind='cubic', bounds_error=False, fill_value='extrapolate')(s)
-        C11 = np.einsum('l...,ln...,n...->n...', L, C11l, tlin)
+        C11l = interp1d(self.co.s, bird.C11l, axis=-1, kind='cubic', bounds_error=False, fill_value='extrapolate')(s) # l: multipole, n: number linear terms, (theta, z1, z2)
+        C11 = np.einsum('l...,ln...,n...->n...', L, C11l, tlin) # l..., ln...,n...->n...
 
         Cctl = interp1d(self.co.s, bird.Cctl, axis=-1, kind='cubic', bounds_error=False, fill_value='extrapolate')(s)
         Cct = np.einsum('l...,ln...,n...->n...', L, Cctl, tct)
@@ -221,11 +193,204 @@ class Angular(object):
         Cloopl = interp1d(self.co.s, bird.Cloopl, axis=-1, kind='cubic', bounds_error=False, fill_value='extrapolate')(s)
         Cloop = np.einsum('l...,ln...,n...->n...', L, Cloopl, tloop)
 
+        C11 = C11 * np.heaviside(s - self.co.s[0], 0.)
+        if configuration_space_cut == 0: configuration_space_cut = self.co.s[0]
+        Cct = Cct * np.heaviside(s - configuration_space_cut, 0.)
+        Cloop = Cloop * np.heaviside(s - configuration_space_cut, 0.)
+
         bird.wlin = np.trapz(np.trapz(C11, x=z2, axis=-1), x=z, axis=-1)
-        bird.wct = np.trapz(np.trapz(Cct, x=z2, axis=-1), x=z, axis=-1)
-        bird.wloop = np.trapz(np.trapz(Cloop, x=z2, axis=-1), x=z, axis=-1)
+        #bird.wct = np.trapz(np.trapz(Cct, x=z2, axis=-1), x=z, axis=-1)
+        #bird.wloop = np.trapz(np.trapz(Cloop, x=z2, axis=-1), x=z, axis=-1)
+        bird.wloop = np.zeros(shape=(self.co.Nloop, self.Nt))
+        bird.wct = np.zeros(shape=(self.co.Nct, self.Nt))
 
         if bird.with_nlo_bias:
             Cnlol = interp1d(self.co.s, bird.Cnlol, axis=-1, kind='cubic', bounds_error=False, fill_value='extrapolate')(s)
             Cnlo = np.einsum('l...,l...,...->...', L, Cnlol, Dp2 * np2)
             bird.wnlo = np.trapz(np.trapz(Cnlo, x=z2, axis=-1), x=z, axis=-1)
+
+
+    ###
+
+    def wquad(self, bird, Dz, fz, rz, z, nz, theta_cut=0, configuration_space_cut=0.):
+
+        def interp(x, func): return interp1d(x, func, axis=-1, kind='cubic', bounds_error=False, fill_value='extrapolate')
+
+        inz = interp(z, nz)
+        iDz = interp(z, Dz/bird.D)
+        ifz = interp(z, fz/bird.f)
+        # icf = interp(self.co.s, bird.C11l)
+        irz = interp(z, rz)
+
+        def kernel(z, which, ii):
+            f = ifz(z)
+            D = iDz(z)
+            n = inz(z)
+            if 'lin' in which: ker = np.einsum('...,n...->n...', n**2 * D**2, np.array([f**0, f, f**2]) )[ii]
+            elif 'loop' in which: ker =  np.einsum('...,n...->n...', n**2 * D**4, np.array([f**2, f**3, f**4, f**1, f**2, f**3, f**1, f**2, f**1, f**1, f**2, f**0, f**1, f**2, f**0, f**1, f**0, f**0, f**1, f**0, f**0, f**0]) )[ii]
+            elif 'ct' in which: ker = np.einsum('...,n...->n...', n**2 * D**2, np.array([f**0, f**0, f**0, f**1, f**1, f**1]) )[ii]
+            return ker
+
+        def integrand(z1, z2, theta, which, ii):
+            zm = 0.5 * (z1 + z2)
+            ker = kernel(zm, which, ii)  
+            r1 = irz(z1)
+            r2 = irz(z2)
+            s = np.sqrt(r1**2 + r2**2 - 2*r1*r2*np.cos(theta))
+            mu = (r2-r1)/s
+            L = np.array([legendre(2*l)(mu) for l in range(self.co.Nl)])
+            if 'lin' in which: C = interp(self.co.s, bird.C11l[:,ii])(s)
+            elif 'loop' in which: C = interp(self.co.s, bird.Cloopl[:,ii])(s)
+            elif 'ct' in which: C = interp(self.co.s, bird.Cctl[:,ii])(s)
+            if 'lin' in which: C = C * np.heaviside(s - self.co.s[0], 0.)
+            if 'loop' in which or 'ct' in which: 
+                if configuration_space_cut == 0: configuration_space_cut = self.co.s[0]
+                C = C * np.heaviside(s - configuration_space_cut, 0.)
+            return np.einsum('l,l,->', L, C, ker) # l: multipoles, n: number of lin / loop / ct terms
+
+        zmin = np.array([z[0], z[0]])
+        zmax = np.array([z[-1], z[-1]])
+
+        bird.wlin = np.zeros(shape=(self.co.N11, self.Nt))
+        bird.wloop = np.zeros(shape=(self.co.Nloop, self.Nt))
+        bird.wct = np.zeros(shape=(self.co.Nct, self.Nt))
+
+        for i, (which, fdim) in enumerate(zip(['lin'], [self.co.N11])):
+            for ii in range(fdim):
+                for j, t in enumerate(self.theta):
+                    # tam = t / np.pi * (60. * 180.)
+                    if t > theta_cut:
+                        try: 
+                            print (which, ii, t)
+                            val, err = dblquad(integrand, z[0], z[-1], lambda x: z[0], lambda x: z[-1], args=(t,which,ii), epsabs=1.49e-08, epsrel=1.e-03 * t**0.5)
+                            print (val, err)
+                        except KeyboardInterrupt: raise Exception('Process stopped by keyboard interrupted')
+                        if 'lin' in which: bird.wlin[ii, j] = val
+                        elif 'loop' in which: bird.wloop[ii, j] = val
+                        elif 'ct' in which: bird.wct[ii, j] = val
+
+        # for i, (which, fdim) in enumerate(zip(['lin', 'loop', 'ct'], [self.co.N11, self.co.Nloop, self.co.Nct])):
+        #     for ii in range(fdim):
+        #         for j, t in enumerate(self.theta):
+        #             # tam = t / np.pi * (60. * 180.)
+        #             if t > theta_cut:
+        #                 try: 
+        #                     print (which, ii, t)
+        #                     val, err = dblquad(integrand, z[0], z[-1], lambda x: z[0], lambda x: z[-1], args=(t,which,ii), epsabs=1.49e-08, epsrel=1.49e-08)
+        #                     print (val, err)
+        #                 except KeyboardInterrupt: raise Exception('Process stopped by keyboard interrupted')
+        #                 if 'lin' in which: bird.wlin[ii, j] = val
+        #                 elif 'loop' in which: bird.wloop[ii, j] = val
+        #                 elif 'ct' in which: bird.wct[ii, j] = val
+
+    def wcuba(self, bird, Dz, fz, rz, z, nz, theta_cut=0, configuration_space_cut=0.):
+
+        def interp(x, func): return interp1d(x, func, axis=-1, kind='cubic', bounds_error=False, fill_value='extrapolate')
+
+        inz = interp(z, nz)
+        iDz = interp(z, Dz/bird.D)
+        ifz = interp(z, fz/bird.f)
+        # icf = interp(self.co.s, bird.C11l)
+        irz = interp(z, rz)
+
+        def kernel(z, which='lin'):
+            f = ifz(z)
+            D = iDz(z)
+            n = inz(z)
+            if 'lin' in which: ker = np.einsum('...,n...->n...', n**2 * D**2, np.array([f**0, f, f**2]) )
+            elif 'loop' in which: ker =  np.einsum('...,n...->n...', n**2 * D**4, np.array([f**2, f**3, f**4, f**1, f**2, f**3, f**1, f**2, f**1, f**1, f**2, f**0, f**1, f**2, f**0, f**1, f**0, f**0, f**1, f**0, f**0, f**0]) )
+            elif 'ct' in which: ker = np.einsum('...,n...->n...', n**2 * D**2, np.array([f**0, f**0, f**0, f**1, f**1, f**1]) )
+            return ker
+
+        def integrand(zz, theta, which='lin'):
+            # z1, z2 = zz
+            z1 = zz[:, 0]
+            z2 = zz[:, 1]
+            zm = 0.5 * (z1 + z2)
+            ker = kernel(zm, which=which)  
+            r1 = irz(z1)
+            r2 = irz(z2)
+            s = np.sqrt(r1**2 + r2**2 - 2*r1*r2*np.cos(theta))
+            mu = (r2-r1)/s
+            L = np.array([legendre(2*l)(mu) for l in range(self.co.Nl)])
+            if 'lin' in which: C = interp(self.co.s, bird.C11l)(s)
+            elif 'loop' in which: C = interp(self.co.s, bird.Cloopl)(s)
+            elif 'ct' in which: C = interp(self.co.s, bird.Cctl)(s)
+            # if 'loop' in which or 'ct' in which: C = C * np.heaviside(s - configuration_space_cut, 0.)
+            return np.einsum('lp,lnp,np->pn', L, C, ker) # l: multipoles, p: cuba parallelized processes, n: number of lin / loop / ct terms
+
+        zmin = np.array([z[0], z[0]])
+        zmax = np.array([z[-1], z[-1]])
+
+        bird.wlin = np.zeros(shape=(self.co.N11, self.Nt))
+        bird.wloop = np.zeros(shape=(self.co.Nloop, self.Nt))
+        bird.wct = np.zeros(shape=(self.co.Nct, self.Nt))
+
+        for i, (which, fdim) in enumerate(zip(['lin', 'loop', 'ct'], [self.co.N11, self.co.Nloop, self.co.Nct])):
+            for j, t in enumerate(self.theta):
+                # tam = t / np.pi * (60. * 180.)
+                if t > theta_cut:
+                    try: 
+                        val, err = cubature(integrand, 2, fdim, zmin, zmax, args=(t,), kwargs={'which':which}, abserr=1e-09 * t**-0.5, relerr=1e-5 * t**0.5, maxEval=0, adaptive='p', vectorized=True)
+                        #val, err = cubature(integrand, 2, fdim, zmin, zmax, args=(t,), kwargs={'which':which}, abserr=1e-07 * t**-0.5, relerr=1e-3 * t**0.5, maxEval=0, adaptive='p', vectorized=True)
+                    except KeyboardInterrupt: raise Exception('Process stopped by keyboard interrupted')
+                    if 'lin' in which: bird.wlin[:, j] = val
+                    elif 'loop' in which: bird.wloop[:, j] = val
+                    elif 'ct' in which: bird.wct[:, j] = val
+                    # if 'lin' in which: bird.wlin[:, j] = err
+                    # elif 'loop' in which: bird.wloop[:, j] = err
+                    # elif 'ct' in which: bird.wct[:, j] = err
+
+    # def wfast(self, bird, Dz, fz, rz, z, nz, theta_cut=0): 
+    #     '''
+    #     Neglecting loops #0 to #10 and counterterm #1 to #5
+    #     '''
+
+    #     def interp(x, func):
+    #         return interp1d(x, func, axis=-1, kind='cubic', bounds_error=False, fill_value='extrapolate')
+
+    #     inz = interp(z, nz)
+    #     iDz = interp(z, Dz/bird.D)
+    #     ifz = interp(z, fz/bird.f)
+    #     icf = interp(self.co.s, bird.C11l)
+    #     irz = interp(z, rz)
+
+    #     def kernel(z, which='lin'):
+    #         f = ifz(z)
+    #         D = iDz(z)
+    #         n = inz(z)
+    #         if 'lin' in which: ker = np.einsum('...,n...->n...', n**2 * D**2, np.array([f**0, f, f**2]) )
+    #         elif 'loop' in which: ker =  np.einsum('...,n...->n...', n**2 * D**4, np.array([f**0, f**1, f**2, f**0, f**1, f**0, f**0, f**1, f**0, f**0, f**0]) )
+    #         elif 'ct' in which: ker = np.einsum('...,n...->n...', n**2 * D**2, np.array([f**0, f**1]) )
+    #         return ker
+
+    #     def integrand(zz, theta, which='lin'):
+    #         z1 = zz[:, 0]
+    #         z2 = zz[:, 1]
+    #         zm = 0.5 * (z1 + z2)
+    #         ker = kernel(zm, which=which)  
+    #         r1 = irz(z1)
+    #         r2 = irz(z2)
+    #         s = np.sqrt(r1**2 + r2**2 - 2*r1*r2*np.cos(theta))
+    #         mu = (r2-r1)/s
+    #         L = np.array([legendre(2*l)(mu) for l in range(self.co.Nl)])
+    #         if 'lin' in which: C = interp(self.co.s, bird.C11l)(s)
+    #         elif 'loop' in which: C = interp(self.co.s, bird.Cloopl[:, 11:])(s)
+    #         elif 'ct' in which: C = interp(self.co.s, bird.Cctl[:, [0,3]])(s)
+    #         return np.einsum('lp,lnp,np->pn', L, C, ker)
+
+    #     zmin = np.array([z[0], z[0]])
+    #     zmax = np.array([z[-1], z[-1]])
+
+    #     bird.wlin = np.zeros(shape=(self.co.N11, self.Nt))
+    #     bird.wloop = np.zeros(shape=(self.co.Nloop, self.Nt))
+    #     bird.wct = np.zeros(shape=(self.co.Nct, self.Nt))
+
+    #     for i, (which, fdim) in enumerate(zip(['lin', 'loop', 'ct'], [self.co.N11, self.co.Nloop-11, self.co.Nct-4])):
+    #         for j, t in enumerate(self.theta):
+    #             if t > theta_cut:
+    #                 try: val, err = cubature(integrand, 2, fdim, zmin, zmax, args=(t,), kwargs={'which':which}, abserr=1e-06 * t**-0.5, relerr=1e-2 * t**0.5, maxEval=0, adaptive='p', vectorized=True)
+    #                 except KeyboardInterrupt: raise Exception('Process stopped by keyboard interrupted')
+    #                 if 'lin' in which: bird.wlin[:, j] = val
+    #                 elif 'loop' in which: bird.wloop[11:, j] = val
+    #                 elif 'ct' in which: bird.wct[[0,3], j] = val

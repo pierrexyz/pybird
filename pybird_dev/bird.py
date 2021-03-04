@@ -703,15 +703,17 @@ class Bird(object):
         # Ps1 = np.einsum('b,lbx->lx', self.bloop, self.Ploopl) + np.einsum('b,lbx->lx', self.bct, self.Pctl)
         ### Putting it back to original form for the nlo bias = 1-loop^2 / Plin
         ### First redefine self.Ps to the correct shape (potentially modified by the interpolation / binning on data bins)
-
-        self.Ps = np.empty(shape=(2, self.co.Nl, self.P11l.shape[-1]))
-        self.Ps[0] = np.einsum('b,lbx->lx', self.b11, self.P11l)
-        self.Ps[1] = np.einsum('b,lbx->lx', self.bloop, self.Ploopl) + np.einsum('b,lbx->lx', self.bct, self.Pctl)
-        
-        if self.with_stoch: self.Ps[1] += np.einsum('b,lbx->lx', self.bst, self.Pstl)
-        if self.with_nlo_bias: self.Ps[1] += np.einsum('l,lbx->lx', self.bnlo, self.Pnlol)
-
-        self.setfullPs()
+        # self.Ps = np.empty(shape=(2, self.co.Nl, self.P11l.shape[-1]))
+        # self.Ps[0] = np.einsum('b,lbx->lx', self.b11, self.P11l)
+        # self.Ps[1] = np.einsum('b,lbx->lx', self.bloop, self.Ploopl) + np.einsum('b,lbx->lx', self.bct, self.Pctl)
+        # if self.with_stoch: self.Ps[1] += np.einsum('b,lbx->lx', self.bst, self.Pstl)
+        # if self.with_nlo_bias: self.Ps[1] += np.einsum('l,lbx->lx', self.bnlo, self.Pnlol)
+        # self.setfullPs()
+        ### NNLO depreciated: putting back the code for wedges format
+        Ps0 = np.einsum('b,lbx->lx', self.b11, self.P11l)
+        Ps1 = np.einsum('b,lbx->lx', self.bloop, self.Ploopl) + np.einsum('b,lbx->lx', self.bct, self.Pctl)
+        if self.with_stoch: Ps1 += np.einsum('b,lbx->lx', self.bst, self.Pstl)
+        self.fullPs = Ps0 + Ps1
 
     def setreduceCflb(self, bs):
         """ For option: which='all'. Given an array of EFT parameters, multiply them accordingly to the correlation multipole regrouped terms and adds the resulting terms together per loop order.
