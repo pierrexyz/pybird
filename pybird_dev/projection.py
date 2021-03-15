@@ -129,7 +129,7 @@ class Projection(object):
             self.s, self.z1, self.mu = np.meshgrid(self.co.s, self.zz, mu, indexing='ij')
             self.n1 = self.mesheval1d(self.zz, self.z1, nz)
             self.L = np.array([legendre(2*l)(self.mu) for l in range(self.co.Nl)]) # Legendre to reconstruct the 3D 2pt function
-            self.Lp = 2. * np.array([(2*l+1)/2. * legendre(2*l)(self.mu) for l in range(self.co.Nl)]) # Legendre in the integrand to get the multipoles ; factor 2 in front because mu integration goes from 0 to 1
+            self.Lp = 2. * np.array([(4*l+1)/2. * legendre(2*l)(self.mu) for l in range(self.co.Nl)]) # Legendre in the integrand to get the multipoles ; factor 2 in front because mu integration goes from 0 to 1
 
 
     def get_AP_param(self, bird=None, DA=None, H=None):
@@ -517,51 +517,60 @@ class Projection(object):
         ifunc = interp1d(z1d, func, axis=-1, kind='cubic', bounds_error=False, fill_value=0.)
         return ifunc(zm)
 
-    # def mesheval2d(self, z1d, z1, z2, func):
-    #     ifunc = interp1d(z1d, func, axis=-1, kind='cubic')
-    #     return ifunc(z1), ifunc(z2)
-
     def redshift(self, bird, rz, Dz, fz):
-
-        # if self.co.nonequaltime: # integrand evaluated at z_1, z_2
-
-        norm = np.trapz(self.nz**2 * rz**2, x=rz)
         
-        r1 = self.mesheval1d(self.zz, self.z1, rz)
         D1 = self.mesheval1d(self.zz, self.z1, Dz/bird.D) 
         f1 = self.mesheval1d(self.zz, self.z1, fz/bird.f) 
         s1 = self.mesheval1d(self.zz, self.z1, rz) 
         s2 = (self.s**2 + s1**2 + 2*self.s*s1*self.mu)**0.5
-        n2 = self.mesheval1d(rz, s2, self.nz) 
-        D2 = self.mesheval1d(rz, s2, Dz) 
-        f2 = self.mesheval1d(rz, s2, fz) 
-
+        n2 = self.mesheval1d(rz, s2, self.nz)  
+        D2 = self.mesheval1d(rz, s2, Dz/bird.D) 
+        f2 = self.mesheval1d(rz, s2, fz/bird.f) 
+        
+        # in principle, 13-type and 22-type loops have different time dependence, however, using the time dependence D1^2 x D^2 for both 22 and 13 gives a ~1e-4 relative difference ; similarly, we do some approximations in powers of f ; 
+        # if self.co.nonequaltime:
+        #     Dp2 = D1 * D2
+        #     Dp22 = Dp2 * Dp2
+        #     Dp13 = Dp22 # 0.5 * (D1**2 + D2**2) * Dp2 
+        #     fp0 = np.ones_like(f1)  # f1**0
+        #     fp1 = 0.5 * (f1 + f2)   # this one is exact, 
+        #     fp2 = fp1**2            # but this one is approximate, since f**2 = f1 * f2 or 0.5 * (f1**2+f2**2), instead we use mean f approximation
+        #     fp3 = fp1 * fp2         # and similar here
+        #     fp4 = f1**2 * f2**2     # however this one is exact
+        #     f11 = np.array([fp0, fp1, fp2])
+        #     fct = np.array([fp0, fp0, fp0, fp1, fp1, fp1])
+        #     floop = np.concatenate([6*[fp0], 6*[fp1], 9*[fp2], 4*[fp3], 3*[fp4], 2*[fp0],  3*[fp1], 3*[fp2], 2*[fp3]])
+        #     tlin = np.einsum('n...,...->n...', f11, Dp2 * self.n1 * n2)
+        #     tct = np.einsum('n...,...->n...', fct, Dp2 * self.n1 * n2)
+        #     tloop = np.empty_like(floop) 
+        #     tloop[:self.co.N22] = np.einsum('n...,...->n...', floop[:self.co.N22], Dp22 * self.n1 * n2)
+        #     tloop[self.co.N22:] = np.einsum('n...,...->n...', floop[self.co.N22:], Dp13 * self.n1 * n2)
+        # else:
         Dp2 = D1 * D2
-        Dp22 = Dp2 * Dp2
-        Dp13 = 0.5 * (D1**2 + D2**2) * Dp2
-        fp0 = f1**0
-        fp1 = 0.5 * (f1 + f2)   # this one is exact, 
-        fp2 = fp1**2            # but this one is approximate, since f**2 = f1 * f2 or 0.5 * (f1**2+f2**2), instead we use mean f approximation
-        fp3 = fp1 * fp2         # and similar here
-        fp4 = f1**2 * f2**2     # however this one is exact
+        Dp4 = Dp2**2
+        fp0 = np.ones_like(f1) 
+        fp1 = 0.5 * (f1 + f2)
+        fp2 = fp1**2
+        fp3 = fp1 * fp2
+        fp4 = f1**2 * f2**2
         f11 = np.array([fp0, fp1, fp2])
         fct = np.array([fp0, fp0, fp0, fp1, fp1, fp1])
-        floop = np.concatenate([6*[fp0], 6*[fp1], 9*[fp2], 4*[fp3], 3*[fp4], 2*[fp0],  3*[fp1], 3*[fp2], 2*[fp3]])
+        floop = np.array([fp2, fp3, fp4, fp1, fp2, fp3, fp1, fp2, fp1, fp1, fp2, fp0, fp1, fp2, fp0, fp1, fp0, fp0, fp1, fp0, fp0, fp0])
         tlin = np.einsum('n...,...->n...', f11, Dp2 * self.n1 * n2)
         tct = np.einsum('n...,...->n...', fct, Dp2 * self.n1 * n2)
-        tloop = np.empty_like(floop)
-        tloop[:self.co.N22] = np.einsum('n...,...->n...', floop[:self.co.N22], Dp22 * self.n1 * n2)
-        tloop[self.co.N22:] = np.einsum('n...,...->n...', floop[self.co.N22:], Dp13 * self.n1 * n2)
-
+        tloop = np.einsum('n...,...->n...', floop, Dp4 * self.n1 * n2)
+        
         def integrand(t, c): 
-            cmesh = interp1d(self.co.s, c, axis=-1, kind='cubic')(self.s) # l: multipole, n: number of linear/loop terms, (s, z1, mu)
-            print (self.Lp.shape, self.L.shape, cmesh.shape, t.shape)
-            return np.einsum('p...,l...,ln...,n...,...->pn...', self.Lp, self.L, cmesh, t, r1**2) # l..., ln...,n...->n...
+            cmesh = self.mesheval1d(self.co.s, self.s, c)  
+            return np.einsum('p...,l...,ln...,n...,...->pn...', self.Lp, self.L, cmesh, t, s1**2) # p: legendre polynomial order, l: multipole, n: number of linear/loop terms, (s, z1, mu)
+        
+        norm = np.trapz(self.nz**2 * rz**2, x=rz)
 
         def integration(t, c):
             return np.trapz(np.trapz(integrand(t, c), x=self.mu, axis=-1), x=rz, axis=-1) / norm
-        
+
         bird.C11l = integration(tlin, bird.C11l)
-        # bird.Cctl = integration(tct, bird.Cctl)
-        # bird.Cloopl = integration(tloop, bird.Cloopl)
+        bird.Cctl = integration(tct, bird.Cctl)
+        bird.Cloopl = integration(tloop, bird.Cloopl)
+
             

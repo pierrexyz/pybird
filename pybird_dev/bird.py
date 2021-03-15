@@ -220,6 +220,7 @@ class Bird(object):
         """
 
         f = self.f
+        # print ()
 
         if self.co.exact_time:
             ## EdS: Y1 = 0., G1t = 3/7., V12t = 1/7.
@@ -356,11 +357,11 @@ class Bird(object):
 
     def setfullPs(self):
         """ For option: which='full'. Adds together the linear and the loop parts to get the full power spectrum multipoles """
-        self.fullPs = self.Ps[0]#np.sum(self.Ps, axis=0)
+        self.fullPs = np.sum(self.Ps, axis=0) 
 
     def setfullCf(self):
         """ For option: which='full'. Adds together the linear and the loop parts to get the full correlation function multipoles """
-        self.fullCf = self.Cf[0]#np.sum(self.Cf, axis=0)
+        self.fullCf = np.sum(self.Cf, axis=0) 
 
     def setPsCfl(self):
         """ For option: which='all'. Creates multipoles for each term weighted accordingly """
@@ -717,8 +718,6 @@ class Bird(object):
         #Cf0 = np.einsum('b,lbx->lx', self.b11, self.C11l)
         #Cf1 = np.einsum('b,lbx->lx', self.bloop, self.Cloopl) + np.einsum('b,lbx->lx', self.bct, self.Cctl)
         #self.fullCf = Cf0 + Cf1
-
-        
 
     def subtractShotNoise(self):
         """ For option: which='all'. Subtract the constant stochastic term from the (22-)loop """

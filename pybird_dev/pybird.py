@@ -191,9 +191,6 @@ class Correlator(object):
             "with_nonequal_time": Option("with_nonequal_time", bool,
                 description="Non equal time correlator. Automatically set to \'with_time\' to False ",
                 default=False) ,
-            "with_redshift_bin_nonequal_time": Option("with_redshift_bin_nonequal_time", bool,
-                description="Non equal time correlator in redshift bin integration. Automatically set \'with_redshift_bin\' to True.",
-                default=False) ,
             "z1": Option("z1", (float, list, np.ndarray),
                 description="Redshift z_1 for non equal time correlator.",
                 default=None) ,
@@ -267,8 +264,7 @@ class Correlator(object):
                 else: self.resum.Ps(self.bird)
             if "w" in self.config["output"]: self.angular.w(self.bird, self.cosmo["Dz"], self.cosmo["fz"], self.cosmo["rz"], self.config["zz"], self.config["nz"], which=self.config["w_integrator"], theta_cut=self.config["w_theta_cut"])
             else:
-                if self.config["with_redshift_bin_nonequal_time"]: self.projection.redshift(self.bird, self.cosmo["rz"], self.cosmo["Dz"], self.cosmo["fz"])
-                elif self.config["with_redshift_bin"]: self.projection.redshift(self.bird, self.cosmo["rz"], self.cosmo["Dz"], self.cosmo["fz"])
+                if self.config["with_redshift_bin"]: self.projection.redshift(self.bird, self.cosmo["rz"], self.cosmo["Dz"], self.cosmo["fz"])
                 if self.config["with_AP"]: self.projection.AP(self.bird)
                 if self.config["with_window"]: self.projection.Window(self.bird)
                 if self.config["with_fibercol"]: self.projection.fibcolWindow(self.bird)
@@ -282,7 +278,7 @@ class Correlator(object):
                 cosmoi["f"] = self.cosmo["f"][0]
                 cosmoi["D"] = self.cosmo["D"][0]
                 cosmoi["z"] = self.config["z"][0]
-                if self.config["with_AP"] and not self.config["with_redshift_bin"]: 
+                if self.config["with_AP"]: 
                     cosmoi["DA"] = self.cosmo["DA"][0]
                     cosmoi["H"] = self.cosmo["H"][0]
                 self.bird = Bird(cosmoi, with_bias=False, with_stoch=self.config["with_stoch"], with_nlo_bias=self.config["with_nlo_bias"], co=self.co)
@@ -314,7 +310,7 @@ class Correlator(object):
                     cosmoi["D"] = self.cosmo["D"][i]
                     cosmoi["z"] = self.config["z"][i]
 
-                    if self.config["with_AP"] and not self.config["with_redshift_bin"]: 
+                    if self.config["with_AP"]: 
                         cosmoi["DA"] = self.cosmo["DA"][i]
                         cosmoi["H"] = self.cosmo["H"][i]
 
@@ -491,9 +487,7 @@ class Correlator(object):
     def getmarg(self, b1, model=1, bq=0):
 
         def marg(loop, ct, b1, f1, Pst=None, model=model, bq=0):
-
-            # if self.config["with_redshift_bin"]: f = 1. #### This is wrong: the redshift integration is with f(z)/f(z_fid) ; f(z_fid) is given in setBias(), not before.
-            # else: f = f1
+            
             f = f1
 
             if loop.ndim is 3:
@@ -659,7 +653,7 @@ class Correlator(object):
         if self.config["with_bias"]:
             self.__is_bias_conflict()
 
-        if self.config["with_AP"] and not self.config["with_redshift_bin"]:
+        if self.config["with_AP"]:
             if self.cosmo["DA"] is None or self.cosmo["H"] is None:
                 raise Exception("You asked to apply the AP effect. Please specify \'DA\' and \'H\'. ")
             
@@ -896,14 +890,10 @@ class Correlator(object):
             self.config["windowPk"] = None
             self.config["windowCf"] = None
 
-        if self.config["with_redshift_bin_nonequal_time"]: 
-            self.config["with_redshift_bin"] = True 
-            self.config["with_common_nonequal_time"] = True # this is to pass for the common Class to setup the numbers of loops (22 and 13 seperated)
-
         if self.config["with_redshift_bin"]:
             self.config["with_bias"] = False
             self.config["with_time"] = False
-            self.config["with_common_nonequal_time"] = True
+            # self.config["with_common_nonequal_time"] = True # approximating 13 and 22 loop time to be the same, see Projection.redshift()
 
             def is_conflict_zz(zz, nz):
                 if zz is None or nz is None:
@@ -990,7 +980,7 @@ class Correlator(object):
                     cosmo["H"] = np.array([M.Hubble(z) / M.Hubble(0.) for z in self.config["z"]])
 
             if self.config["with_redshift_bin"]:
-                def comoving_distance(z): return M.angular_distance(z)*(1+z)*M.h()
+                def comoving_distance(z): return M.angular_distance(z) * (1+z) * M.h()
                 if self.config["skycut"] == 1:
                     cosmo["D"] = M.scale_independent_growth_factor(self.config["z"])
                     cosmo["Dz"] = np.array([M.scale_independent_growth_factor(z) for z in self.config["zz"]])
