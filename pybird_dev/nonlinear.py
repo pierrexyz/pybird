@@ -3,8 +3,8 @@ import numpy as np
 from numpy import pi, cos, sin, log, exp, sqrt, trapz
 from scipy.interpolate import interp1d
 from scipy.special import gamma
-from . fftlog import FFTLog, MPC
-from . common import co
+from fftlog import FFTLog, MPC, CoefWindow
+from common import co
 
 class NonLinear(object):
     """
@@ -43,7 +43,7 @@ class NonLinear(object):
         Optimization settings for NumPy einsum when performing matrix multiplications to compute the 22-loop correlation function. For speedup purpose in repetitive evaluations. 
     """
 
-    def __init__(self, load=True, save=True, path='./', NFFT=256, co=co, angular=False):
+    def __init__(self, load=True, save=True, path='./', NFFT=256, co=co):
 
         self.co = co
 
@@ -69,7 +69,7 @@ class NonLinear(object):
                     print ('Loaded loop matrices do not correspond to asked FFTLog configuration. \n Computing new matrices.')
                     load = False
                 else:
-                    self.M22, self.M13, self.Mcf11, self.Mcf22, self.Mcf13, self.Mcfct = L['M22'], L['M13'], L['Mcf11'], L['Mcf22'], L['Mcf13'], L['Mcfct']#, L['Mcfnlo']
+                    self.M22, self.M13, self.Mcf11, self.Mcf22, self.Mcf13, self.Mcfct = L['M22'], L['M13'], L['Mcf11'], L['Mcf22'], L['Mcf13'], L['Mcfct']
                     save = False
             except:
                 print ('Can\'t load loop matrices at %s. \n Computing new matrices.' % path)
@@ -83,10 +83,9 @@ class NonLinear(object):
             self.setMcf22()
             self.setMcf13()
             self.setMcfct()
-            #self.setMcfnlo()
 
         if save is True:
-            try: np.savez(self.pyegg, Pow=self.fft.Pow, M22=self.M22, M13=self.M13, Mcf11=self.Mcf11, Mcf22=self.Mcf22, Mcf13=self.Mcf13, Mcfct=self.Mcfct)#, Mcfnlo=self.Mcfnlo)
+            try: np.savez(self.pyegg, Pow=self.fft.Pow, M22=self.M22, M13=self.M13, Mcf11=self.Mcf11, Mcf22=self.Mcf22, Mcf13=self.Mcf13, Mcfct=self.Mcfct)
             except: print ('Can\'t save loop matrices at %s.' % path)
 
         self.setkPow()
@@ -96,42 +95,6 @@ class NonLinear(object):
         self.optipathP22 = np.einsum_path('nk,mk,bnm->bk', self.kPow, self.kPow, self.M22, optimize='optimal')[0]
         self.optipathC13l = np.einsum_path('ns,ms,blnm->bls', self.sPow, self.sPow, self.Mcf22, optimize='optimal')[0]
         self.optipathC22l = np.einsum_path('ns,ms,blnm->bls', self.sPow, self.sPow, self.Mcf13, optimize='optimal')[0]
-
-        if angular:
-            self.Afftsettings = dict(Nmax=NFFT, xmin=1.e-4, xmax=1000., bias=-1.6)
-            self.Afft = FFTLog(**self.Afftsettings)
-
-            self.pyang = os.path.join(path, 'pyang%s.npz') % (NFFT)
-
-            if load is True:
-                try:
-                    L = np.load( self.pyang )
-                    if (self.Afft.Pow - L['Pow']).any():
-                        print ('Loaded angular loop matrices do not correspond to asked FFTLog configuration. \n Computing new matrices.')
-                        load = False
-                    else:
-                        self.Mang11, self.Mang22, self.Mang13, self.Mangct = L['Mang11'], L['Mang22'], L['Mang13'], L['Mangct']
-                        save = False
-                except:
-                    print ('Can\'t load angular loop matrices at %s. \n Computing new matrices.' % path)
-                    load = False
-
-            if load is False:
-                self.setMang()
-                self.setMang11()
-                self.setMang22()
-                self.setMang13()
-                self.setMangct()
-
-            if save is True:
-                try: np.savez(self.pyang, Pow=self.Afft.Pow, Mang11=self.Mang11, Mang22=self.Mang22, Mang13=self.Mang13, Mangct=self.Mangct)
-                except: print ('Can\'t save angular loop matrices at %s.' % path)
-
-            self.setrPow()
-
-            # To speed-up matrix multiplication:
-            self.optipathA13l = np.einsum_path('ns,ms,blnm->bls', self.rPow, self.rPow, self.Mang22, optimize='optimal')[0]
-            self.optipathA22l = np.einsum_path('ns,ms,blnm->bls', self.rPow, self.rPow, self.Mang13, optimize='optimal')[0]
 
     def setM22(self):
         """ Compute the 22-loop power spectrum matrices. Called at the instantiation of the class if the matrices are not loaded. """
@@ -193,17 +156,6 @@ class NonLinear(object):
         for l in range(self.co.Nl):
             for u, n1 in enumerate(-0.5 * self.fft.Pow - 1.):
                 self.Mcfct[l, u] = 1j**(2*l) * MPC(2 * l, n1)
-
-    # def setMcfnlo(self):
-    #     """ Compute the next-to-leading counterterm correlation function matrices. """
-    #     self.Mcfnlo = np.empty(shape=(self.co.Nl, self.fft.Pow.shape[0]), dtype='complex')
-    #     for l in range(self.co.Nl):
-    #         for u, n1 in enumerate(-0.5 * self.fft.Pow - 2.):
-    #             self.Mcfnlo[l, u] = 1j**(2*l) * MPC(2 * l, n1)
-
-    def makeCnlo(self, CoefsPow, bird):
-        """ Perform the next-to-leading counterterm correlation function matrix multiplications """
-        bird.Cnlo = self.co.s**-4 * np.real(np.einsum('ns,ln->ls', CoefsPow, self.Mcfct)) ### Approximation
 
     def setkPow(self):
         """ Compute the k's to the powers of the FFTLog to evaluate the loop power spectrum. Called at the instantiation of the class. """
@@ -283,8 +235,6 @@ class NonLinear(object):
         self.makeC22l(coefsPow, bird)
         self.makeC13l(coefsPow, bird)
 
-        if bird.with_nlo_bias: self.makeCnlo(coefsPow, bird)
-
     def PsCf(self, bird, window=None):
         """ Compute the loop power spectrum and correlation function given a Bird(). Perform the FFTLog and the matrix multiplications.
 
@@ -304,73 +254,6 @@ class NonLinear(object):
         self.makeCct(coefsPow, bird)
         self.makeC22l(coefsPow, bird)
         self.makeC13l(coefsPow, bird)
-
-        if bird.with_nlo_bias: self.makeCnlo(coefsPow, bird)
-
-    # def setMang11(self):
-    #     """ Compute the linear 'angular' correlation function matrices. Called at the instantiation of the class if the matrices are not loaded. """
-    #     self.Mang11 = np.empty(shape=(self.co.Ng, self.Afft.Pow.shape[0]), dtype='complex')
-    #     for l in range(self.co.Ng):
-    #         for u, n1 in enumerate(-0.5 * self.Afft.Pow):
-    #             self.Mang11[l, u] = (2*pi)**.5 * MPC(2 * l - 0.5, n1)
-
-    # def setMang(self):
-    #     """ Compute the power spectrum to 'angular' correlation function spherical Bessel transform matrices. Called at the instantiation of the class if the matrices are not loaded. """
-    #     self.Mang = np.empty(shape=(self.co.Ng, self.Afft.Pow.shape[0], self.Afft.Pow.shape[0]), dtype='complex')
-    #     for l in range(self.co.Ng):
-    #         for u, n1 in enumerate(-0.5 * self.Afft.Pow):
-    #             for v, n2 in enumerate(-0.5 * self.Afft.Pow):
-    #                 self.Mang[l, u, v] = (2*pi)**.5 * MPC(2 * l - 0.5, n1 + n2 - 1.5)
-
-    # def setMang22(self):
-    #     """ Compute the 22-loop 'angular' correlation function matrices. Called at the instantiation of the class if the matrices are not loaded. """
-    #     self.Mang22 = np.einsum('lnm,bnm->blnm', self.Mang, self.M22)
-
-    # def setMang13(self):
-    #     """ Compute the 13-loop 'angular' correlation function matrices. Called at the instantiation of the class if the matrices are not loaded. """
-    #     self.Mang13 = np.einsum('lnm,bn->blnm', self.Mang, self.M13)
-
-    # def setMangct(self):
-    #     """ Compute the counterterm 'angular' correlation function matrices. Called at the instantiation of the class if the matrices are not loaded. """
-    #     self.Mangct = np.empty(shape=(self.co.Ng, self.Afft.Pow.shape[0]), dtype='complex')
-    #     for l in range(self.co.Ng):
-    #         for u, n1 in enumerate(-0.5 * self.Afft.Pow - 1.):
-    #             self.Mangct[l, u] = (2*pi)**.5 * MPC(2 * l - 0.5, n1)
-
-    # def setrPow(self):
-    #     """ Compute the r's to the powers of the FFTLog to evaluate the loop 'angular' correlation function. Called at the instantiation of the class. """
-    #     self.rPow = self.r**0.5 * exp(np.einsum('n,s->ns', -self.Afft.Pow - 3., log(self.co.r)))
-    
-    # def CoefrPow(self, Coef):
-    #     """ Multiply the coefficients with the r's to the powers of the FFTLog to evaluate the 'angular' correlation function. """
-    #     return np.einsum('n,ns->ns', Coef, self.rPow)
-
-    # def AngCoef(self, bird, window=None):
-    #     return self.fft.Coef(bird.kin, bird.kin**-0.5 * bird.Pin, window=window)
-
-    # def makeA11(self, CoefrPow, bird):
-    #     """ Perform the linear 'angular' correlation function matrix multiplications """
-    #     bird.A11 = np.real(np.einsum('ns,ln->ls', CoefrPow, self.Mang11))
-
-    # def makeAct(self, CoefrPow, bird):
-    #     """ Perform the counterterm 'angular' correlation function matrix multiplications """
-    #     bird.Act = self.co.r**-2 * np.real(np.einsum('ns,ln->ls', CoefrPow, self.Mangct))
-
-    # def makeA22l(self, CoefrPow, bird):
-    #     """ Perform the 22-loop 'angular' correlation function matrix multiplications """
-    #     bird.A22l = np.real(np.einsum('ns,ms,blnm->lbs', CoefrPow, CoefrPow, self.Mang22, optimize=self.optipathA22l))
-
-    # def makeA13l(self, CoefrPow, bird):
-    #     """ Perform the 13-loop 'angular' correlation function matrix multiplications """
-    #     bird.A13l = np.real(np.einsum('ns,ms,blnm->lbs', CoefrPow, CoefrPow, self.Mang13, optimize=self.optipathA13l))
-
-    # def Ang(self, bird, window=None):
-    #     coef = self.AngCoef(bird, window=.2)
-    #     coefrPow = self.CoefrPow(coef)
-    #     self.makeA11(coefrPow, bird)
-    #     self.makeAct(coefrPow, bird)
-    #     self.makeA22l(coefrPow, bird)
-    #     self.makeA13l(coefrPow, bird)
 
 
 

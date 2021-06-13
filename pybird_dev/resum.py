@@ -2,9 +2,9 @@ import os
 import numpy as np
 from numpy import pi, cos, sin, log, exp, sqrt, trapz
 from scipy.interpolate import interp1d
-from . fftlog import FFTLog, MPC, CoefWindow
-from . common import co
-from . resumfactor import Qa,  Qawithhex, Qawithhex20
+from fftlog import FFTLog, MPC, CoefWindow
+from common import co
+from resumfactor import Qa,  Qawithhex, Qawithhex20
 
 class Resum(object):
     """

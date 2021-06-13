@@ -88,7 +88,7 @@ class Common(object):
         self.with_cf = False
         if with_cf:
             self.with_cf = with_cf
-            kmax = 0.6
+            kmax = 0.6 # Do not change this: the IR-corrections are computed up to kmax = 0.6. If less, the BAO are not fully resummed; if more, numerical instabilities might appear ; so make sure to provide a linear power spectrum up to k > 0.6
             #self.optiresum = True
             slog = np.geomspace(1., 1000., 100) ### Do not change the min max ; the damping windows in the FFTLog of the IR-corrections are depending on those
             slin = np.arange(1./accboost, 200., 1./accboost)
@@ -127,12 +127,14 @@ class Common(object):
         self.lct = np.empty(shape=(self.Nl, self.Nct))
         self.l22 = np.empty(shape=(self.Nl, self.N22))
         self.l13 = np.empty(shape=(self.Nl, self.N13))
+        self.lnnlo = np.empty(shape=(self.Nl, 1))
         
         for i in range(self.Nl):
             l = 2 * i
             if self.halohalo:
                 self.l11[i] = np.array([mu[0][l], mu[2][l], mu[4][l]])
                 self.lct[i] = np.array([mu[0][l], mu[2][l], mu[4][l], mu[2][l], mu[4][l], mu[6][l]])
+                self.lnnlo[i] = np.array([1.])
                 if self.exact_time:
                     self.l22[i] = np.array([ 6 * [mu[0][l]] + 7 * [mu[2][l]] + [mu[4][l], mu[2][l], mu[4][l], mu[2][l], mu[4][l], mu[2][l]] 
                         + 3 * [mu[4][l]] + [mu[6][l], mu[4][l], mu[6][l], mu[4][l], mu[6][l], mu[8][l]] 

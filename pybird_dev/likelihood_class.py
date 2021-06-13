@@ -2695,229 +2695,96 @@ class Likelihood_bird(Likelihood):
 
         Likelihood.__init__(self, path, data, command_line)
 
-        # try:
-        #     with open(self.configfile, 'r') as f:
-        #         self.config = yaml.full_load(f)
-        # except OSError:
-        #     newpath = os.path.join(self.data_directory, self.configfile)
-        #     print("WARNING: We are loading the configuration in %s. Please make sure this is what you want!", newpath)
-        #     with open(newpath, 'r') as f:
-        #         self.config = yaml.full_load(f)
-
         self.config = yaml.full_load(open(os.path.join(self.data_directory, self.configfile), 'r'))
 
         # Loading data and priors
-        if "w" in self.config["output"]:
+        options = [ "with_exact_time", "with_tidal_alignments", "with_nnlo_counterterm", "with_nnlo_higher_derivative", 
+        "get_chi2_from_marg", "with_derived_bias", "with_quintessence", "with_cf_sys", "xmaxspacing"]
 
-            des = fits.open(os.path.join(self.data_directory, self.config["data_file"]))
+        for keys in options:
+            if not keys in self.config: self.config[keys] = False
+            print (keys, ':', self.config[keys])
 
-            Nbin = 5
+        self.x, self.xmask, self.ydata, self.chi2data, self.invcov, self.invcovdata, self.priormat = [], [], [], [], [], [], []
+        
+        if self.config["skycut"] > 1: self.config["zz"], self.config["nz"] = [], []
+        
+        self.xmax = 0.
+        for i in range(self.config["skycut"]):
 
-            tam = np.empty(shape=(20))
-            wdes = np.empty(shape=(Nbin * 20))
-            for i, line in enumerate(des['wtheta'].data):
-                bin1, bin2, angbin, val, ang, npairs = line
-                if i < 20:
-                    tam[i] = ang
-                wdes[i] = val
-            wdes = wdes.reshape(Nbin, 20)
+            if self.config.get("xmax") is None:
+                xmax0, xmax1 = self.config["xmax0"][i], self.config["xmax1"][i]
+                xmax = max(xmax0, xmax1)
+            else: xmax, xmax0, xmax1 = self.config["xmax"][i], None, None
 
-            cov = des['COVMAT'].data[-100:, -100:]
-            # err = np.sqrt(np.diag(cov)).reshape(5,-1)
+            if self.xmax < xmax: self.xmax = xmax # to increase the kmax to provide to pybird
 
-            t = tam * np.pi / (60. * 180.)
+            if self.config.get("xmin") is None:
+                xmin0, xmin1 = self.config["xmin0"][i], self.config["xmin1"][i]
+                xmin = min(xmin0, xmin1)
+            else: xmin, xmin0, xmin1 = self.config["xmin"][i], None, None
 
-            N = des['nz_lens'].data.shape[0]
+            if self.config["with_bao"]: baoH, baoD = self.config["baoH"][i], self.config["baoD"][i]
+            else: baoH, baoD = None, None
 
-            zdes = np.empty(shape=(N))
-            ndes = np.empty(shape=(Nbin, N))
-            for i, line in enumerate(des['nz_lens'].data):
-                zlow, zmid, zhigh, bin1, bin2, bin3, bin4, bin5 = line
-                zdes[i] = zmid
-                for j in range(Nbin):
-                    ndes[j, i] = line[3 + j] / (zhigh - zlow)
-
-            for j in range(Nbin):
-                ndes[j] /= np.trapz(ndes[j], x=zdes)
-
-            Nz = 200
-            zeff = np.array([0.24, 0.38, 0.525, 0.685, 0.83])
-
-            zz = np.empty(shape=(Nbin, Nz))
-            nz = np.empty(shape=(Nbin, Nz))
-
-            for i in range(Nbin):
-                zz[i] = np.linspace(zeff[i] - 0.1, zeff[i] + 0.1, Nz)
-                nz[i] = interp1d(zdes, ndes[i], kind='cubic')(zz[i])
-
-            tamin = self.config["xmin"]
-            tmask0 = np.argwhere((tam >= min(tamin)))[:, 0]
-            self.tmask = np.concatenate([np.argwhere((tam >= tamin[i]))[:, 0] + i * 20 for i in range(Nbin)])
-            covred = cov[self.tmask.reshape((len(self.tmask), 1)), self.tmask]
-            self.invcov = np.linalg.inv(covred)
-            ydata = wdes.reshape(-1)[self.tmask]
-            xdata = tam[tmask0]
-            self.chi2data = np.dot(ydata, np.dot(self.invcov, ydata))
-            self.invcovdata = np.dot(ydata, self.invcov)
-
-            self.config["skycut"] = Nbin
-            self.config["z"] = zeff
-            self.config["zz"] = zz
-            self.config["nz"] = nz
-            self.config["xdata"] = t
-            self.config["model"] = 0
-            self.config["multipole"] = 3
-            self.config["with_redshift_bin"] = True
-            self.config["with_resum"] = False
-            self.config["with_stoch"] = False
-            self.config["with_exact_time"] = False
-            self.config["with_AP"] = False
-            self.config["with_derived_bias"] = False
-
-            # shape: (Nbin * Nmarg, Nbin * Nmarg)
-            priormatdiag = []
-            for i in range(self.config["skycut"]):
-                priormatdiag.append(np.diag(self.__set_prior(self.config["multipole"], model=self.config["model"])))
-            priormatdiag = np.array(priormatdiag).reshape(-1)
-            self.priormat = np.diagflat(priormatdiag)
-
-        else:
-            self.x = []
-            self.xmask = []
-            self.ydata = []
-            self.chi2data = []
-            self.invcov = []
-            self.invcovdata = []
-            self.priormat = []
-
-            if self.config["skycut"] > 1:
-                self.config["zz"] = []
-                self.config["nz"] = []
-
-            self.xmax = 0.
-
-            for i in range(self.config["skycut"]):
-
-                if self.config.get("xmax") is None:
-                    xmax0 = self.config["xmax0"][i]
-                    xmax1 = self.config["xmax1"][i]
-                    xmax = max(xmax0, xmax1)
-                else:
-                    xmax = self.config["xmax"][i]
-                    xmax0 = None
-                    xmax1 = None
-                
-                if self.config.get("xmin") is None:
-                    xmin0 = self.config["xmin0"][i]
-                    xmin1 = self.config["xmin1"][i]
-                    xmin = min(xmin0, xmin1)
-                else:
-                    xmin = self.config["xmin"][i]
-                    xmin0 = None
-                    xmin1 = None
-
-                if self.xmax < xmax:
-                    self.xmax = xmax
-
-                if self.config["with_bao"]:
-                    baoH = self.config["baoH"][i]
-                    baoD = self.config["baoD"][i]
-                else:
-                    baoH = None
-                    baoD = None
-
-                if "Pk" in self.config["output"]:
-                    xi, xmaski, ydatai, chi2datai, invcovi, invcovdatai = self.__load_data_ps(
-                        self.config["multipole"], self.config["wedge"],
-                        self.data_directory, self.config["spectrum_file"][i], self.config["covmat_file"][i],
-                        xmin=self.config["xmin"][i], xmax=xmax, xmax0=xmax0, xmax1=xmax1, with_bao=self.config["with_bao"], baoH=baoH, baoD=baoD)
-                else:
-                    xi, xmaski, ydatai, chi2datai, invcovi, invcovdatai = self.__load_data_cf(
-                        self.config["multipole"], self.config["wedge"],
-                        self.data_directory, self.config["spectrum_file"][i], self.config["covmat_file"][i],
-                        xmax=self.config["xmax"][i], xmin=xmin, xmin0=xmin0, xmin1=xmin1, with_bao=self.config["with_bao"], baoH=baoH, baoD=baoD)
-
-                priormati = self.__set_prior(self.config["multipole"], model=self.config["model"])
-
-                if self.config["with_redshift_bin"]:  # BOSS
-                    try:
-                        if "None" in self.config["density"][i]:
-                            zz = [0.32]
-                            nz = None
-                        else:
-                            z, _, _, nz = np.loadtxt(os.path.join(
-                                self.data_directory, self.config["density"][i]), unpack=True)
-                            nz /= np.trapz(nz, x=z)
-                            zz = np.linspace(z[0], z[-1], 40)
-                            nz = interp1d(z, nz, kind='cubic')(zz)
-                        if self.config["skycut"] > 1:
-                            self.config["zz"].append(zz)
-                            self.config["nz"].append(nz)
-                        else:
-                            self.config["zz"] = zz
-                            self.config["nz"] = nz
-                    except:
-                        raise Exception('galaxy count distribution: %s not found!' % self.config["density"][i])
-
-                # self.Nx.append(Nxi)
-                self.x.append(xi)
-                self.xmask.append(xmaski)
-                self.ydata.append(ydatai)
-                self.chi2data.append(chi2datai)
-                self.invcov.append(invcovi)
-                self.invcovdata.append(invcovdatai)
-                self.priormat.append(priormati)
-
-            # formatting configuration for pybird
-            self.config["xdata"] = self.x
-            if self.config["with_window"]:
-                if self.config["skycut"] > 1:
-                    self.config["windowPk"] = [os.path.join(
-                        self.data_directory, self.config["windowPk"][i]) for i in range(self.config["skycut"])]
-                    self.config["windowCf"] = [os.path.join(
-                        self.data_directory, self.config["windowCf"][i]) for i in range(self.config["skycut"])]
-                else:
-                    self.config["windowPk"] = os.path.join(self.data_directory, self.config["windowPk"][i])
-                    self.config["windowCf"] = os.path.join(self.data_directory, self.config["windowCf"][i])
             if "Pk" in self.config["output"]:
-                self.config["kmax"] = self.xmax + 0.05
-            try:
-                self.config["with_exact_time"]
-            except:
-                self.config["with_exact_time"] = False
-            try:
-                self.config["with_tidal_alignments"]
-            except:
-                self.config["with_tidal_alignments"] = False
-            try:
-                self.config["with_nlo_bias"]
-            except:
-                self.config["with_nlo_bias"] = False
-            try:
-                self.config["with_nlo_bias_2loop"]
-            except:
-                self.config["with_nlo_bias_2loop"] = False
-            try:
-                self.config["with_cf_sys"]
-            except:
-                self.config["with_cf_sys"] = False
-            try:
-                self.config["with_derived_bias"]
-            except:
-                self.config["with_derived_bias"] = False
-            try:
-                self.config["with_quintessence"]
-            except:
-                self.config["with_quintessence"] = False
-            try:
-                self.config["get_chi2_from_marg"]
-            except:
-                self.config["get_chi2_from_marg"] = False
+                xi, xmaski, ydatai, chi2datai, invcovi, invcovdatai = self.__load_data_ps(
+                    self.config["multipole"], self.config["wedge"],
+                    self.data_directory, self.config["spectrum_file"][i], self.config["covmat_file"][i],
+                    xmin=self.config["xmin"][i], xmax=xmax, xmax0=xmax0, xmax1=xmax1, xmaxspacing=self.config["xmaxspacing"], with_bao=self.config["with_bao"], baoH=baoH, baoD=baoD)
+            else:
+                xi, xmaski, ydatai, chi2datai, invcovi, invcovdatai = self.__load_data_cf(
+                    self.config["multipole"], self.config["wedge"],
+                    self.data_directory, self.config["spectrum_file"][i], self.config["covmat_file"][i],
+                    xmax=self.config["xmax"][i], xmin=xmin, xmin0=xmin0, xmin1=xmin1, with_bao=self.config["with_bao"], baoH=baoH, baoD=baoD)
 
-            print ("output: %s" % self.config["output"])
-            print ("multipole: %s" % self.config["multipole"])
-            print ("wedge: %s" % self.config["wedge"])
-            print ("skycut: %s" % self.config["skycut"])
+            priormati = self.__set_prior(self.config["multipole"], model=self.config["model"])
+
+            if self.config["with_redshift_bin"]:  # BOSS
+                try:
+                    if "None" in self.config["density"][i]: zz, nz = [0.32], None
+                    else:
+                        try: z, _, _, nz = np.loadtxt(os.path.join(self.data_directory, self.config["density"][i]), unpack=True)
+                        except: z, nz = np.loadtxt(os.path.join(self.data_directory, self.config["density"][i]), unpack=True)
+                        nz /= np.trapz(nz, x=z)
+                        zz = np.linspace(z[0], z[-1], 50)
+                        nz = interp1d(z, nz, kind='cubic')(zz)
+                        nz /= np.trapz(nz, x=zz)
+                    if self.config["skycut"] > 1:
+                        self.config["zz"].append(zz)
+                        self.config["nz"].append(nz)
+                    else:
+                        self.config["zz"], self.config["nz"] = zz, nz
+                except:
+                    raise Exception('galaxy count distribution: %s not found!' % self.config["density"][i])
+
+            # self.Nx.append(Nxi)
+            self.x.append(xi)
+            self.xmask.append(xmaski)
+            self.ydata.append(ydatai)
+            self.chi2data.append(chi2datai)
+            self.invcov.append(invcovi)
+            self.invcovdata.append(invcovdatai)
+            self.priormat.append(priormati)
+
+        # formatting configuration for pybird
+        self.config["xdata"] = self.x
+        if self.config["with_window"]:
+            if self.config["skycut"] > 1:
+                self.config["windowPk"] = [os.path.join(
+                    self.data_directory, self.config["windowPk"][i]) for i in range(self.config["skycut"])]
+                self.config["windowCf"] = [os.path.join(
+                    self.data_directory, self.config["windowCf"][i]) for i in range(self.config["skycut"])]
+            else:
+                self.config["windowPk"] = os.path.join(self.data_directory, self.config["windowPk"][i])
+                self.config["windowCf"] = os.path.join(self.data_directory, self.config["windowCf"][i])
+        if "Pk" in self.config["output"]:
+            self.config["kmax"] = self.xmax + 0.05
+
+        print ("output: %s" % self.config["output"])
+        print ("multipole: %s" % self.config["multipole"])
+        print ("wedge: %s" % self.config["wedge"])
+        print ("skycut: %s" % self.config["skycut"])
 
         # BBN prior?
         if self.config["with_bbn"] and self.config["omega_b_BBNcenter"] is not None and self.config["omega_b_BBNsigma"] is not None:
@@ -2936,24 +2803,39 @@ class Likelihood_bird(Likelihood):
 
     def bias_array_to_dict(self, bs):
         if self.config["with_stoch"]:
-            if self.config["multipole"] == 2: bdict = {"b1": bs[0], "b2": bs[1], "b3": bs[2], "b4": bs[3], "cct": bs[4], "cr1": bs[5], "ce0": bs[7], "ce1": bs[8], "ce2": bs[9]}
+            if self.config["multipole"] == 2: bdict = {"b1": bs[0], "b2": bs[1], "b3": bs[2], "b4": bs[3], "cct": bs[4], "cr1": bs[5], "ce0": bs[6], "ce1": bs[7], "ce2": bs[8]}
             elif self.config["multipole"] == 3: bdict = {"b1": bs[0], "b2": bs[1], "b3": bs[2], "b4": bs[3], "cct": bs[4], "cr1": bs[5], "cr2": bs[6], "ce0": bs[7], "ce1": bs[8], "ce2": bs[9]}
         else:
+            if self.config["multipole"] == 0: bdict = {"cct": bs[0]}
             if self.config["multipole"] == 2: bdict = {"b1": bs[0], "b2": bs[1], "b3": bs[2], "b4": bs[3], "cct": bs[4], "cr1": bs[5]}
             elif self.config["multipole"] == 3: bdict = {"b1": bs[0], "b2": bs[1], "b3": bs[2], "b4": bs[3], "cct": bs[4], "cr1": bs[5], "cr2": bs[6]}
-        if self.config["with_tidal_alignments"]: bdict["bq"] = bs[-2]
-        if self.config["with_nlo_bias"]: bdict["bnlo"] = bs[-1]
+        
+        options = ["with_nnlo_counterterm", "with_nnlo_higher_derivative", "with_tidal_alignments"]#, "with_cf_sys"]
+        nparams = [self.config["multipole"], self.config["multipole"], 1]#, 3]
+        paramnames = [  ["cnnlo_l%s" % (2*i) for i in range(self.config["multipole"])], 
+                        ["bnnlo_l%s" % (2*i) for i in range(self.config["multipole"])], 
+                        ["bq"],
+                        #["a0", "a1", "a2"]
+                    ]
+        ntot = sum([n for (option, n) in zip(options, nparams) if self.config[option]])
+        bias_for_options = bs[-ntot:] 
+        counter = 0
+        for (option, n, names) in zip(options, nparams, paramnames):
+            if self.config[option]: 
+                for i, name in enumerate(names): 
+                    bdict[name] = bias_for_options[counter+i]
+                counter += n
         # print (bdict)
+
         return bdict
 
     def bias_custom_to_all(self, bs):
-        # b1, b2, b3, b4, cct, cr1, cr2, ce0, ce1, ce2, bq (opt), bnlo (opt) # bnlo is actually b_nnlo * k^4 P11
-        ball = [bs[0], bs[1] / np.sqrt(2.), 0., bs[1] / np.sqrt(2.), 0., 0., 0., 0., 0., 0., 0., 0.]
-        if self.config["with_nlo_bias"]: ball[-1] = bs[-1] # these two may conflit,
-        if self.config["with_tidal_alignments"]: ball[-2] = bs[-1] # careful
-        return ball
+        if self.config["multipole"] == 0: biaslist = 10*[0]
+        else: biaslist = [bs[0], bs[1] / np.sqrt(2.), 0., bs[1] / np.sqrt(2.), 0., 0., 0., 0., 0., 0.]
+        biaslist.extend(bs[2:])
+        return biaslist
 
-    def bias_nonmarg_to_all(self, bs, bg, with_nlo_bias=False):
+    def bias_nonmarg_to_all(self, bs, bg):
         biaslist = []
         if self.config["with_stoch"]:
             if self.config["multipole"] == 2:
@@ -2969,141 +2851,103 @@ class Likelihood_bird(Likelihood):
         else:
             if self.config["multipole"] == 2: biaslist = [bs[0], bs[1] / np.sqrt(2.), bg[0], bs[1] / np.sqrt(2.), bg[1], bg[2], 0., 0., 0., 0.]
             elif self.config["multipole"] == 3: biaslist = [bs[0], bs[1] / np.sqrt(2.), bg[0], bs[1] / np.sqrt(2.), bg[1], bg[2], bg[3], 0., 0., 0.]
-        if with_nlo_bias: biaslist.append(bs[-2])
-        else: biaslist.append(0.)
+        biaslist.extend(bs[2:])
         return biaslist
 
     def loglkl(self, cosmo, data):
 
         if self.config["with_derived_bias"]: data.derived_lkl = {}
+        if self.config["with_nnlo_higher_derivative"] or self.config["get_chi2_from_marg"]: bg = []
+        
+        if data.need_cosmo_update: self.correlator.compute(self.__set_cosmo(cosmo, data))
+        
+        bng = np.array([data.mcmc_parameters[k]['current'] * data.mcmc_parameters[k]['scale'] for k in self.use_nuisance]).reshape(self.config["skycut"], -1)
+        bdict = np.array([self.bias_array_to_dict(self.bias_custom_to_all(bs)) for bs in bng])
 
-        if data.need_cosmo_update is True: self.correlator.compute(self.__set_cosmo(cosmo, data))
-        else: pass
-
-        bval = np.array([data.mcmc_parameters[k]['current'] * data.mcmc_parameters[k]['scale'] for k in self.use_nuisance])
-        bval = bval.reshape(self.config["skycut"], -1)
-        bdict = np.array([self.bias_array_to_dict(self.bias_custom_to_all(bs)) for bs in bval])
-        b1 = np.array([bval[i, 0] for i in range(self.config["skycut"])])
-
-        if self.config["with_tidal_alignments"]: bq = np.array([bdicti["bq"] for bdicti in bdict])
-        else: bq = np.zeros(shape=(self.config["skycut"]))
-
-        correlator = self.correlator.get(bdict)
-        marg_correlator = self.correlator.getmarg(b1, model=self.config["model"], bq=bq)
-
-        chi2 = 0.
-        if self.config["with_nlo_bias_2loop"] or self.config["get_chi2_from_marg"]: bg = []
-
-        if "w" in self.config["output"]:
-            modelX = np.asarray(correlator).reshape(-1)[self.tmask]
-            Pi = block_diag(*marg_correlator)[:, self.tmask]
-
-            c2, bgi = self.__get_chi2(modelX, Pi, self.invcov, self.invcovdata, self.chi2data, self.priormat, data)
-            chi2 += c2
-
-            ### TO CODE UP NLO
-
-        else:
+        neat_indent = True
+        if neat_indent:
+            chi2 = 0.
+            correlator = self.correlator.get(bdict)
+            marg_correlator = self.correlator.getmarg(bdict, model=self.config["model"])
             for i in range(self.config["skycut"]):
-
-                if self.config["skycut"] is 1: modelX = correlator   
+                if self.config["skycut"] is 1: modelX = correlator
                 elif self.config["skycut"] > 1: modelX = correlator[i]
+                if self.config["with_cf_sys"]: modelX[0] += bng[i,-1] + bng[i,-2] * self.x[i]**-1 + bng[i,-3] * self.x[i]**-2
+                chi2_i, bg_i = self.__get_chi2(modelX, cosmo, data, marg=True, marg_correlator=marg_correlator, i=i)
+                chi2 += chi2_i
+                if self.config["with_nnlo_higher_derivative"] or self.config["get_chi2_from_marg"]: bg.append(bg_i)
 
-                if self.config["with_cf_sys"]: modelX[0] += bval[i,-1] + bval[i,-2] * self.x[i]**-1 + bval[i,-3] * self.x[i]**-2
+        if self.config["get_chi2_from_marg"]: 
+            chi2 = 0.
+            nonmarg_bdict = np.array([self.bias_array_to_dict(self.bias_nonmarg_to_all(bs, bgi)) for (bs, bgi) in zip(bng, bg) ])
+            nonmarg_correlator = self.correlator.get(nonmarg_bdict)
+            for i in range(self.config["skycut"]):
+                if self.config["skycut"] is 1: modelX = nonmarg_correlator
+                elif self.config["skycut"] > 1: modelX = nonmarg_correlator[i]
+                chi2_i, _ = self.__get_chi2(modelX, cosmo, data, marg=False, i=i)
+                chi2 += chi2i
 
-                modelX = modelX.reshape(-1)
-
-                if self.config["with_bao"] and self.config["baoH"][i] > 0 and self.config["baoD"][i] > 0:  # BAO
-                    DM_at_z = cosmo.angular_distance(self.config["zbao"][i]) * (1. + self.config["zbao"][i])
-                    H_at_z = cosmo.Hubble(self.config["zbao"][i]) * conts.c / 1000.0
-                    rd = cosmo.rs_drag() * self.config["rs_rescale"][i]
-                    theo_DM_rdfid_by_rd_in_Mpc = DM_at_z / rd * self.config["rd_fid_in_Mpc"][i]
-                    theo_H_rd_by_rdfid = H_at_z * rd / self.config["rd_fid_in_Mpc"][i]
-                    modelX = np.concatenate((modelX, [theo_H_rd_by_rdfid, theo_DM_rdfid_by_rd_in_Mpc]))
-
-                modelX = modelX[self.xmask[i]]
-
-                if self.config["skycut"] is 1: Pi = self.__get_Pi_for_marg(marg_correlator, self.xmask[i])
-                elif self.config["skycut"] > 1: Pi = self.__get_Pi_for_marg(marg_correlator[i], self.xmask[i])
-
-                c2, bgi = self.__get_chi2(modelX, Pi, self.invcov[i], self.invcovdata[i], self.chi2data[i], self.priormat[i], data, isky=i)
-                chi2 += c2
-
-                if self.config["with_nlo_bias_2loop"] or self.config["get_chi2_from_marg"]: bg.append(bgi)
-
-            if self.config["get_chi2_from_marg"]: 
-
-                chi2 = 0.
-
-                nonmarg_bdict = np.array([self.bias_array_to_dict(self.bias_nonmarg_to_all(bs, bgi, with_nlo_bias=False)) for (bs, bgi) in zip(bval, bg) ])
-                nonmarg_correlator = self.correlator.get(nonmarg_bdict)
-
-                for i in range(self.config["skycut"]):
-                    if self.config["skycut"] is 1: modelX = nonmarg_correlator.reshape(-1)
-                    elif self.config["skycut"] > 1: modelX = nonmarg_correlator[i].reshape(-1)
-
-                    if self.config["with_bao"]:  # BAO
-                        DM_at_z = cosmo.angular_distance(self.config["zbao"][i]) * (1. + self.config["zbao"][i])
-                        H_at_z = cosmo.Hubble(self.config["zbao"][i]) * conts.c / 1000.0
-                        rd = cosmo.rs_drag() * self.config["rs_rescale"][i]
-                        theo_DM_rdfid_by_rd_in_Mpc = DM_at_z / rd * self.config["rd_fid_in_Mpc"][i]
-                        theo_H_rd_by_rdfid = H_at_z * rd / self.config["rd_fid_in_Mpc"][i]
-                        modelX = np.concatenate((modelX, [theo_H_rd_by_rdfid, theo_DM_rdfid_by_rd_in_Mpc]))
-                    
-                    modelX = modelX[self.xmask[i]]
-
-                    chi2i = self.__get_chi2_non_marg(modelX, self.invcov[i], self.ydata[i])
-                    chi2 += chi2i
-
-            if self.config["with_nlo_bias_2loop"]: 
-                
-                chi2 = 0.
-                
-                nonmarg_bdict = np.array([self.bias_array_to_dict(self.bias_nonmarg_to_all(bs, bgi, with_nlo_bias=False)) for (bs, bgi) in zip(bval, bg) ])
-                nonmarg_correlator = self.correlator.get(nonmarg_bdict)
-                nlo = self.correlator.getnlo()
-
-                for i in range(self.config["skycut"]):
-                    
-                    if self.config["skycut"] is 1: modelX = correlator.reshape(-1) + bval[i,-1] * nlo.reshape(-1)
-                    elif self.config["skycut"] > 1: modelX = correlator[i].reshape(-1) + bval[i,-1] * nlo[i].reshape(-1)
-
-                    if self.config["with_bao"]:  # BAO
-                        DM_at_z = cosmo.angular_distance(self.config["zbao"][i]) * (1. + self.config["zbao"][i])
-                        H_at_z = cosmo.Hubble(self.config["zbao"][i]) * conts.c / 1000.0
-                        rd = cosmo.rs_drag() * self.config["rs_rescale"][i]
-                        theo_DM_rdfid_by_rd_in_Mpc = DM_at_z / rd * self.config["rd_fid_in_Mpc"][i]
-                        theo_H_rd_by_rdfid = H_at_z * rd / self.config["rd_fid_in_Mpc"][i]
-                        modelX = np.concatenate((modelX, [theo_H_rd_by_rdfid, theo_DM_rdfid_by_rd_in_Mpc]))
-
-                    modelX = modelX[self.xmask[i]]
-
-                    if self.config["skycut"] is 1: Pi = self.__get_Pi_for_marg(marg_correlator, self.xmask[i])
-                    elif self.config["skycut"] > 1: Pi = self.__get_Pi_for_marg(marg_correlator[i], self.xmask[i])
-
-                    c2, bgi = self.__get_chi2(modelX, Pi, self.invcov[i], self.invcovdata[i], self.chi2data[i], self.priormat[i], data, isky=i)
-                    chi2 += c2
+        if self.config["with_nnlo_higher_derivative"]: 
+            chi2 = 0.
+            nonmarg_bdict = np.array([self.bias_array_to_dict(self.bias_nonmarg_to_all(bs, bgi)) for (bs, bgi) in zip(bng, bg) ])
+            nnlo = self.correlator.getnnlo(nonmarg_bdict)
+            for i in range(self.config["skycut"]):
+                if self.config["skycut"] is 1: modelX = correlator + nnlo
+                elif self.config["skycut"] > 1: modelX = correlator[i] + nnlo[i]
+                chi2_i, _ = self.__get_chi2(modelX, cosmo, data, marg=True, marg_correlator=marg_correlator, i=i)
+                chi2 += chi2_i
 
         prior = 0.
         if self.config["with_bbn"]: prior += -0.5 * ((data.cosmo_arguments['omega_b'] - self.config["omega_b_BBNcenter"]) / self.config["omega_b_BBNsigma"])**2
-        # if "w" in self.config["output"]: prior += -0.5 * ((data.mcmc_parameters['ln10^{10}A_s']['current'] * data.mcmc_parameters['ln10^{10}A_s']['scale'] - 2.84) / 0.2)**2
-
+        # if self.config["model"] == 3 or self.config["model"] == 4: prior += - 0.5 * (bng[0,2]/2.)**2
         if self.config["with_cf_sys"]: 
             for i in range(self.config["skycut"]): prior += - 0.5 * ( (bs[i,-1]/0.003)**2 + (bs[i,-2]/3.)**2 + (bs[i,-3]/20.)**2 )
-
+        if self.config["with_nnlo_counterterm"]: 
+            for i in range(self.config["skycut"]): 
+                cnnlo = np.array([ bdict[i]["cnnlo_l%s" % (2*l)] for l in range(self.config["multipole"]) ])
+                sigma = np.array([ 6., 30., 150. ])[:self.config["multipole"]]
+                prior += - 0.5 * np.sum( (cnnlo/sigma)**2 )
+        if self.config["with_nnlo_higher_derivative"]: 
+            for i in range(self.config["skycut"]): 
+                bnnlo = np.array([ bdict[i]["bnnlo_l%s" % (2*l)] for l in range(self.config["multipole"]) ])
+                sigma = np.array([ 1., 1., 1. ])[:self.config["multipole"]]
+                prior += - 0.5 * np.sum( (bnnlo/sigma)**2 )
         if self.config["with_tidal_alignments"]:
-            for i in range(self.config["skycut"]): prior += - 0.5 * ( (bval[i,-1]+0.05)/0.05 )**2
+            for i in range(self.config["skycut"]): prior += - 0.5 * ( (bdict[i]["bq"]+0.05)/0.05 )**2
         
         lkl = - 0.5 * chi2 + prior
 
         return lkl
 
+    def __get_chi2(self, modelX, cosmo, data, marg=True, marg_correlator=None, i=0):
+
+        modelX = modelX.reshape(-1)
+
+        if self.config["with_bao"] and self.config["baoH"][i] > 0 and self.config["baoD"][i] > 0:  # BAO
+            DM_at_z = cosmo.angular_distance(self.config["zbao"][i]) * (1. + self.config["zbao"][i])
+            H_at_z = cosmo.Hubble(self.config["zbao"][i]) * conts.c / 1000.0
+            rd = cosmo.rs_drag() * self.config["rs_rescale"][i]
+            theo_DM_rdfid_by_rd_in_Mpc = DM_at_z / rd * self.config["rd_fid_in_Mpc"][i]
+            theo_H_rd_by_rdfid = H_at_z * rd / self.config["rd_fid_in_Mpc"][i]
+            modelX = np.concatenate((modelX, [theo_H_rd_by_rdfid, theo_DM_rdfid_by_rd_in_Mpc]))
+
+        modelX = modelX[self.xmask[i]]
+
+        if marg:
+            if self.config["skycut"] is 1: Pi = self.__get_Pi_for_marg(marg_correlator, self.xmask[i])
+            elif self.config["skycut"] > 1: Pi = self.__get_Pi_for_marg(marg_correlator[i], self.xmask[i])
+            chi2, bg = self.__get_chi2_marg(modelX, Pi, self.invcov[i], self.invcovdata[i], self.chi2data[i], self.priormat[i], data, isky=i)
+        else: 
+            chi2 = self.__get_chi2_non_marg(modelX, self.invcov[i], self.ydata[i])
+
+        return chi2, bg # chi^2, b_gaussian 
+
+
     def __get_chi2_non_marg(self, modelX, invcov, ydata):
         chi2 = np.dot(modelX-ydata, np.dot(invcov, modelX-ydata))
         return chi2
 
-    def __get_chi2(self, modelX, Pi, invcov, invcovdata, chi2data, priormat, data, isky=0):
-
+    def __get_chi2_marg(self, modelX, Pi, invcov, invcovdata, chi2data, priormat, data, isky=0):
         Covbi = np.dot(Pi, np.dot(invcov, Pi.T)) + priormat
         Cinvbi = np.linalg.inv(Covbi)
         vectorbi = np.dot(modelX, np.dot(invcov, Pi.T)) - np.dot(invcovdata, Pi.T)
@@ -3111,7 +2955,7 @@ class Likelihood_bird(Likelihood):
         chi2mar = - np.dot(vectorbi, np.dot(Cinvbi, vectorbi)) + np.log(np.abs(np.linalg.det(Covbi)))
         chi2tot = chi2mar + chi2nomar - priormat.shape[0] * np.log(2. * np.pi)
 
-        if self.config["with_derived_bias"] or self.config["with_nlo_bias_2loop"] or self.config["get_chi2_from_marg"]: 
+        if self.config["with_derived_bias"] or self.config["with_nnlo_higher_derivative"] or self.config["get_chi2_from_marg"]: 
             bg = - np.dot(Cinvbi, vectorbi)
             if self.config["with_derived_bias"]:
                 Ng = len(bg)
@@ -3119,7 +2963,7 @@ class Likelihood_bird(Likelihood):
                     if i >= isky * Ng and i < (isky + 1) * Ng:
                         data.derived_lkl[elem] = bg[i - isky * Ng]
 
-        if self.config["with_nlo_bias_2loop"] or self.config["get_chi2_from_marg"]: return chi2tot, bg
+        if self.config["with_nnlo_higher_derivative"] or self.config["get_chi2_from_marg"]: return chi2tot, bg
         else: return chi2tot, None
 
     def __get_Pi_for_marg(self, marg_correlator, xmask):
@@ -3147,7 +2991,7 @@ class Likelihood_bird(Likelihood):
         if self.config["skycut"] == 1:
             # if self.config["multipole"] is not 0:
             cosmo["f"] = M.scale_independent_growth_factor_f(zfid)
-            if self.config["with_exact_time"]:
+            if self.config["with_exact_time"] or self.config["with_quintessence"]:
                 cosmo["z"] = self.config["z"][0]
                 cosmo["Omega0_m"] = M.Omega0_m()
                 try: cosmo["w0_fld"] = data.cosmo_arguments['w0_fld']
@@ -3162,44 +3006,22 @@ class Likelihood_bird(Likelihood):
             cosmo["f"] = np.array([M.scale_independent_growth_factor_f(z) for z in self.config["z"]])
             cosmo["D"] = np.array([M.scale_independent_growth_factor(z) for z in self.config["z"]])
 
-            if self.config["with_AP"] and not self.config["with_redshift_bin"]:
+            if self.config["with_AP"]:
                 cosmo["DA"] = np.array([M.angular_distance(z) * M.Hubble(0.) for z in self.config["z"]])
                 cosmo["H"] = np.array([M.Hubble(z) / M.Hubble(0.) for z in self.config["z"]])
 
         if self.config["with_redshift_bin"]:
+            def comoving_distance(z): return M.angular_distance(z) * (1+z) * M.h()
             if self.config["skycut"] == 1:
-                cosmo["D"] = M.scale_independent_growth_factor(zfid)
-
+                cosmo["D"] = M.scale_independent_growth_factor(self.config["z"])
                 cosmo["Dz"] = np.array([M.scale_independent_growth_factor(z) for z in self.config["zz"]])
                 cosmo["fz"] = np.array([M.scale_independent_growth_factor_f(z) for z in self.config["zz"]])
-
-                if self.config["with_AP"]:
-                    cosmo["DAz"] = np.array([M.angular_distance(z) * M.Hubble(0.) for z in self.config["zz"]])
-                    cosmo["Hz"] = np.array([M.Hubble(z) / M.Hubble(0.) for z in self.config["zz"]])
-
-                    # cosmo["DA"] = np.array([M.angular_distance(z) * M.Hubble(0.) for z in self.config["z"]])
-                    # cosmo["H"] = np.array([M.Hubble(z) / M.Hubble(0.) for z in self.config["z"]])
-
-            elif self.config["skycut"] > 1:
-                cosmo["Dz"] = np.array([[M.scale_independent_growth_factor(z) for z in zz]
-                                        for zz in self.config["zz"]])
-                cosmo["fz"] = np.array([[M.scale_independent_growth_factor_f(z)
-                                         for z in zz] for zz in self.config["zz"]])
-
-                if self.config["with_AP"]:
-                    cosmo["DAz"] = np.array([[M.angular_distance(z) * M.Hubble(0.) for z in zz]
-                                             for zz in self.config["zz"]])
-                    cosmo["Hz"] = np.array([[M.Hubble(z) / M.Hubble(0.) for z in zz] for zz in self.config["zz"]])
-
-                    cosmo["DA"] = np.array([M.angular_distance(z) * M.Hubble(0.) for z in self.config["z"]])
-                    cosmo["H"] = np.array([M.Hubble(z) / M.Hubble(0.) for z in self.config["z"]])
-
-        if "w" in self.config["output"]:
-            def comoving_distance(z): return M.angular_distance(z) * (1 + z) * M.h()
-            if self.config["skycut"] is 1:
                 cosmo["rz"] = np.array([comoving_distance(z) for z in self.config["zz"]])
+
             elif self.config["skycut"] > 1:
-                cosmo["rz"] = np.array([[comoving_distance(z) for z in zz] for zz in self.config["zz"]])
+                cosmo["Dz"] = np.array([ [M.scale_independent_growth_factor(z) for z in zz] for zz in self.config["zz"] ])
+                cosmo["fz"] = np.array([ [M.scale_independent_growth_factor_f(z) for z in zz] for zz in self.config["zz"] ])
+                cosmo["rz"] = np.array([ [comoving_distance(z) for z in zz] for zz in self.config["zz"] ])
 
         if self.config["with_quintessence"]: 
             # starting deep inside matter domination and evolving to the total adiabatic linear power spectrum. 
@@ -3212,7 +3034,13 @@ class Likelihood_bird(Likelihood):
             GF = pb.GreenFunction(Omega0_m, w=w, quintessence=True)
             Dq = GF.D(scale_factor(zfid)) / GF.D(scale_factor(zm))
             Dm = M.scale_independent_growth_factor(zfid) / M.scale_independent_growth_factor(zm)
-            cosmo["P11"] *= Dq**2 / Dm**2 * ( 1 + (1+w)/(1.-3*w) * (1-Omega0_m)/Omega0_m * (1+zm)**(3*w) ) # 1611.07966 eq. (4.15)
+            cosmo["P11"] *= Dq**2 / Dm**2 * ( 1 + (1+w)/(1.-3*w) * (1-Omega0_m)/Omega0_m * (1+zm)**(3*w) )**2 # 1611.07966 eq. (4.15)
+            cosmo["f"] = GF.fplus(1/(1.+cosmo["z"]))
+
+        if self.config["with_nnlo_counterterm"] or self.config["with_nnlo_higher_derivative"]: 
+            EH_dict = { "Omega0_b": M.Omega_b(), "Omega0_m": M.Omega0_m(), "h": M.h(), "A_s": M.get_current_derived_parameters(["A_s"]), "n_s": M.n_s(), "T_cmb": M.T_cmb(), 
+                "D": M.scale_independent_growth_factor(self.config["z"][0]) }
+            cosmo["EH"] = EH_dict
 
         return cosmo
 
@@ -3252,7 +3080,7 @@ class Likelihood_bird(Likelihood):
                     xmaski = np.argwhere((x <= xmaxi) & (x >= xmin))[:, 0] + (i + 1) * Nx
                     xmask = np.concatenate((xmask, xmaski))
 
-        elif multipole is not 0:
+        elif multipole != 0:
             x = xdata.reshape(3, -1)[0]
             Nx = len(x)
             xmask0 = np.argwhere((x <= xmax) & (x >= xmin))[:, 0]
@@ -3260,6 +3088,11 @@ class Likelihood_bird(Likelihood):
             for i in range(multipole - 1):
                 xmaski = np.argwhere((x <= xmax) & (x >= xmin))[:, 0] + (i + 1) * Nx
                 xmask = np.concatenate((xmask, xmaski))
+
+        elif multipole == 0:
+            x = xdata
+            xmask = np.argwhere((x <= xmax) & (x >= xmin))[:, 0]
+            xmask0 = xmask
 
         xdata = x[xmask0]
         ydata = ydata[xmask]
@@ -3356,7 +3189,12 @@ class Likelihood_bird(Likelihood):
         try:
             kPS, PSdata, _ = np.loadtxt(fname, unpack=True)
         except:
-            kPS, PSdata = np.loadtxt(fname, unpack=True)
+            try:
+                kPS, PSdata = np.loadtxt(fname, unpack=True)
+            except:
+                kPS, l0, l2, l4 = np.loadtxt(fname, unpack=True)
+                kPS = np.concatenate([kPS, kPS, kPS])
+                PSdata = np.concatenate([l0, l2, l4])
         return kPS, PSdata
 
     def __load_gaussian_spectrum(self, data_directory, spectrum_file):
@@ -3384,7 +3222,11 @@ class Likelihood_bird(Likelihood):
             b3, cct = priors
             print ('EFT priors: b3: %s, cct: %s (default)' % (b3, cct))
 
-        if multipole is 2:
+        if multipole == 0:
+            priors = np.array([2.])
+            print ('EFT priors: cct: %s' % (priors))
+
+        if multipole == 2:
             if model == 1:
                 priors = np.array([2., 2., 8., 2., 2.])
                 b3, cct, cr1, ce2, sn = priors
@@ -3395,11 +3237,11 @@ class Likelihood_bird(Likelihood):
                 b3, cct, cr1, ce2 = priors
                 print ('EFT priors: b3: %s, cct: %s, cr1(+cr2): %s, ce2: %s (default)' % (b3, cct, cr1, ce2))
             elif model == 3:
-                priors = np.array([2., 2., 8., 2., 2.])  # np.array([ 10., 4., 8., 4., 2. ])
+                priors = np.array([ 10., 4., 8., 4., 2. ]) # np.array([2., 2., 8., 2., 2.]) 
                 b3, cct, cr1, ce2, ce1 = priors
                 print ('EFT priors: b3: %s, cct: %s, cr1(+cr2): %s, ce2: %s, ce1: %s (default)' % (b3, cct, cr1, ce2, ce1))
             elif model == 4:
-                priors = np.array([2., 2., 8., 2., 2., 2.])
+                priors = np.array([ 10., 4., 8., 4., 2., 2. ]) # np.array([2., 2., 8., 2., 2., 2.])
                 b3, cct, cr1, ce2, ce1, sn = priors
                 print ('EFT priors: b3: %s, cct: %s, cr1(+cr2): %s, ce2: %s, ce1: %s, shotnoise: %s (default)' %
                        (b3, cct, cr1, ce2, ce1, sn))
@@ -3408,7 +3250,7 @@ class Likelihood_bird(Likelihood):
                 b3, cct, cr1 = priors
                 print ('EFT priors: b3: %s, cct: %s, cr1(+cr2): %s (default)' % (b3, cct, cr1))
 
-        if multipole is 3:
+        if multipole == 3:
             if model == 1:
                 priors = np.array([2., 2., 4., 4., 2., 2.])
                 b3, cct, cr1, cr2, ce2, sn = priors
@@ -3438,7 +3280,385 @@ class Likelihood_bird(Likelihood):
         return priormat
 
 
+#################################################
+#################################################
+
+class Likelihood_cfps(Likelihood):
+
+    def __init__(self, path, data, command_line):
+
+        Likelihood.__init__(self, path, data, command_line)
+
+        # try:
+        #     with open(self.configfile, 'r') as f:
+        #         self.config = yaml.full_load(f)
+        # except OSError:
+        #     newpath = os.path.join(self.data_directory, self.configfile)
+        #     print("WARNING: We are loading the configuration in %s. Please make sure this is what you want!", newpath)
+        #     with open(newpath, 'r') as f:
+        #         self.config = yaml.full_load(f)
+
+        self.config = yaml.full_load(open(os.path.join(self.data_directory, self.configfile), 'r'))
+        self.config_ps = yaml.full_load(open(os.path.join(self.data_directory, self.configfile_ps), 'r'))
+
+        try: self.config["with_derived_bias"]
+        except: self.config["with_derived_bias"] = False
+        try: self.config["with_quintessence"]
+        except: self.config["with_quintessence"] = False
+        try: self.config["get_chi2_from_marg"]
+        except: self.config["get_chi2_from_marg"] = False
+        try: self.config["split"]
+        except: self.config["split"] = 0
+
+        print ("skycut: %s" % self.config["skycut"])
+
+        self.s = []
+        self.k = []
+        self.xmask = []
+        self.ydata = []
+        self.chi2data = []
+        self.invcov = []
+        self.invcovdata = []
+        self.priormat = []
+
+        for i in range(self.config["skycut"]):
+
+            if self.config["with_bao"]:
+                baoH = self.config["baoH"][i]
+                baoD = self.config["baoD"][i]
+            else:
+                baoH = None
+                baoD = None
+
+            si, ki, xmaski, ydatai, chi2datai, invcovi, invcovdatai = self.__load_data(
+                self.config["multipole"], self.data_directory, self.config["spectrum_file"][i], self.config_ps["spectrum_file"][i], self.config["covmat_file"][i],
+                smin=self.config["xmin"][i], smax=self.config["xmax"][i], kmin=self.config_ps["xmin"][i], kmax=self.config_ps["xmax"][i], 
+                with_bao=self.config["with_bao"], baoH=baoH, baoD=baoD)
+
+            priormati = self.__set_prior(self.config_ps["multipole"])
+
+            self.s.append(si)
+            self.k.append(ki)
+            self.xmask.append(xmaski)
+            self.ydata.append(ydatai)
+            self.chi2data.append(chi2datai)
+            self.invcov.append(invcovi)
+            self.invcovdata.append(invcovdatai)
+            self.priormat.append(priormati)
+
+        # formatting configuration for pybird
+        self.config["xdata"] = self.s
+        self.config_ps["xdata"] = self.k
+
+        if self.config_ps["with_window"]:
+            if self.config_ps["skycut"] > 1:
+                self.config_ps["windowPk"] = [os.path.join(self.data_directory, self.config_ps["windowPk"][i]) for i in range(self.config_ps["skycut"])]
+                self.config_ps["windowCf"] = [os.path.join(self.data_directory, self.config_ps["windowCf"][i]) for i in range(self.config_ps["skycut"])]
+            else:
+                self.config_ps["windowPk"] = os.path.join(self.data_directory, self.config_ps["windowPk"][i])
+                self.config_ps["windowCf"] = os.path.join(self.data_directory, self.config_ps["windowCf"][i])
+        if "Pk" in self.config_ps["output"]: self.config_ps["kmax"] = self.config_ps["xmax"][0] + 0.05
+
+        # BBN prior?
+        if self.config["with_bbn"] and self.config["omega_b_BBNcenter"] is not None and self.config["omega_b_BBNsigma"] is not None:
+            print ('BBN prior on omega_b: on')
+        else:
+            self.config["with_bbn"] = False
+            print ('BBN prior on omega_b: none')
+
+        # setting pybird correlator configuration
+        self.correlator = pb.Correlator()
+        self.correlator.set(self.config)
+        self.correlator_ps = pb.Correlator()
+        self.correlator_ps.set(self.config_ps)
+
+        # setting classy for pybird
+        self.need_cosmo_arguments(data, {'output': 'mPk', 'z_max_pk': max(self.config["z"]), 'P_k_max_h/Mpc': 1.})
+        self.kin = np.logspace(-5, 0, 200)
+
+    def bias_array_to_dict(self, bs, with_stoch=False):
+        if with_stoch: bdict = {"b1": bs[0], "b2": bs[1], "b3": bs[2], "b4": bs[3], "cct": bs[4], "cr1": bs[5], "ce0": bs[7], "ce1": bs[8], "ce2": bs[9]}
+        else: bdict = {"b1": bs[0], "b2": bs[1], "b3": bs[2], "b4": bs[3], "cct": bs[4], "cr1": bs[5]}
+        return bdict
+
+    def bias_custom_to_all(self, bs):
+        # b1, b2, b3, b4, cct, cr1, cr2, ce0, ce1, ce2, bq (opt), bnlo (opt) # bnlo is actually b_nnlo * k^4 P11
+        ball = [bs[0], bs[1] / np.sqrt(2.), 0., bs[1] / np.sqrt(2.), 0., 0., 0., 0., 0., 0., 0., 0.]
+        return ball
+
+    def bias_nonmarg_to_all(self, bs, bg, with_stoch=False): 
+        if with_stoch: biaslist = [bs[0], bs[1] / np.sqrt(2.), bg[0], bs[1] / np.sqrt(2.), bg[1], bg[2], 0., bg[4], 0., bg[3]]
+        else: biaslist = [bs[0], bs[1] / np.sqrt(2.), bg[0], bs[1] / np.sqrt(2.), bg[1], bg[2], 0., 0., 0., 0.]
+        return biaslist
+
+    def loglkl(self, cosmo, data):
+
+        if data.need_cosmo_update: 
+            self.correlator.compute(self.__set_cosmo(cosmo, data))
+            self.correlator_ps.compute(self.__set_cosmo(cosmo, data))
+        else: pass
+
+        bng = np.array([data.mcmc_parameters[k]['current'] * data.mcmc_parameters[k]['scale'] for k in self.use_nuisance])
+        
+        if self.config["split"] == 1:
+            bng = np.swapaxes( bng.reshape(self.config["skycut"], 2, -1), axis1=0, axis2=1 )
+            bdict = np.array([self.bias_array_to_dict(self.bias_custom_to_all(bs), with_stoch=False) for bs in bng[0]])
+            bdict_ps = np.array([self.bias_array_to_dict(self.bias_custom_to_all(bs), with_stoch=True) for bs in bng[1]])
+            b1 = np.array([bng[0,i,0] for i in range(self.config["skycut"])])
+            b1_ps = np.array([bng[1,i,0] for i in range(self.config["skycut"])])
+
+            correlator = self.correlator.get(bdict)
+            correlator_ps = self.correlator_ps.get(bdict_ps)
+            marg_correlator = self.correlator.getmarg(b1, model=self.config["model"])
+            marg_correlator_ps = self.correlator_ps.getmarg(b1_ps, model=self.config_ps["model"])
+        else:
+            bng = bng.reshape(self.config["skycut"], -1)
+            bdict = np.array([self.bias_array_to_dict(self.bias_custom_to_all(bs), with_stoch=False) for bs in bng])
+            bdict_ps = np.array([self.bias_array_to_dict(self.bias_custom_to_all(bs), with_stoch=True) for bs in bng])
+            b1 = np.array([bng[i, 0] for i in range(self.config["skycut"])])
+
+            correlator = self.correlator.get(bdict)
+            correlator_ps = self.correlator_ps.get(bdict_ps)
+            marg_correlator = self.correlator.getmarg(b1, model=self.config["model"])
+            marg_correlator_ps = self.correlator_ps.getmarg(b1, model=self.config_ps["model"])
 
 
+        chi2 = 0.
+        if self.config["get_chi2_from_marg"]: bg = []
 
+        for i in range(self.config["skycut"]):
+            if self.config["skycut"] is 1: 
+                modelcf = correlator 
+                modelps = correlator_ps
+            elif self.config["skycut"] > 1: 
+                modelcf = correlator[i]
+                modelps = correlator_ps[i]
+            modelX = np.concatenate(( modelcf.reshape(-1), modelps.reshape(-1) ))
+            
+            if self.config["with_bao"] and self.config["baoH"][i] > 0 and self.config["baoD"][i] > 0:  # BAO
+                DM_at_z = cosmo.angular_distance(self.config["zbao"][i]) * (1. + self.config["zbao"][i])
+                H_at_z = cosmo.Hubble(self.config["zbao"][i]) * conts.c / 1000.0
+                rd = cosmo.rs_drag() * self.config["rs_rescale"][i]
+                theo_DM_rdfid_by_rd_in_Mpc = DM_at_z / rd * self.config["rd_fid_in_Mpc"][i]
+                theo_H_rd_by_rdfid = H_at_z * rd / self.config["rd_fid_in_Mpc"][i]
+                modelX = np.concatenate((modelX, [theo_H_rd_by_rdfid, theo_DM_rdfid_by_rd_in_Mpc]))
+            
+            modelX = modelX[self.xmask[i]]
+            
+            if self.config["skycut"] is 1: Pi = self.__get_Pi_for_marg(marg_correlator, marg_correlator_ps, self.xmask[i])
+            elif self.config["skycut"] > 1: Pi = self.__get_Pi_for_marg(marg_correlator[i], marg_correlator_ps[i], self.xmask[i])
+            
+            c2, bgi = self.__get_chi2(modelX, Pi, self.invcov[i], self.invcovdata[i], self.chi2data[i], self.priormat[i], data, isky=i)
+            chi2 += c2
+            
+            if self.config["get_chi2_from_marg"]: bg.append(bgi)
+
+        if self.config["get_chi2_from_marg"]: 
+            chi2 = 0.
+            if self.config["split"] == 1:
+                nonmarg_bdict = np.array([ self.bias_array_to_dict(self.bias_nonmarg_to_all(bs, bgi, with_stoch=False), with_stoch=False) for (bs, bgi) in zip(bng[0], bg) ])
+                nonmarg_bdict_ps = np.array([ self.bias_array_to_dict(self.bias_nonmarg_to_all(bs, bgi, with_stoch=True), with_stoch=True) for (bs, bgi) in zip(bng[1], bg) ])
+            else:
+                nonmarg_bdict = np.array([ self.bias_array_to_dict(self.bias_nonmarg_to_all(bs, bgi, with_stoch=False), with_stoch=False) for (bs, bgi) in zip(bng, bg) ])
+                nonmarg_bdict_ps = np.array([ self.bias_array_to_dict(self.bias_nonmarg_to_all(bs, bgi, with_stoch=True), with_stoch=True) for (bs, bgi) in zip(bng, bg) ])
+            nonmarg_correlator = self.correlator.get(nonmarg_bdict)
+            nonmarg_correlator_ps = self.correlator_ps.get(nonmarg_bdict_ps)
+            for i in range(self.config["skycut"]):
+                if self.config["skycut"] is 1: 
+                    modelcf = nonmarg_correlator 
+                    modelps = nonmarg_correlator_ps
+                elif self.config["skycut"] > 1: 
+                    modelcf = nonmarg_correlator[i]
+                    modelps = nonmarg_correlator_ps[i]
+                modelX = np.concatenate(( modelcf.reshape(-1), modelps.reshape(-1) ))
+                if self.config["with_bao"]:  # BAO
+                    DM_at_z = cosmo.angular_distance(self.config["zbao"][i]) * (1. + self.config["zbao"][i])
+                    H_at_z = cosmo.Hubble(self.config["zbao"][i]) * conts.c / 1000.0
+                    rd = cosmo.rs_drag() * self.config["rs_rescale"][i]
+                    theo_DM_rdfid_by_rd_in_Mpc = DM_at_z / rd * self.config["rd_fid_in_Mpc"][i]
+                    theo_H_rd_by_rdfid = H_at_z * rd / self.config["rd_fid_in_Mpc"][i]
+                    modelX = np.concatenate((modelX, [theo_H_rd_by_rdfid, theo_DM_rdfid_by_rd_in_Mpc]))
+                modelX = modelX[self.xmask[i]]
+                chi2 += self.__get_chi2_non_marg(modelX, self.invcov[i], self.ydata[i])
+
+        prior = 0.
+        if self.config["with_bbn"]: prior += -0.5 * ((data.cosmo_arguments['omega_b'] - self.config["omega_b_BBNcenter"]) / self.config["omega_b_BBNsigma"])**2
+        lkl = - 0.5 * chi2 + prior
+        return lkl
+
+    def __get_chi2_non_marg(self, modelX, invcov, ydata):
+        chi2 = np.dot(modelX-ydata, np.dot(invcov, modelX-ydata))
+        return chi2
+
+    def __get_chi2(self, modelX, Pi, invcov, invcovdata, chi2data, priormat, data, isky=0):
+
+        Covbi = np.dot(Pi, np.dot(invcov, Pi.T)) + priormat
+        Cinvbi = np.linalg.inv(Covbi)
+        vectorbi = np.dot(modelX, np.dot(invcov, Pi.T)) - np.dot(invcovdata, Pi.T)
+        chi2nomar = np.dot(modelX, np.dot(invcov, modelX)) - 2. * np.dot(invcovdata, modelX) + chi2data
+        chi2mar = - np.dot(vectorbi, np.dot(Cinvbi, vectorbi)) + np.log(np.abs(np.linalg.det(Covbi)))
+        chi2tot = chi2mar + chi2nomar - priormat.shape[0] * np.log(2. * np.pi)
+
+        if self.config["get_chi2_from_marg"]: 
+            bg = - np.dot(Cinvbi, vectorbi)
+            return chi2tot, bg
+        else: return chi2tot, None
+
+    def __get_Pi_for_marg(self, marg_cf, marg_ps, xmask):
+        if self.config["split"] == 0:
+            Pi = block_diag(marg_cf, marg_ps)
+        elif self.config["split"] == 1:
+            Pi = np.zeros(shape=(marg_ps.shape[0], marg_cf.shape[1]+marg_ps.shape[1]))
+            Pi[:marg_cf.shape[0], :marg_cf.shape[1]] = marg_cf
+            Pi[:, marg_cf.shape[1]:] = marg_ps
+        elif self.config["split"] == 2:
+            Pi = np.zeros(shape=(marg_ps.shape[0]+2, marg_cf.shape[1]+marg_ps.shape[1]))
+            Pi[:marg_cf.shape[0], :marg_cf.shape[1]] = marg_cf
+            Pi[0, marg_cf.shape[1]:] = marg_ps[0]
+            Pi[marg_cf.shape[0]:, marg_cf.shape[1]:] = marg_ps[1:]
+
+        if self.config["with_bao"]:  # BAO
+            newPi = np.zeros(shape=(Pi.shape[0], Pi.shape[1] + 2))
+            newPi[:Pi.shape[0], :Pi.shape[1]] = Pi
+            Pi = 1. * newPi
+        Pi = Pi[:, xmask]
+        return Pi
+
+    def __set_prior(self, multipole):
+
+        if multipole is 2:
+            if self.config["split"] == 0:
+                priors = np.array([2., 2., 8., 2., 2.])
+                b3, cct, cr1, ce2, sn = priors
+                print ('EFT priors: b3: %s, cct: %s, cr1(+cr2): %s, ce2: %s, shotnoise: %s (default)' % (b3, cct, cr1, ce2, sn))
+            elif self.config["split"] == 1:
+                priors = np.array([2., 2., 8., 2., 2., 8., 2., 2.])
+                b3_cf, cct_cf, cr1_cf, b3, cct, cr1, ce2, sn = priors
+                print ('EFT priors: b3_cf: %s, cct_cf: %s, cr1_cf(+cr2_cf): %s, b3_ps: %s, cct_ps: %s, cr1_ps(+cr2_ps): %s, ce2_ps: %s, shotnoise_ps: %s (default)' % (b3_cf, cct_cf, cr1_cf, b3, cct, cr1, ce2, sn))
+            elif self.config["split"] == 2:
+                priors = np.array([2., 2., 8., 2., 8., 2., 2.])
+                b3, cct_cf, cr1_cf, cct, cr1, ce2, sn = priors
+                print ('EFT priors: b3: %s, cct_cf: %s, cr1_cf(+cr2_cf): %s, cct_ps: %s, cr1_ps(+cr2_ps): %s, ce2_ps: %s, shotnoise_ps: %s (default)' % (b3, cct_cf, cr1_cf, cct, cr1, ce2, sn))
+        priormat = np.diagflat(1. / priors**2)
+
+        return priormat
+
+    def __set_cosmo(self, M, data):
+
+        zfid = self.config["z"][0]
+
+        cosmo = {}
+
+        cosmo["k11"] = self.kin  # k in h/Mpc
+        cosmo["P11"] = np.array([M.pk(k * M.h(), zfid) * M.h()**3 for k in self.kin])  # P(k) in (Mpc/h)**3
+
+        if self.config["skycut"] == 1:
+            # if self.config["multipole"] is not 0:
+            cosmo["f"] = M.scale_independent_growth_factor_f(zfid)
+            if self.config["with_exact_time"] or self.config["with_quintessence"]:
+                cosmo["z"] = self.config["z"][0]
+                cosmo["Omega0_m"] = M.Omega0_m()
+                try: cosmo["w0_fld"] = data.cosmo_arguments['w0_fld']
+                except: pass
+
+            if self.config["with_AP"]:
+                cosmo["DA"] = M.angular_distance(zfid) * M.Hubble(0.)
+                cosmo["H"] = M.Hubble(zfid) / M.Hubble(0.)
+
+        elif self.config["skycut"] > 1:
+            # if self.config["multipole"] is not 0:
+            cosmo["f"] = np.array([M.scale_independent_growth_factor_f(z) for z in self.config["z"]])
+            cosmo["D"] = np.array([M.scale_independent_growth_factor(z) for z in self.config["z"]])
+
+            if self.config["with_AP"]:
+                cosmo["DA"] = np.array([M.angular_distance(z) * M.Hubble(0.) for z in self.config["z"]])
+                cosmo["H"] = np.array([M.Hubble(z) / M.Hubble(0.) for z in self.config["z"]])
+
+        if self.config["with_redshift_bin"]:
+            def comoving_distance(z): return M.angular_distance(z) * (1+z) * M.h()
+            if self.config["skycut"] == 1:
+                cosmo["D"] = M.scale_independent_growth_factor(self.config["z"])
+                cosmo["Dz"] = np.array([M.scale_independent_growth_factor(z) for z in self.config["zz"]])
+                cosmo["fz"] = np.array([M.scale_independent_growth_factor_f(z) for z in self.config["zz"]])
+                cosmo["rz"] = np.array([comoving_distance(z) for z in self.config["zz"]])
+
+            elif self.config["skycut"] > 1:
+                cosmo["Dz"] = np.array([ [M.scale_independent_growth_factor(z) for z in zz] for zz in self.config["zz"] ])
+                cosmo["fz"] = np.array([ [M.scale_independent_growth_factor_f(z) for z in zz] for zz in self.config["zz"] ])
+                cosmo["rz"] = np.array([ [comoving_distance(z) for z in zz] for zz in self.config["zz"] ])
+
+        if self.config["with_quintessence"]: 
+            # starting deep inside matter domination and evolving to the total adiabatic linear power spectrum. 
+            # This does not work in the general case, e.g. with massive neutrinos (okish for minimal mass though)
+            # This does not work for multi skycuts nor for redshift bins.
+            zm = 5. # z in matter domination
+            def scale_factor(z): return 1/(1.+z)
+            Omega0_m = cosmo["Omega0_m"]
+            w = cosmo["w0_fld"]
+            GF = pb.GreenFunction(Omega0_m, w=w, quintessence=True)
+            Dq = GF.D(scale_factor(zfid)) / GF.D(scale_factor(zm))
+            Dm = M.scale_independent_growth_factor(zfid) / M.scale_independent_growth_factor(zm)
+            cosmo["P11"] *= Dq**2 / Dm**2 * ( 1 + (1+w)/(1.-3*w) * (1-Omega0_m)/Omega0_m * (1+zm)**(3*w) )**2 # 1611.07966 eq. (4.15)
+            cosmo["f"] = GF.fplus(1/(1.+cosmo["z"]))
+
+        return cosmo
+
+    def __load_data(self, multipole, data_directory, cf_spectrum_file, ps_spectrum_file, covmat_file, 
+                    smin=None, smax=None, kmin=None, kmax=None, 
+                    with_bao=False, baoH=None, baoD=None): 
+
+        sdata, cfdata = self.__load_spectrum(data_directory, cf_spectrum_file) # cf
+        s = sdata.reshape(3, -1)[0]
+        Ns = len(s)
+        smask0 = np.argwhere((s <= smax) & (s >= smin))[:, 0]
+        smask = smask0
+        for i in range(multipole - 1):
+            smaski = np.argwhere((s <= smax) & (s >= smin))[:, 0] + (i + 1) * Ns
+            smask = np.concatenate((smask, smaski))
+        sdata = s[smask0]
+        cfdata = cfdata[smask]
+
+        kdata, psdata = self.__load_spectrum(data_directory, ps_spectrum_file) # ps
+        k = kdata.reshape(3, -1)[0]
+        Nk = len(k)
+        kmask0 = np.argwhere((k <= kmax) & (k >= kmin))[:, 0]
+        kmask = kmask0
+        for i in range(multipole - 1):
+            kmaski = np.argwhere((k <= kmax) & (k >= kmin))[:, 0] + (i + 1) * Nk
+            kmask = np.concatenate((kmask, kmaski))
+        kdata = k[kmask0]
+        psdata = psdata[kmask]
+
+        xmask = np.concatenate((smask, kmask + 2 * Ns))
+        ydata = np.concatenate((cfdata, psdata))
+
+        if with_bao and baoH > 0 and baoD > 0: # BAO
+            ydata = np.concatenate((ydata, [baoH, baoD]))
+            xmask = np.concatenate((xmask, [-2, -1]))
+            print ("BAO recon: on")
+        else:
+            print ("BAO recon: none")
+
+        cov = np.loadtxt(os.path.join(data_directory, covmat_file))
+        covred = cov[xmask.reshape((len(xmask), 1)), xmask]
+
+        invcov = np.linalg.inv(covred)
+
+        chi2data = np.dot(ydata, np.dot(invcov, ydata))
+        invcovdata = np.dot(ydata, invcov)
+
+        return s, k, xmask, ydata, chi2data, invcov, invcovdata
+
+    def __load_spectrum(self, data_directory, spectrum_file):
+        fname = os.path.join(data_directory, spectrum_file)
+        try: 
+            kPS, PSdata, _ = np.loadtxt(fname, unpack=True)
+        except:
+            try:
+                kPS, PSdata = np.loadtxt(fname, unpack=True)
+            except:
+                kPS, l0, l2, l4 = np.loadtxt(fname, unpack=True)
+                kPS = np.concatenate([kPS, kPS, kPS])
+                PSdata = np.concatenate([l0, l2, l4])
+        return kPS, PSdata
 

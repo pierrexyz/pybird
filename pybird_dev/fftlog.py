@@ -12,7 +12,7 @@ def MPC(l, pn):
 def CoefWindow(N, window=1, left=True, right=True):
     """ FFTLog auxiliary function: window sending the FFT coefficients to 0 at the edges. Adapted from fast-pt """
     n = np.arange(-N // 2, N // 2 + 1)
-    if window is 1:
+    if window == 1:
         n_cut = N // 2
     else:
         n_cut = int(window * N // 2.)
