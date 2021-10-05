@@ -7,7 +7,7 @@ from common import co
 
 class FourierTransform(object):
 
-    def __init__(self, s=None, NFFT=256, co=co):
+    def __init__(self, s=None, NFFT=512, co=co):
 
         self.co = co
         
@@ -16,7 +16,7 @@ class FourierTransform(object):
         self.setM()
         self.setkPow()
 
-        self.fftPs2Cfsettings = dict(Nmax=512, xmin=1.e-3, xmax=1.e5, bias=.01) 
+        self.fftPs2Cfsettings = dict(Nmax=NFFT, xmin=1.e-3, xmax=1.e5, bias=.01) 
         #self.fftPs2Cfsettings = dict(Nmax=NFFT, xmin=1.5e-3, xmax=100., bias=-.6)
         self.fftPs2Cf = FFTLog(**self.fftPs2Cfsettings)
         self.setMPs2Cf()

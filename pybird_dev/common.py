@@ -26,27 +26,19 @@ class Common(object):
         The maximum multipole to calculate (default 2)
     """
 
-    def __init__(self, Nl=2, kmin=0.001, kmax=0.25, km=1., nd=3e-4, halohalo=True, with_cf=False, with_time=True, accboost=1., optiresum=False, orderresum=16, exact_time=False, quintessence=False, with_tidal_alignments=False, angular=False, nonequaltime=False):
+    def __init__(self, Nl=2, kmin=0.001, kmax=0.25, km=1., nd=3e-4, halohalo=True, with_cf=False, with_time=True, accboost=1., optiresum=False, orderresum=16, exact_time=False, quintessence=False, with_tidal_alignments=False, nonequaltime=False):
         
         self.halohalo = halohalo
         self.nd = nd
-        self.km = km
+        self.km = km                            # b1/2! * {cr1~1} / kr^2 ~ 8 / km^2                             ~~> 1 / kr^2 ~ 8 / km^2
+        self.kr4 = self.km**4 / 8.**1           # 3(perm.)/4! * {cr4~1} / kr^4 ~ 1/8 * 8^2 * {cr4~1} / km^4     ~~> 1 / kmr4 ~ 8 / km^4
         self.optiresum = optiresum
         self.with_time = with_time
         self.exact_time = exact_time
         self.quintessence = quintessence
         # if self.quintessence: self.exact_time = True
         self.with_tidal_alignments = with_tidal_alignments
-        self.angular = angular
         self.nonequaltime = nonequaltime
-
-        if self.angular: 
-            self.Ng = 3
-            rlog = np.geomspace(0.01, 1000., 100) ### Do not change the min max ; the damping windows in the FFTLog of the IR-corrections are depending on those
-            rlin = np.arange(1./accboost, 200., 1./accboost)
-            rlogmask = np.where((rlog > rlin[-1]) | (rlog < rlin[0] ))[0]
-            self.r = np.unique( np.sort( np.concatenate((rlog[rlogmask], rlin)) ) )
-            self.Nr = self.r.shape[0]
 
         if Nl is 0: self.Nl = 1
         elif Nl > 0: self.Nl = Nl
@@ -55,7 +47,7 @@ class Common(object):
 
         if self.halohalo:
             
-            self.N11 = 3  # number of linear terms
+            self.N11 = 3  # number of linear termss
             self.Nct = 6  # number of counterterms
 
             if self.exact_time:
@@ -127,14 +119,14 @@ class Common(object):
         self.lct = np.empty(shape=(self.Nl, self.Nct))
         self.l22 = np.empty(shape=(self.Nl, self.N22))
         self.l13 = np.empty(shape=(self.Nl, self.N13))
-        self.lnnlo = np.empty(shape=(self.Nl, 1))
+        self.lnnlo = np.empty(shape=(self.Nl, 2))
         
         for i in range(self.Nl):
             l = 2 * i
             if self.halohalo:
                 self.l11[i] = np.array([mu[0][l], mu[2][l], mu[4][l]])
                 self.lct[i] = np.array([mu[0][l], mu[2][l], mu[4][l], mu[2][l], mu[4][l], mu[6][l]])
-                self.lnnlo[i] = np.array([1.])
+                self.lnnlo[i] = np.array([mu[4][l], mu[6][l]])
                 if self.exact_time:
                     self.l22[i] = np.array([ 6 * [mu[0][l]] + 7 * [mu[2][l]] + [mu[4][l], mu[2][l], mu[4][l], mu[2][l], mu[4][l], mu[2][l]] 
                         + 3 * [mu[4][l]] + [mu[6][l], mu[4][l], mu[6][l], mu[4][l], mu[6][l], mu[8][l]] 

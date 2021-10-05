@@ -54,7 +54,7 @@ class NNLO_higher_derivative(object): # k^2 P1Loop
             self.setM()
             self.setsPow(xdata)
             self.kdeep = np.geomspace(self.co.k[0], 1.e3, 400) 
-            self.kmask = np.where(self.co.k < 0.25)[0]  # < 0.25 is the best choice: less, we are cutting physical signal ; more, we are starting to add unphysical junks from the loop divergence : one will see appearing spurious ringing if using higher k's
+            self.kmask = np.where(self.co.k < 0.25)[0]  # < 0.25 is the best choice to FT[1loop]: less, we are cutting physical signal ; more, we are starting to add unphysical junks from the loop divergence : one will see appearing spurious ringing if using higher k's
             self.smask_out = np.where(xdata>75.)[0]
             self.smask_in = np.where(xdata<=75.)[0]
             self.swin = CoefWindow(len(self.smask_in)-1, window=1, left=False, right=True)

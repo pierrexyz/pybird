@@ -243,7 +243,7 @@ class Resum(object):
         XpYp = self.setXpYp(bird)
 
         if bird.with_bias:
-            for a, cf in enumerate(self.extractBAO(bird.Cf)):
+            for a, cf in enumerate(self.extractBAO(bird.Cf[:2])): # linear, loop (but not NNLO)
                 for l, cl in enumerate(cf):
                     for j, xy in enumerate(XpYp): 
                         IRcorrUnsorted = np.real((-1j)**(2*l)) * self.k2p[j] * self.IRn(xy * cl, window=window)

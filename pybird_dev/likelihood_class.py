@@ -2698,14 +2698,14 @@ class Likelihood_bird(Likelihood):
         self.config = yaml.full_load(open(os.path.join(self.data_directory, self.configfile), 'r'))
 
         # Loading data and priors
-        options = [ "with_exact_time", "with_tidal_alignments", "with_nnlo_counterterm", "with_nnlo_higher_derivative", 
-        "get_chi2_from_marg", "with_derived_bias", "with_quintessence", "with_cf_sys", "xmaxspacing"]
+        options = [ "with_stoch", "with_exact_time", "with_tidal_alignments", "with_nnlo_counterterm", "with_nnlo_higher_derivative", 
+        "with_quintessence", "with_cf_sys", "xmaxspacing", "nonmarg", "get_chi2_from_marg", "with_derived_bias"]
 
         for keys in options:
             if not keys in self.config: self.config[keys] = False
             print (keys, ':', self.config[keys])
 
-        self.x, self.xmask, self.ydata, self.chi2data, self.invcov, self.invcovdata, self.priormat = [], [], [], [], [], [], []
+        self.x, self.xmask, self.ydata, self.chi2data, self.invcov, self.invcovdata, self.priors, self.priormat = [], [], [], [], [], [], [], []
         
         if self.config["skycut"] > 1: self.config["zz"], self.config["nz"] = [], []
         
@@ -2738,7 +2738,8 @@ class Likelihood_bird(Likelihood):
                     self.data_directory, self.config["spectrum_file"][i], self.config["covmat_file"][i],
                     xmax=self.config["xmax"][i], xmin=xmin, xmin0=xmin0, xmin1=xmin1, with_bao=self.config["with_bao"], baoH=baoH, baoD=baoD)
 
-            priormati = self.__set_prior(self.config["multipole"], model=self.config["model"])
+            priorsi = self.__set_prior(self.config["multipole"], model=self.config["model"])
+            priormati = np.diagflat(1. / priorsi**2)
 
             if self.config["with_redshift_bin"]:  # BOSS
                 try:
@@ -2765,6 +2766,7 @@ class Likelihood_bird(Likelihood):
             self.chi2data.append(chi2datai)
             self.invcov.append(invcovi)
             self.invcovdata.append(invcovdatai)
+            self.priors.append(priorsi)
             self.priormat.append(priormati)
 
         # formatting configuration for pybird
@@ -2801,18 +2803,51 @@ class Likelihood_bird(Likelihood):
         self.need_cosmo_arguments(data, {'output': 'mPk', 'z_max_pk': max(self.config["z"]), 'P_k_max_h/Mpc': 1.})
         self.kin = np.logspace(-5, 0, 200)
 
+    # def bias_custom_to_all(self, bs):
+    #     if self.config["multipole"] == 0: biaslist = 10*[0]
+    #     else: biaslist = [bs[0], bs[1] / np.sqrt(2.), 0., bs[1] / np.sqrt(2.), 0., 0., 0., 0., 0., 0.]
+    #     biaslist.extend(bs[2:])
+    #     return biaslist
+
+    # def bias_nonmarg_to_all(self, bs, bg=None):
+    #     biaslist = []
+    #     if bg is None: bg = np.zeros(shape=(10)) 
+    #     if self.config["with_stoch"]:
+    #         if self.config["multipole"] == 2:
+    #             if self.config["model"] == 1: biaslist = [bs[0], bs[1] / np.sqrt(2.), bg[0], bs[1] / np.sqrt(2.), bg[1], bg[2], 0., bg[4], 0., bg[3]]
+    #             if self.config["model"] == 2: biaslist = [bs[0], bs[1] / np.sqrt(2.), bg[0], bs[1] / np.sqrt(2.), bg[1], bg[2], 0., 0., 0., bg[3]]
+    #             if self.config["model"] == 3: biaslist = [bs[0], bs[1] / np.sqrt(2.), bg[0], bs[1] / np.sqrt(2.), bg[1], bg[2], 0., 0., bg[4], bg[3]]
+    #             if self.config["model"] == 4: biaslist = [bs[0], bs[1] / np.sqrt(2.), bg[0], bs[1] / np.sqrt(2.), bg[1], bg[2], 0., bg[5], bg[4], bg[3]]
+    #         elif self.config["multipole"] == 3:
+    #             if self.config["model"] == 1: biaslist = [bs[0], bs[1] / np.sqrt(2.), bg[0], bs[1] / np.sqrt(2.), bg[1], bg[2], bg[3], bg[5], 0., bg[4]]
+    #             if self.config["model"] == 2: biaslist = [bs[0], bs[1] / np.sqrt(2.), bg[0], bs[1] / np.sqrt(2.), bg[1], bg[2], bg[3], 0., 0., bg[4]]
+    #             if self.config["model"] == 3: biaslist = [bs[0], bs[1] / np.sqrt(2.), bg[0], bs[1] / np.sqrt(2.), bg[1], bg[2], bg[3], 0., bg[5], bg[4]]
+    #             if self.config["model"] == 4: biaslist = [bs[0], bs[1] / np.sqrt(2.), bg[0], bs[1] / np.sqrt(2.), bg[1], bg[2], bg[3], bg[6], bg[5], bg[4]]
+    #     else:
+    #         if self.config["multipole"] == 2: biaslist = [bs[0], bs[1] / np.sqrt(2.), bg[0], bs[1] / np.sqrt(2.), bg[1], bg[2], 0., 0., 0., 0.]
+    #         elif self.config["multipole"] == 3: biaslist = [bs[0], bs[1] / np.sqrt(2.), bg[0], bs[1] / np.sqrt(2.), bg[1], bg[2], bg[3], 0., 0., 0.]
+    
     def bias_array_to_dict(self, bs):
-        if self.config["with_stoch"]:
-            if self.config["multipole"] == 2: bdict = {"b1": bs[0], "b2": bs[1], "b3": bs[2], "b4": bs[3], "cct": bs[4], "cr1": bs[5], "ce0": bs[6], "ce1": bs[7], "ce2": bs[8]}
-            elif self.config["multipole"] == 3: bdict = {"b1": bs[0], "b2": bs[1], "b3": bs[2], "b4": bs[3], "cct": bs[4], "cr1": bs[5], "cr2": bs[6], "ce0": bs[7], "ce1": bs[8], "ce2": bs[9]}
-        else:
-            if self.config["multipole"] == 0: bdict = {"cct": bs[0]}
-            if self.config["multipole"] == 2: bdict = {"b1": bs[0], "b2": bs[1], "b3": bs[2], "b4": bs[3], "cct": bs[4], "cr1": bs[5]}
-            elif self.config["multipole"] == 3: bdict = {"b1": bs[0], "b2": bs[1], "b3": bs[2], "b4": bs[3], "cct": bs[4], "cr1": bs[5], "cr2": bs[6]}
-        
-        options = ["with_nnlo_counterterm", "with_nnlo_higher_derivative", "with_tidal_alignments"]#, "with_cf_sys"]
-        nparams = [self.config["multipole"], self.config["multipole"], 1]#, 3]
-        paramnames = [  ["cnnlo_l%s" % (2*i) for i in range(self.config["multipole"])], 
+
+        #     if self.config["with_stoch"]:
+    #         if self.config["multipole"] == 2: bdict = {"b1": bs[0], "b2": bs[1], "b3": bs[2], "b4": bs[3], "cct": bs[4], "cr1": bs[5], "ce0": bs[6], "ce1": bs[7], "ce2": bs[8]}
+    #         elif self.config["multipole"] == 3: bdict = {"b1": bs[0], "b2": bs[1], "b3": bs[2], "b4": bs[3], "cct": bs[4], "cr1": bs[5], "cr2": bs[6], "ce0": bs[7], "ce1": bs[8], "ce2": bs[9]}
+    #     else:
+    #         if self.config["multipole"] == 0: bdict = {"cct": bs[0]}
+    #         if self.config["multipole"] == 2: bdict = {"b1": bs[0], "b2": bs[1], "b3": bs[2], "b4": bs[3], "cct": bs[4], "cr1": bs[5]}
+    #         elif self.config["multipole"] == 3: bdict = {"b1": bs[0], "b2": bs[1], "b3": bs[2], "b4": bs[3], "cct": bs[4], "cr1": bs[5], "cr2": bs[6]}
+
+        if self.config["multipole"] == 0: 
+            bdict = {"cct": bs[0]}
+        elif self.config["multipole"] >= 2: 
+            bdict = {"b1": bs[0], "b2": bs[1], "b3": bs[2], "b4": bs[3], "cct": bs[4], "cr1": bs[5]}
+        if self.config["multipole"] == 3: 
+            bdict["cr2"] = bs[6]
+
+        options = ["with_stoch", "with_nnlo_counterterm", "with_nnlo_higher_derivative", "with_tidal_alignments"]#, "with_cf_sys"]
+        nparams = [3, 2, self.config["multipole"], 1]#, 3]
+        paramnames = [  ["ce0", "ce1", "ce2"],
+                        ["cnnlo_mu4k4P11", "cnnlo_mu6k4P11"], 
                         ["bnnlo_l%s" % (2*i) for i in range(self.config["multipole"])], 
                         ["bq"],
                         #["a0", "a1", "a2"]
@@ -2829,29 +2864,26 @@ class Likelihood_bird(Likelihood):
 
         return bdict
 
-    def bias_custom_to_all(self, bs):
-        if self.config["multipole"] == 0: biaslist = 10*[0]
-        else: biaslist = [bs[0], bs[1] / np.sqrt(2.), 0., bs[1] / np.sqrt(2.), 0., 0., 0., 0., 0., 0.]
-        biaslist.extend(bs[2:])
-        return biaslist
-
-    def bias_nonmarg_to_all(self, bs, bg):
+    def bias_nonmarg_to_all(self, bs, bg=None):
         biaslist = []
+        if bg is None: 
+            bg = np.zeros(shape=(10)) 
+        biaslist = [bs[0], bs[1] / np.sqrt(2.), bg[0], bs[1] / np.sqrt(2.), bg[1], bg[2]]
+        if self.config["multipole"] == 2: 
+            pad = 0 
+        elif self.config["multipole"] == 3: 
+            pad = 1
+            biaslist += [bg[3]]    
         if self.config["with_stoch"]:
-            if self.config["multipole"] == 2:
-                if self.config["model"] == 1: biaslist = [bs[0], bs[1] / np.sqrt(2.), bg[0], bs[1] / np.sqrt(2.), bg[1], bg[2], 0., bg[4], 0., bg[3]]
-                if self.config["model"] == 2: biaslist = [bs[0], bs[1] / np.sqrt(2.), bg[0], bs[1] / np.sqrt(2.), bg[1], bg[2], 0., 0., 0., bg[3]]
-                if self.config["model"] == 3: biaslist = [bs[0], bs[1] / np.sqrt(2.), bg[0], bs[1] / np.sqrt(2.), bg[1], bg[2], 0., 0., bg[4], bg[3]]
-                if self.config["model"] == 4: biaslist = [bs[0], bs[1] / np.sqrt(2.), bg[0], bs[1] / np.sqrt(2.), bg[1], bg[2], 0., bg[5], bg[4], bg[3]]
-            elif self.config["multipole"] == 3:
-                if self.config["model"] == 1: biaslist = [bs[0], bs[1] / np.sqrt(2.), bg[0], bs[1] / np.sqrt(2.), bg[1], bg[2], bg[3], bg[5], 0., bg[4]]
-                if self.config["model"] == 2: biaslist = [bs[0], bs[1] / np.sqrt(2.), bg[0], bs[1] / np.sqrt(2.), bg[1], bg[2], bg[3], 0., 0., bg[4]]
-                if self.config["model"] == 3: biaslist = [bs[0], bs[1] / np.sqrt(2.), bg[0], bs[1] / np.sqrt(2.), bg[1], bg[2], bg[3], 0., bg[5], bg[4]]
-                if self.config["model"] == 4: biaslist = [bs[0], bs[1] / np.sqrt(2.), bg[0], bs[1] / np.sqrt(2.), bg[1], bg[2], bg[3], bg[6], bg[5], bg[4]]
-        else:
-            if self.config["multipole"] == 2: biaslist = [bs[0], bs[1] / np.sqrt(2.), bg[0], bs[1] / np.sqrt(2.), bg[1], bg[2], 0., 0., 0., 0.]
-            elif self.config["multipole"] == 3: biaslist = [bs[0], bs[1] / np.sqrt(2.), bg[0], bs[1] / np.sqrt(2.), bg[1], bg[2], bg[3], 0., 0., 0.]
-        biaslist.extend(bs[2:])
+            if self.config["model"] == 1: 
+                biaslist += [bg[4+pad], 0., bg[3+pad]]
+                pad += 2
+            elif self.config["model"] == 4: 
+                biaslist += [bg[5+pad], bg[4+pad], bg[3+pad]]
+                pad += 3
+        if self.config["with_nnlo_counterterm"]: 
+            biaslist += [bg[3+pad], bg[4+pad]]
+        biaslist.extend(bs[2:]) # this adds extra nonmarg parameters, but works only for the marg lkl
         return biaslist
 
     def loglkl(self, cosmo, data):
@@ -2861,35 +2893,46 @@ class Likelihood_bird(Likelihood):
         
         if data.need_cosmo_update: self.correlator.compute(self.__set_cosmo(cosmo, data))
         
-        bng = np.array([data.mcmc_parameters[k]['current'] * data.mcmc_parameters[k]['scale'] for k in self.use_nuisance]).reshape(self.config["skycut"], -1)
-        bdict = np.array([self.bias_array_to_dict(self.bias_custom_to_all(bs)) for bs in bng])
+        bval = np.array([data.mcmc_parameters[k]['current'] * data.mcmc_parameters[k]['scale'] for k in self.use_nuisance]).reshape(self.config["skycut"], -1)
 
-        neat_indent = True
-        if neat_indent:
+        if self.config["nonmarg"]:
             chi2 = 0.
+            bdict = np.array([self.bias_array_to_dict(self.bias_nonmarg_to_all(bs[:2], bs[2:])) for bs in bval])
+            correlator = self.correlator.get(bdict)
+            for i in range(self.config["skycut"]):
+                if self.config["skycut"] is 1: modelX = correlator
+                elif self.config["skycut"] > 1: modelX = correlator[i]
+                if self.config["with_cf_sys"]: modelX[0] += bval[i,-1] + bval[i,-2] * self.x[i]**-1 + bval[i,-3] * self.x[i]**-2
+                chi2_i, _ = self.__get_chi2(modelX, cosmo, data, marg=False, i=i)
+                chi2 += chi2_i
+                chi2 += np.sum(np.array([bval[i,2:]/self.priors[i]])**2)
+        else:
+            chi2 = 0.
+            bdict = np.array([self.bias_array_to_dict(self.bias_nonmarg_to_all(bs)) for bs in bval])
             correlator = self.correlator.get(bdict)
             marg_correlator = self.correlator.getmarg(bdict, model=self.config["model"])
             for i in range(self.config["skycut"]):
                 if self.config["skycut"] is 1: modelX = correlator
                 elif self.config["skycut"] > 1: modelX = correlator[i]
-                if self.config["with_cf_sys"]: modelX[0] += bng[i,-1] + bng[i,-2] * self.x[i]**-1 + bng[i,-3] * self.x[i]**-2
+                if self.config["with_cf_sys"]: modelX[0] += bval[i,-1] + bval[i,-2] * self.x[i]**-1 + bval[i,-3] * self.x[i]**-2
                 chi2_i, bg_i = self.__get_chi2(modelX, cosmo, data, marg=True, marg_correlator=marg_correlator, i=i)
                 chi2 += chi2_i
                 if self.config["with_nnlo_higher_derivative"] or self.config["get_chi2_from_marg"]: bg.append(bg_i)
 
         if self.config["get_chi2_from_marg"]: 
             chi2 = 0.
-            nonmarg_bdict = np.array([self.bias_array_to_dict(self.bias_nonmarg_to_all(bs, bgi)) for (bs, bgi) in zip(bng, bg) ])
+            nonmarg_bdict = np.array([self.bias_array_to_dict(self.bias_nonmarg_to_all(bs, bgi)) for (bs, bgi) in zip(bval, bg) ])
             nonmarg_correlator = self.correlator.get(nonmarg_bdict)
             for i in range(self.config["skycut"]):
                 if self.config["skycut"] is 1: modelX = nonmarg_correlator
                 elif self.config["skycut"] > 1: modelX = nonmarg_correlator[i]
                 chi2_i, _ = self.__get_chi2(modelX, cosmo, data, marg=False, i=i)
-                chi2 += chi2i
+                chi2 += chi2_i
+                chi2 += np.sum(np.array([bg[i]/self.priors[i]])**2)
 
-        if self.config["with_nnlo_higher_derivative"]: 
+        if self.config["with_nnlo_higher_derivative"]: # this does not work with get_chi2_from_marg
             chi2 = 0.
-            nonmarg_bdict = np.array([self.bias_array_to_dict(self.bias_nonmarg_to_all(bs, bgi)) for (bs, bgi) in zip(bng, bg) ])
+            nonmarg_bdict = np.array([self.bias_array_to_dict(self.bias_nonmarg_to_all(bs, bgi)) for (bs, bgi) in zip(bval, bg) ])
             nnlo = self.correlator.getnnlo(nonmarg_bdict)
             for i in range(self.config["skycut"]):
                 if self.config["skycut"] is 1: modelX = correlator + nnlo
@@ -2901,12 +2944,12 @@ class Likelihood_bird(Likelihood):
         if self.config["with_bbn"]: prior += -0.5 * ((data.cosmo_arguments['omega_b'] - self.config["omega_b_BBNcenter"]) / self.config["omega_b_BBNsigma"])**2
         # if self.config["model"] == 3 or self.config["model"] == 4: prior += - 0.5 * (bng[0,2]/2.)**2
         if self.config["with_cf_sys"]: 
-            for i in range(self.config["skycut"]): prior += - 0.5 * ( (bs[i,-1]/0.003)**2 + (bs[i,-2]/3.)**2 + (bs[i,-3]/20.)**2 )
-        if self.config["with_nnlo_counterterm"]: 
-            for i in range(self.config["skycut"]): 
-                cnnlo = np.array([ bdict[i]["cnnlo_l%s" % (2*l)] for l in range(self.config["multipole"]) ])
-                sigma = np.array([ 6., 30., 150. ])[:self.config["multipole"]]
-                prior += - 0.5 * np.sum( (cnnlo/sigma)**2 )
+            for i in range(self.config["skycut"]): prior += - 0.5 * ( (bval[i,-1]/0.003)**2 + (bval[i,-2]/3.)**2 + (bval[i,-3]/20.)**2 )
+        # if self.config["with_nnlo_counterterm"]: 
+        #     for i in range(self.config["skycut"]): 
+        #         cnnlo = np.array([ bdict[i]["cnnlo_mu4k4P11"], bdict[i]["cnnlo_mu6k4P11"] ])
+        #         sigma = np.array([ 4.**2, 4.**2 ])
+        #         prior += - 0.5 * np.sum( (cnnlo/sigma)**2 )
         if self.config["with_nnlo_higher_derivative"]: 
             for i in range(self.config["skycut"]): 
                 bnnlo = np.array([ bdict[i]["bnnlo_l%s" % (2*l)] for l in range(self.config["multipole"]) ])
@@ -2936,15 +2979,17 @@ class Likelihood_bird(Likelihood):
         if marg:
             if self.config["skycut"] is 1: Pi = self.__get_Pi_for_marg(marg_correlator, self.xmask[i])
             elif self.config["skycut"] > 1: Pi = self.__get_Pi_for_marg(marg_correlator[i], self.xmask[i])
+            # chi2, bg = self.__get_chi2_marg(modelX, Pi, self.invcov[i], self.ydata[i], self.priormat[i], data, isky=i)
             chi2, bg = self.__get_chi2_marg(modelX, Pi, self.invcov[i], self.invcovdata[i], self.chi2data[i], self.priormat[i], data, isky=i)
         else: 
             chi2 = self.__get_chi2_non_marg(modelX, self.invcov[i], self.ydata[i])
+            bg = None
 
         return chi2, bg # chi^2, b_gaussian 
 
 
     def __get_chi2_non_marg(self, modelX, invcov, ydata):
-        chi2 = np.dot(modelX-ydata, np.dot(invcov, modelX-ydata))
+        chi2 = np.einsum('k,p,kp->', modelX-ydata, modelX-ydata, invcov)
         return chi2
 
     def __get_chi2_marg(self, modelX, Pi, invcov, invcovdata, chi2data, priormat, data, isky=0):
@@ -2954,17 +2999,30 @@ class Likelihood_bird(Likelihood):
         chi2nomar = np.dot(modelX, np.dot(invcov, modelX)) - 2. * np.dot(invcovdata, modelX) + chi2data
         chi2mar = - np.dot(vectorbi, np.dot(Cinvbi, vectorbi)) + np.log(np.abs(np.linalg.det(Covbi)))
         chi2tot = chi2mar + chi2nomar - priormat.shape[0] * np.log(2. * np.pi)
+        bg = - np.dot(Cinvbi, vectorbi)
 
-        if self.config["with_derived_bias"] or self.config["with_nnlo_higher_derivative"] or self.config["get_chi2_from_marg"]: 
-            bg = - np.dot(Cinvbi, vectorbi)
-            if self.config["with_derived_bias"]:
-                Ng = len(bg)
-                for i, elem in enumerate(data.get_mcmc_parameters(['derived_lkl'])):
-                    if i >= isky * Ng and i < (isky + 1) * Ng:
-                        data.derived_lkl[elem] = bg[i - isky * Ng]
+        if self.config["with_derived_bias"]:
+            for i, elem in enumerate(montepython_data.get_mcmc_parameters(['derived_lkl'])):
+                if i >= isky * len(bg) and i < (isky + 1) * len(bg):
+                    data.derived_lkl[elem] = bg[i - isky * len(bg)]
 
-        if self.config["with_nnlo_higher_derivative"] or self.config["get_chi2_from_marg"]: return chi2tot, bg
-        else: return chi2tot, None
+        return chi2tot, bg
+
+    # def __get_chi2_marg(self, Png, Pg, invcov, ydata, priormat, montepython_data, isky=0):
+
+    #     F2 = np.einsum('ak,bp,kp->ab', Pg, Pg, invcov) + priormat
+    #     invF2 = np.linalg.inv(F2)
+    #     F1 = np.einsum('ak,p,kp->a', Pg, Png-ydata, invcov)
+    #     F0 = self.__get_chi2_non_marg(Png, invcov, ydata) 
+    #     chi2 = F0 - np.einsum('a,b,ab->', F1, F1, invF2) + np.log(np.linalg.det(F2)) 
+    #     bg = - np.einsum('a,ab->b', F1, invF2) 
+
+    #     if self.config["with_derived_bias"]:
+    #         for i, elem in enumerate(montepython_data.get_mcmc_parameters(['derived_lkl'])):
+    #             if i >= isky * len(bg) and i < (isky + 1) * len(bg):
+    #                 montepython_data.derived_lkl[elem] = bg[i - isky * len(bg)]
+
+    #     return chi2, bg
 
     def __get_Pi_for_marg(self, marg_correlator, xmask):
 
@@ -3013,7 +3071,7 @@ class Likelihood_bird(Likelihood):
         if self.config["with_redshift_bin"]:
             def comoving_distance(z): return M.angular_distance(z) * (1+z) * M.h()
             if self.config["skycut"] == 1:
-                cosmo["D"] = M.scale_independent_growth_factor(self.config["z"])
+                cosmo["D"] = M.scale_independent_growth_factor(self.config["z"][0])
                 cosmo["Dz"] = np.array([M.scale_independent_growth_factor(z) for z in self.config["zz"]])
                 cosmo["fz"] = np.array([M.scale_independent_growth_factor_f(z) for z in self.config["zz"]])
                 cosmo["rz"] = np.array([comoving_distance(z) for z in self.config["zz"]])
@@ -3038,7 +3096,7 @@ class Likelihood_bird(Likelihood):
             cosmo["f"] = GF.fplus(1/(1.+cosmo["z"]))
 
         if self.config["with_nnlo_counterterm"] or self.config["with_nnlo_higher_derivative"]: 
-            EH_dict = { "Omega0_b": M.Omega_b(), "Omega0_m": M.Omega0_m(), "h": M.h(), "A_s": M.get_current_derived_parameters(["A_s"]), "n_s": M.n_s(), "T_cmb": M.T_cmb(), 
+            EH_dict = { "Omega0_b": M.Omega_b(), "Omega0_m": M.Omega0_m(), "h": M.h(), "A_s": M.get_current_derived_parameters(["A_s"])["A_s"], "n_s": M.n_s(), "T_cmb": M.T_cmb(), 
                 "D": M.scale_independent_growth_factor(self.config["z"][0]) }
             cosmo["EH"] = EH_dict
 
@@ -3050,7 +3108,8 @@ class Likelihood_bird(Likelihood):
         # try:
         xdata, ydata = self.__load_spectrum(data_directory, spectrum_file)  # read values of k (in h/Mpc)
         # except: xdata, ydata, cov = self.__load_gaussian_spectrum(data_directory, spectrum_file) # with gaussian case: column 1: k[h/Mpc]  column 2-N+2: signal  column N+3-2N+2: error
-
+        cov = np.loadtxt(os.path.join(data_directory, covmat_file))
+        
         if wedge is not 0:
             x = xdata.reshape(wedge, -1)[0]
             Nx = len(x)
@@ -3069,7 +3128,7 @@ class Likelihood_bird(Likelihood):
                 for i in range(wedge - 1):
                     xmaski = np.argwhere((x <= xmax0 + (i + 1) * dxmax) & (x >= xmin))[:, 0] + (i + 1) * Nx
                     xmask = np.concatenate((xmask, xmaski))
-            else:
+            elif 'formula0' in xmaxspacing:
                 def get_xmax(k0, k1, N=wedge):
                     a = ((k0 - k1) * (-1 + 2 * N)**2) / (16. * (-1 + N) * N**3)
                     b = -(k0 - k1 + 4 * k1 * N - 4 * k1 * N**2) / (4. * (-1 + N) * N)
@@ -3079,6 +3138,51 @@ class Likelihood_bird(Likelihood):
                 for i, xmaxi in enumerate(xmaxs[1:]):
                     xmaski = np.argwhere((x <= xmaxi) & (x >= xmin))[:, 0] + (i + 1) * Nx
                     xmask = np.concatenate((xmask, xmaski))
+            elif 'optimal' in xmaxspacing: # optimal
+                cov_resh = cov.reshape((3, cov.shape[0] // 3, 3, cov.shape[1] // 3))
+                mat = np.array([[1., -3./7., 11./56.], [1., -3/8., 15/128.], [1., 3/8., -15./128.]]) # PA + w1 + w2
+                ydata = np.einsum('al,lk->ak', mat, ydata.reshape(3,-1)).reshape(-1) # rotate the data to optimal basis for minimal theoretical error
+                cov = np.einsum('al,bm,lkmj->akbj', mat, mat, cov_resh).reshape(cov.shape) # rotate the covariance to optimal basis for minimal theoretical error
+                err = np.sqrt(np.diag(cov)).reshape(3, -1)
+                masksigma = np.argwhere((x <= 0.18) & (x >= 0.12))[:, 0]
+                ratiosigmaB = np.mean(err[1, masksigma]) / np.mean(err[0, masksigma])
+                ratiosigmaC = np.mean(err[2, masksigma]) / np.mean(err[0, masksigma])
+                ratioknl2 = 8.
+                D0 = 1. + (1/5.  + 1/7.  ) * ratioknl2**2
+                D2 = 0. + (4/7.  + 10/21.) * ratioknl2**2
+                D4 = 0. + (8/35. + 24/77.) * ratioknl2**2
+                D = np.array([D0, D2, D4])
+                kmaxA = xmax
+                kmaxB = kmaxA * ratiosigmaB**0.25 * np.einsum('a,a->', mat[1], D)**(-0.25)
+                kmaxC = kmaxA * ratiosigmaC**0.25 * np.einsum('a,a->', mat[2], D)**(-0.25)
+                with np.printoptions(precision=2, suppress=True): 
+                    print ('kmax: ', np.array([kmaxA, kmaxB, kmaxC]))
+                    print ('errB/errA, errC/errA', np.array([ratiosigmaB, ratiosigmaC]))
+                def getmask(kmax, i): return np.argwhere((x <= kmax) & (x >= xmin))[:, 0] + i * Nx
+                kmask = []
+                for i, kmax in enumerate([kmaxA, kmaxB, kmaxC]): kmask.append(getmask(kmax, i))
+                xmask = np.concatenate((kmask))
+            elif 'great' in xmaxspacing: # great
+                cov_resh = cov.reshape((3, cov.shape[0] // 3, 3, cov.shape[1] // 3))
+                mat = np.array([[1., -3./7., 11./56.], [1., -3/8., 15/128.], [1., 3/8., -15./128.]]) # PA + w1 + w2
+                ydata = np.einsum('al,lk->ak', mat, ydata.reshape(3,-1)).reshape(-1) # rotate the data to optimal basis for minimal theoretical error
+                cov = np.einsum('al,bm,lkmj->akbj', mat, mat, cov_resh).reshape(cov.shape) # rotate the covariance to optimal basis for minimal theoretical error
+                err = np.sqrt(np.diag(cov)).reshape(3, -1)
+                masksigmaB = np.argwhere((x <= 0.3) & (x >= 0.2))[:, 0]
+                ratiosigmaB = np.mean(err[1, masksigmaB]) / np.mean(err[0, masksigmaB])
+                masksigmaC = np.argwhere((x <= 0.2) & (x >= 0.1))[:, 0]
+                ratiosigmaC = np.mean(err[2, masksigmaC]) / np.mean(err[0, masksigmaC])
+                ratioknl2 = 8.
+                kmaxA = xmax
+                kmaxB = kmaxA * ratiosigmaB**0.25 * (1 + 3 * ratioknl2 * 0.0834097)**(-0.25)
+                kmaxC = kmaxA * ratiosigmaC**0.25 * (1 + 3 * ratioknl2 * 0.773912)**(-0.25)
+                with np.printoptions(precision=2, suppress=True): 
+                    print ('kmax: ', np.array([kmaxA, kmaxB, kmaxC]))
+                    print ('errB/errA, errC/errA', np.array([ratiosigmaB, ratiosigmaC]))
+                def getmask(kmax, i): return np.argwhere((x <= kmax) & (x >= xmin))[:, 0] + i * Nx
+                kmask = []
+                for i, kmax in enumerate([kmaxA, kmaxB, kmaxC]): kmask.append(getmask(kmax, i))
+                xmask = np.concatenate((kmask))
 
         elif multipole != 0:
             x = xdata.reshape(3, -1)[0]
@@ -3105,8 +3209,6 @@ class Likelihood_bird(Likelihood):
         else:
             print ("BAO recon: none")
 
-        # if cov is None:
-        cov = np.loadtxt(os.path.join(data_directory, covmat_file))
         covred = cov[xmask.reshape((len(xmask), 1)), xmask]
         invcov = np.linalg.inv(covred)
 
@@ -3215,7 +3317,7 @@ class Likelihood_bird(Likelihood):
         # kPS = np.vstack([allkpt, allwpt]).T
         return allk, allPS, cov
 
-    def __set_prior(self, multipole, model=5):
+    def __set_prior(self, multipole, model=4):
 
         if model == 0:
             priors = np.array([2., 2.])
@@ -3275,9 +3377,10 @@ class Likelihood_bird(Likelihood):
                 b3, cct, cr1, cr2 = priors
                 print ('EFT priors: b3: %s, cct: %s, cr1: %s, cr2: %s (default)' % (b3, cct, cr1, cr2))
 
-        priormat = np.diagflat(1. / priors**2)
+        if self.config["with_nnlo_counterterm"]:
+            priors = np.concatenate((priors, [1., 1.]))
 
-        return priormat
+        return priors
 
 
 #################################################

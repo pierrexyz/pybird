@@ -84,13 +84,6 @@ class Bird(object):
         self.Cct = np.empty(shape=(self.co.Nl, self.co.Ns))
         self.Cf = np.zeros(shape=(3, self.co.Nl, self.co.Ns)) # 3: linear, 1-loop, NNLO
 
-        if self.with_nnlo_counterterm:
-            self.cnnlo = np.zeros(shape=(self.co.Nl))
-            self.Cnnlo = np.empty(shape=(self.co.Nl, self.co.Ns))
-            self.Cnnlol = np.empty(shape=(self.co.Nl, 1, self.co.Ns))
-            self.Pnnlo = np.empty(shape=(self.co.Nk))
-            self.Pnnlol = np.empty(shape=(self.co.Nl, 1, self.co.Nk))
-
         if not with_bias:
             self.Ploopl = np.empty(shape=(self.co.Nl, self.co.Nloop, self.co.Nk))
             self.P11l = np.empty(shape=(self.co.Nl, self.co.N11, self.co.Nk))
@@ -151,6 +144,16 @@ class Bird(object):
         else:
             if self.co.with_cf: self.Cstl = None
             else: self.Pstl = None 
+
+        if self.with_nnlo_counterterm:
+            self.cnnlo = np.zeros(shape=(self.co.Nl))
+            self.Cnnlo = np.empty(shape=(self.co.Nl, self.co.Ns))
+            self.Cnnlol = np.empty(shape=(self.co.Nl, 2, self.co.Ns))
+            self.Pnnlo = np.empty(shape=(self.co.Nk))
+            self.Pnnlol = np.empty(shape=(self.co.Nl, 2, self.co.Nk))
+        else:
+            if self.co.with_cf: self.Cnnlol = None
+            else: self.Pnnlol = None 
 
     def setcosmo(self, cosmo):
 
@@ -232,15 +235,13 @@ class Bird(object):
             self.bst[2] = bias["ce2"]
 
         if self.co.halohalo:
-
-            if self.with_nnlo_counterterm: 
-                for i in range(self.co.Nl): 
-                    self.cnnlo[i] = bias["cnnlo_l%s" % (2*i)] / self.co.km**4
+            
             if self.with_tidal_alignments: bq = bias["bq"]
 
             if self.with_bias: # evaluation with biases specified
                 for i in range(self.co.Nl):
                     l = 2 * i
+                    if self.with_nnlo_counterterm: self.cnnlo[i] = ( b1**2 * bias["cnnlo_mu4k4P11"] * mu[4][l] + b1 * bias["cnnlo_mu6k4P11"] * mu[6][l] ) / self.co.kr4
                     if self.with_tidal_alignments: self.b11[i] = (b1-bq/3.)**2 * mu[0][l] + 2. * (b1-bq/3.) * (f+bq) * mu[2][l] + (f+bq)**2 * mu[4][l]
                     else: self.b11[i] = b1**2 * mu[0][l] + 2. * b1 * f * mu[2][l] + f**2 * mu[4][l]
                     self.bct[i] = 2. * b1 * (b5 * mu[0][l] + b6 * mu[2][l] + b7 * mu[4][l]) + 2. * f * (b5 * mu[2][l] + b6 * mu[4][l] + b7 * mu[6][l])
@@ -257,6 +258,7 @@ class Bird(object):
                         self.b22[i] = np.array([b1**2 * mu[0][l], b1 * b2 * mu[0][l], b1 * b4 * mu[0][l], b2**2 * mu[0][l], b2 * b4 * mu[0][l], b4**2 * mu[0][l], b1**2 * f * mu[2][l], b1 * b2 * f * mu[2][l], b1 * b4 * f * mu[2][l], b1 * f * mu[2][l], b2 * f * mu[2][l], b4 * f * mu[2][l], b1**2 * f**2 * mu[2][l], b1**2 * f**2 * mu[4][l], b1 * f**2 * mu[2][l], b1 * f**2 * mu[4][l], b2 * f**2 * mu[2][l], b2 * f**2 * mu[4][l], b4 * f**2 * mu[2][l], b4 * f**2 * mu[4][l], f**2 * mu[4][l], b1 * f**3 * mu[4][l], b1 * f**3 * mu[6][l], f**3 * mu[4][l], f**3 * mu[6][l], f**4 * mu[4][l], f**4 * mu[6][l], f**4 * mu[8][l]])
                         self.b13[i] = np.array([b1**2 * mu[0][l], b1 * b3 * mu[0][l], b1**2 * f * mu[2][l], b1 * f * mu[2][l], b3 * f * mu[2][l], b1 * f**2 * mu[2][l], b1 * f**2 * mu[4][l], f**2 * mu[4][l], f**3 * mu[4][l], f**3 * mu[6][l]])
             else: # evaluation with biases unspecified
+                if self.with_nnlo_counterterm: self.cnnlo = np.array([b1**2 * bias["cnnlo_mu4k4P11"], b1 * bias["cnnlo_mu6k4P11"]]) / self.co.kr4
                 if self.with_tidal_alignments: self.b11 = np.array([(b1-bq/3.)**2, 2. * (b1-bq/3.) * (f+bq), (f+bq)**2])
                 else: self.b11 = np.array([b1**2, 2. * b1 * f, f**2])
                 self.bct = np.array([2. * b1 * b5, 2. * b1 * b6, 2. * b1 * b7, 2. * f * b5, 2. * f * b6, 2. * f * b7])
@@ -304,7 +306,7 @@ class Bird(object):
         for l in range(self.co.Nl): self.Ps[1, l] -= self.Ps[1, l, 0]
         self.Ps[1] += np.einsum('lb,bx->lx', self.b13, self.P13) + np.einsum('l,x,x->lx', self.bct, self.co.k**2, self.P11)
         if self.with_stoch: self.Ps[1] += np.einsum('b,lbx->lx', self.bst, self.Pstl)
-        if self.with_nnlo_counterterm: self.Ps[2] = np.einsum('l,x->lx', self.cnnlo, self.Pnnlo)
+        if self.with_nnlo_counterterm: self.Ps[2] = np.einsum('lb,x->lx', self.cnnlo, self.Pnnlo)
         if setfull: self.setfullPs()
 
     def setCf(self, bs=None, setfull=True):
@@ -319,7 +321,7 @@ class Bird(object):
         self.Cf[0] = np.einsum('l,lx->lx', self.b11, self.C11)
         self.Cf[1] = np.einsum('lb,lbx->lx', self.b22, self.C22l) + np.einsum('lb,lbx->lx', self.b13, self.C13l) + np.einsum('l,lx->lx', self.bct, self.Cct)
         # if self.with_stoch: self.Cf[1] += np.einsum('b,lbx->lx', self.bst, self.Cstl) # no stochastic term for Cf
-        if self.with_nnlo_counterterm: self.Cf[2] = np.einsum('l,lx->lx', self.cnnlo, self.Cnnlo)
+        if self.with_nnlo_counterterm: self.Cf[2] = np.einsum('lb,lx->lx', self.cnnlo, self.Cnnlo)
         if setfull: self.setfullCf()
 
     def setPsCf(self, bs, setfull=True):
@@ -676,7 +678,7 @@ class Bird(object):
         self.Ps[0] = np.einsum('b,lbx->lx', self.b11, self.P11l)
         self.Ps[1] = np.einsum('b,lbx->lx', self.bloop, self.Ploopl) + np.einsum('b,lbx->lx', self.bct, self.Pctl)
         if self.with_stoch: self.Ps[1] += np.einsum('b,lbx->lx', self.bst, self.Pstl)
-        if self.with_nnlo_counterterm: self.Ps[2] = np.einsum('l,lbx->lx', self.cnnlo, self.Pnnlol)
+        if self.with_nnlo_counterterm: self.Ps[2] = np.einsum('b,lbx->lx', self.cnnlo, self.Pnnlol)
         self.setfullPs()
 
     def setreduceCflb(self, bs):
@@ -692,7 +694,7 @@ class Bird(object):
         self.Cf[0] = np.einsum('b,lbx->lx', self.b11, self.C11l)
         self.Cf[1] = np.einsum('b,lbx->lx', self.bloop, self.Cloopl) + np.einsum('b,lbx->lx', self.bct, self.Cctl)
         if self.with_stoch: self.Cf[1] += np.einsum('b,lbx->lx', self.bst, self.Cstl)
-        if self.with_nnlo_counterterm: self.Cf[2] = np.einsum('l,lbx->lx', self.cnnlo, self.Cnnlol)
+        if self.with_nnlo_counterterm: self.Cf[2] = np.einsum('b,lbx->lx', self.cnnlo, self.Cnnlol)
         self.setfullCf()
 
         self.setreducePslb(bs) # PZ NNLO

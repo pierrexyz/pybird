@@ -11,6 +11,16 @@ from scipy.interpolate import interp1d
 # from . greenfunction import GreenFunction
 # from . fourier import FourierTransform
 
+from common import Common, co
+from bird import Bird
+from nonlinear import NonLinear
+from nnlo import NNLO_higher_derivative, NNLO_counterterm
+from resum import Resum
+from projection import Projection
+from greenfunction import GreenFunction
+from fourier import FourierTransform
+from eisensteinhu import EisensteinHu
+
 # import importlib, sys
 # importlib.reload(sys.modules['common'])
 # importlib.reload(sys.modules['bird'])
@@ -22,15 +32,15 @@ from scipy.interpolate import interp1d
 # importlib.reload(sys.modules['fourier'])
 # importlib.reload(sys.modules['eisensteinhu'])
 
-from common import Common, co
-from bird import Bird
-from nonlinear import NonLinear
-from nnlo import NNLO_higher_derivative, NNLO_counterterm
-from resum import Resum
-from projection import Projection
-from greenfunction import GreenFunction
-from fourier import FourierTransform
-from eisensteinhu import EisensteinHu
+# from common import Common, co
+# from bird import Bird
+# from nonlinear import NonLinear
+# from nnlo import NNLO_higher_derivative, NNLO_counterterm
+# from resum import Resum
+# from projection import Projection
+# from greenfunction import GreenFunction
+# from fourier import FourierTransform
+# from eisensteinhu import EisensteinHu
 
 class Correlator(object):
     
@@ -396,17 +406,18 @@ class Correlator(object):
 
     def getmarg(self, bias, model=1):
 
-        def marg(loop, ct, b1, f, Pst=None, bq=0):
+        def marg(loop, ct, b1, f, Pst=None, nnlo=None, bq=0):
 
             if "m" in self.config["output"]:
                 return np.array([ ct[0].reshape(-1) / self.config["km"]**2 ])
 
             elif "b" in self.config["output"]:
 
-                if loop.ndim is 3:
+                if loop.ndim is 3: # Should I try instead: loop = loop.reshape(loop.shape[1], -1) and not use the reshape afterwards for more concise code?
                     loop = np.swapaxes(loop, axis1=0, axis2=1)
                     ct = np.swapaxes(ct, axis1=0, axis2=1)
                     if Pst is not None: Pst = np.swapaxes(Pst, axis1=0, axis2=1)
+                    if nnlo is not None: nnlo = np.swapaxes(nnlo, axis1=0, axis2=1)
                 
                 if self.co.Nloop is 12: Pb3 = loop[3] + b1 * loop[7]                            # config["with_time"] = True
                 elif self.co.Nloop is 18: Pb3 = loop[3] + b1 * loop[7] + bq * loop[16]          # config["with_time"] = True, config["with_tidal_alignments"] = True
@@ -424,23 +435,29 @@ class Correlator(object):
                     if model == 3: m = np.vstack([m, Pst[1].reshape(-1) ]) # k^2 mono
                     if model == 4: m = np.vstack([m, Pst[1].reshape(-1) , Pst[0].reshape(-1) ]) # k^2 mono, k^0 mono
 
+                if self.config["with_nnlo_counterterm"]:
+                    m = np.vstack([m, b1**2 * nnlo[0].reshape(-1) / self.co.kr4, b1 * nnlo[1].reshape(-1) / self.co.kr4])
+
             return m
 
         def marg_from_bird(bird, bias_local):
             self.__is_bias_conflict(bias_local)
-            if "Pk" in self.config["output"]: return marg(bird.Ploopl, bird.Pctl, self.bias["b1"], bird.f, Pst=bird.Pstl, bq=self.bias["bq"])
-            elif "Cf" in self.config["output"]: return marg(bird.Cloopl, bird.Cctl, self.bias["b1"], bird.f, Pst=bird.Cstl, bq=self.bias["bq"])
+            if "Pk" in self.config["output"]: return marg(bird.Ploopl, bird.Pctl, self.bias["b1"], bird.f, Pst=bird.Pstl, nnlo=bird.Pnnlol, bq=self.bias["bq"])
+            elif "Cf" in self.config["output"]: return marg(bird.Cloopl, bird.Cctl, self.bias["b1"], bird.f, Pst=bird.Cstl, nnlo=bird.Cnnlol, bq=self.bias["bq"])
 
         if self.config["skycut"] == 1: return marg_from_bird(self.bird, bias)
         elif self.config["skycut"] > 1: return [ marg_from_bird(bird_i, bias_i) for (bird_i, bias_i) in zip(self.birds, bias) ]
 
     def getnnlo(self, bias): 
 
+
         if self.config["skycut"] == 1:
             if not self.config["with_bias"]: 
                 self.__is_bias_conflict(bias)
                 bias_local = deepcopy(self.bias) # we remove the counterterms and the stochastic terms, if any.
-                bias_local["cct"] = 0. ; bias_local["cr1"] = 0. ; bias_local["cr2"] = 0. ; bias_local["ce0"] = 0. ; bias_local["ce1"] = 0. ; bias_local["ce2"] = 0. ; 
+                bias_to_kill = ["cct", "cr1", "cr2", "ce0", "ce1", "ce2"]
+                if self.config["with_nnlo_counterterm"]: bias_to_kill += ["cnnlo_mu4k4P11", "cnnlo_mu6k4P11"]
+                for b in bias_to_kill: bias_local.update({b: 0.})
                 self.birdEH.setreducePslb(bias_local)
                 bnnlo = np.array([ bias_local["bnnlo_l%s" % (2*i)] for i in range(self.config["multipole"]) ])
                 if "Pk" in self.config["output"]: nnlo = self.nnlo_higher_derivative.Ps(self.birdEH) # k^2 P1Loop
@@ -454,7 +471,9 @@ class Correlator(object):
                 for i in range(self.config["skycut"]):
                     self.__is_bias_conflict(bias[i])
                     bias_local = deepcopy(self.bias) # we remove the counterterms and the stochastic terms, if any.
-                    bias_local["cct"] = 0. ; bias_local["cr1"] = 0. ; bias_local["cr2"] = 0. ; bias_local["ce0"] = 0. ; bias_local["ce1"] = 0. ; bias_local["ce2"] = 0. ; 
+                    bias_to_kill = ["cct", "cr1", "cr2", "ce0", "ce1", "ce2"]
+                    if self.config["with_nnlo_counterterm"]: bias_to_kill += ["cnnlo_mu4k4P11", "cnnlo_mu6k4P11"]
+                    for b in bias_to_kill: bias_local.update({b: 0.})
                     self.birdsEH[i].setreducePslb(bias_local)
                     bnnlo = np.array([ bias_local["bnnlo_l%s" % (2*l)] for l in range(self.config["multipole"]) ])
                     if "Pk" in self.config["output"]: nnlo = self.nnlo_higher_derivative[i].Ps(self.birdsEH[i]) # k^2 P1Loop
@@ -627,7 +646,7 @@ class Correlator(object):
         else:
 
             Nextra = 0
-            if self.config["with_nnlo_counterterm"]: Nextra += self.config["multipole"]
+            if self.config["with_nnlo_counterterm"]: Nextra += 2
             if self.config["with_nnlo_higher_derivative"]: Nextra += self.config["multipole"]
             if self.config["with_tidal_alignments"]: Nextra += 1
 
@@ -654,11 +673,9 @@ class Correlator(object):
 
             if self.config["with_nnlo_counterterm"]: 
                 try: 
-                    self.bias["cnnlo_l0"] = self.cosmo["bias"]["cnnlo_l0"]
-                    self.bias["cnnlo_l2"] = self.cosmo["bias"]["cnnlo_l2"]
-                    if self.config["multipole"] == 3:
-                        self.bias["cnnlo_l4"] = self.cosmo["bias"]["cnnlo_l4"]
-                except: raise Exception ("Please specify the next-to-next-to-leading counterterm coefficients \'cnnlo_l0\', \'cnnlo_l2\', ...  ")
+                    self.bias["cnnlo_mu4k4P11"] = self.cosmo["bias"]["cnnlo_mu4k4P11"]
+                    self.bias["cnnlo_mu6k4P11"] = self.cosmo["bias"]["cnnlo_mu6k4P11"]
+                except: raise Exception ("Please specify the next-to-next-to-leading counterterm coefficients \'cnnlo_mu4k4P11\', \'cnnlo_mu6k4P11\', ...  ")
 
             if self.config["with_nnlo_higher_derivative"]: 
                 try: 
@@ -901,7 +918,7 @@ class Correlator(object):
                 cosmo["f"] = GF.fplus(1/(1.+cosmo["z"]))
 
             if self.config["with_nnlo_counterterm"] or self.config["with_nnlo_higher_derivative"]: 
-                EH_dict = { "Omega0_b": M.Omega_b(), "Omega0_m": M.Omega0_m(), "h": M.h(), "A_s": M.get_current_derived_parameters(["A_s"]), "n_s": M.n_s(), "T_cmb": M.T_cmb(), 
+                EH_dict = { "Omega0_b": M.Omega_b(), "Omega0_m": M.Omega0_m(), "h": M.h(), "A_s": M.get_current_derived_parameters(["A_s"])["A_s"], "n_s": M.n_s(), "T_cmb": M.T_cmb(), 
                     "D": M.scale_independent_growth_factor(self.config["z"]) }
                 cosmo["EH"] = EH_dict
 

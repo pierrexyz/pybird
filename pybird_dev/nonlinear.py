@@ -55,10 +55,12 @@ class NonLinear(object):
         if self.co.halohalo:
             if self.co.with_cf: 
                 self.pyegg = os.path.join(path, 'pyegg%s_cf_nl%s.npz') % (NFFT, self.co.Nl)
+                if self.co.exact_time: self.pyegg = os.path.join(path, 'pyegg%s_cf_nl%s_exact_time.npz') % (NFFT, self.co.Nl)
                 if self.co.with_tidal_alignments: self.pyegg = os.path.join(path, 'pyegg%s_cf_nl%s_tidal_alignments.npz') % (NFFT, self.co.Nl)
-            elif self.co.exact_time: self.pyegg = os.path.join(path, 'pyegg%s_nl%s_exact_time.npz') % (NFFT, self.co.Nl)
-            elif self.co.with_tidal_alignments: self.pyegg = os.path.join(path, 'pyegg%s_nl%s_tidal_alignments.npz') % (NFFT, self.co.Nl)
-            else: self.pyegg = os.path.join(path, 'pyegg%s_nl%s.npz') % (NFFT, self.co.Nl)
+            else:
+                if self.co.exact_time: self.pyegg = os.path.join(path, 'pyegg%s_nl%s_exact_time.npz') % (NFFT, self.co.Nl)
+                elif self.co.with_tidal_alignments: self.pyegg = os.path.join(path, 'pyegg%s_nl%s_tidal_alignments.npz') % (NFFT, self.co.Nl)
+                else: self.pyegg = os.path.join(path, 'pyegg%s_nl%s.npz') % (NFFT, self.co.Nl)
         else:
             self.pyegg = os.path.join(path, 'pyegg%s_gm_nl%s.npz') % (NFFT, self.co.Nl)
 
