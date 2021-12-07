@@ -31,7 +31,7 @@ class Common(object):
         self.halohalo = halohalo
         self.nd = nd
         self.km = km                            # b1/2! * {cr1~1} / kr^2 ~ 8 / km^2                             ~~> 1 / kr^2 ~ 8 / km^2
-        self.kr4 = self.km**4 / 8.**1           # 3(perm.)/4! * {cr4~1} / kr^4 ~ 1/8 * 8^2 * {cr4~1} / km^4     ~~> 1 / kmr4 ~ 8 / km^4
+        self.kr4 = self.km**4 / 16.           # 6(perm.)/4! * {cr4~1} / kr^4 = 1/4 * 8^2 * {cr4~1} / km^4     ~~> 1 / kmr4 ~ 16 / km^4
         self.optiresum = optiresum
         self.with_time = with_time
         self.exact_time = exact_time
