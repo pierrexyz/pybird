@@ -88,7 +88,7 @@ class Projection(object):
     """
     def __init__(self, xout, Om_AP=None, z_AP=None, nbinsmu=100, 
         window_fourier_name=None, path_to_window=None, window_configspace_file=None, 
-        binning=False, fibcol=False, Nwedges=0, wedges_bounds=None, pseudo_wedges_transform_coef=None,
+        binning=False, fibcol=False, Nwedges=0, wedges_bounds=None, 
         zz=None, nz=None, co=co):
 
         self.co = co
@@ -127,18 +127,11 @@ class Projection(object):
             else:
                 assert Nwedges == 3, "The formula has been implemented only for 3 pseudo-wedges" 
                 # Matrix that gives the pseudo-wedges from the multipoles
-                #if pseudo_wedges_transform_coef is not None:
-                tmp = False
-                if tmp:
-                    b2, b3, c2, c3 = np.array([0.597,  4.279, -1.73, 5.667]) 
-                    b1 = 1 - b2 - b3
-                    c1 = 1 - c2 - c3
-                    self.IL = np.array([[1., -3./7., 11./56.], [b1, b2, b3], [c1, c2, c3]])
-                else: # Transformation matrix from 3 multipoles to 3 wedges 
-                    # self.IL = np.array([[1., 0., 0.], [0., 1., 0.], [0., 0., 1.]])
-                    self.IL = np.array([[1., -3./7., 11./56.], [1., -3/8., 15/128.], [1., 3/8., -15./128.]]) # PA + w1/2 + w2/2
-                    # self.IL = np.array([[1., -3./7., 11./56.], [1., -1./9., -85./324.], [1., 5./9., 5./324.]]) # PA + w2/3 + w3/3
-                    #np.array([[1., -4./9., 20./81.], [1., -1./9., -85./324.], [1., 5./9., 5./324.]]) # w1/3 + w2/3 + w3/3
+                # Transformation matrix from 3 multipoles to 3 wedges 
+                # self.IL = np.array([[1., 0., 0.], [0., 1., 0.], [0., 0., 1.]])
+                self.IL = np.array([[1., -3./7., 11./56.], [1., -3/8., 15/128.], [1., 3/8., -15./128.]]) # PA + w1/2 + w2/2
+                # self.IL = np.array([[1., -3./7., 11./56.], [1., -1./9., -85./324.], [1., 5./9., 5./324.]]) # PA + w2/3 + w3/3
+                #np.array([[1., -4./9., 20./81.], [1., -1./9., -85./324.], [1., 5./9., 5./324.]]) # w1/3 + w2/3 + w3/3
                 
 
         # redshift bin evolution

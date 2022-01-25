@@ -3044,7 +3044,7 @@ class Likelihood_bird(Likelihood):
         cosmo = {}
 
         cosmo["k11"] = self.kin  # k in h/Mpc
-        cosmo["P11"] = np.array([M.pk(k * M.h(), zfid) * M.h()**3 for k in self.kin])  # P(k) in (Mpc/h)**3
+        cosmo["P11"] = np.array([M.pk_lin(k * M.h(), zfid) * M.h()**3 for k in self.kin])  # P(k) in (Mpc/h)**3
 
         if self.config["skycut"] == 1:
             # if self.config["multipole"] is not 0:
@@ -3653,7 +3653,7 @@ class Likelihood_cfps(Likelihood):
         cosmo = {}
 
         cosmo["k11"] = self.kin  # k in h/Mpc
-        cosmo["P11"] = np.array([M.pk(k * M.h(), zfid) * M.h()**3 for k in self.kin])  # P(k) in (Mpc/h)**3
+        cosmo["P11"] = np.array([M.pk_lin(k * M.h(), zfid) * M.h()**3 for k in self.kin])  # P(k) in (Mpc/h)**3
 
         if self.config["skycut"] == 1:
             # if self.config["multipole"] is not 0:
