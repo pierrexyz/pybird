@@ -2852,8 +2852,8 @@ class Likelihood_bird(Likelihood):
         else:
             chi2 = 0.
             bdict = np.array([self.bias_array_to_dict(self.bias_nonmarg_to_all(bs)) for bs in bval])
-            correlator = self.correlator.get(bdict) # PZhack 1209
-            marg_correlator = self.correlator.getmarg(bdict, model=self.config["model"]) # PZhack 1209
+            correlator = self.correlator.get(bdict) 
+            marg_correlator = self.correlator.getmarg(bdict, model=self.config["model"]) 
             for i in range(self.config["skycut"]):
                 if self.config["skycut"] is 1: modelX = correlator
                 elif self.config["skycut"] > 1: modelX = correlator[i]
@@ -2987,7 +2987,7 @@ class Likelihood_bird(Likelihood):
         cosmo = {}
 
         cosmo["k11"] = self.kin  # k in h/Mpc
-        cosmo["P11"] = np.array([M.pk(k * M.h(), zfid) * M.h()**3 for k in self.kin])  # P(k) in (Mpc/h)**3
+        cosmo["P11"] = np.array([M.pk_lin(k * M.h(), zfid) * M.h()**3 for k in self.kin])  # P(k) in (Mpc/h)**3
 
         if self.config["skycut"] == 1:
             # if self.config["multipole"] is not 0:
@@ -3594,7 +3594,7 @@ class Likelihood_cfps(Likelihood):
         cosmo = {}
 
         cosmo["k11"] = self.kin  # k in h/Mpc
-        cosmo["P11"] = np.array([M.pk(k * M.h(), zfid) * M.h()**3 for k in self.kin])  # P(k) in (Mpc/h)**3
+        cosmo["P11"] = np.array([M.pk_lin(k * M.h(), zfid) * M.h()**3 for k in self.kin])  # P(k) in (Mpc/h)**3
 
         if self.config["skycut"] == 1:
             # if self.config["multipole"] is not 0:
