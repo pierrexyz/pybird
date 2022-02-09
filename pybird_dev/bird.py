@@ -151,9 +151,11 @@ class Bird(object):
             self.Cnnlol = np.empty(shape=(self.co.Nl, 2, self.co.Ns))
             self.Pnnlo = np.empty(shape=(self.co.Nk))
             self.Pnnlol = np.empty(shape=(self.co.Nl, 2, self.co.Nk))
-        else:
-            if self.co.with_cf: self.Cnnlol = None
-            else: self.Pnnlol = None 
+        else: # this was clashing with redshift_bin: True, because for output: 'bpk', it is the correlation that is first computed, so co.with_cf = True at the instatiation of the bird... need to change that # PZ
+            self.Pnnlol = None 
+            self.Cnnlol = None
+            # if self.co.with_cf: self.Cnnlol = None
+            # else: self.Pnnlol = None 
 
     def setcosmo(self, cosmo):
 
