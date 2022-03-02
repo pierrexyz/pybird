@@ -667,7 +667,7 @@ class Bird(object):
         self.Plooplf[:, 10] = self.Ploopl[:, 20]                                                            # *b2*b4
         self.Plooplf[:, 11] = self.Ploopl[:, 21]                                                            # *b4*b4
 
-    def setreducePslb(self, bs):
+    def setreducePslb(self, bs, what="full"):
         """ For option: which='all'. Given an array of EFT parameters, multiply them accordingly to the power spectrum multipole regrouped terms and adds the resulting terms together per loop order.
 
         Parameters
@@ -677,10 +677,20 @@ class Bird(object):
         """
         self.setBias(bs)
         self.Ps = np.zeros(shape=(3, self.P11l.shape[0], self.P11l.shape[-1])) # using P11l.shape[0] since it can be either M multipoles or N wedges, and using P11l.shape[-1] since it can be binned or evaluated on the asked output k array
-        self.Ps[0] = np.einsum('b,lbx->lx', self.b11, self.P11l)
-        self.Ps[1] = np.einsum('b,lbx->lx', self.bloop, self.Ploopl) + np.einsum('b,lbx->lx', self.bct, self.Pctl)
-        if self.with_stoch: self.Ps[1] += np.einsum('b,lbx->lx', self.bst, self.Pstl)
-        if self.with_nnlo_counterterm: self.Ps[2] = np.einsum('b,lbx->lx', self.cnnlo, self.Pnnlol)
+        if "full" in what:
+            self.Ps[0] = np.einsum('b,lbx->lx', self.b11, self.P11l)
+            self.Ps[1] = np.einsum('b,lbx->lx', self.bloop, self.Ploopl) + np.einsum('b,lbx->lx', self.bct, self.Pctl)
+            if self.with_stoch: self.Ps[1] += np.einsum('b,lbx->lx', self.bst, self.Pstl)
+            if self.with_nnlo_counterterm: self.Ps[2] = np.einsum('b,lbx->lx', self.cnnlo, self.Pnnlol)
+        else:
+            if "linear" in what: self.Ps[0] = np.einsum('b,lbx->lx', self.b11, self.P11l)
+            if "loop" in what:
+                if "sptloop22" in what and self.co.keep_loop_pieces_independent: self.Ps[1] = np.einsum('b,lbx->lx', self.bloop[:self.co.N22], self.Ploopl[:, :self.co.N22]) 
+                elif "sptloop13" in what and self.co.keep_loop_pieces_independent: self.Ps[1] = np.einsum('b,lbx->lx', self.bloop[self.co.N22:], self.Ploopl[:, self.co.N22:]) 
+                else: self.Ps[1] = np.einsum('b,lbx->lx', self.bloop, self.Ploopl) 
+            if "spt" not in what or "counterterm" in what: self.Ps[1] += np.einsum('b,lbx->lx', self.bct, self.Pctl)
+            if "stochastic" in what and self.with_stoch: self.Ps[1] += np.einsum('b,lbx->lx', self.bst, self.Pstl)
+            if "nnlo_counterterm" in what and self.with_nnlo_counterterm: self.Ps[2] = np.einsum('b,lbx->lx', self.cnnlo, self.Pnnlol)
         self.setfullPs()
 
     def setreduceCflb(self, bs):
@@ -705,6 +715,7 @@ class Bird(object):
         """ For option: which='all'. Subtract the constant stochastic term from the (22-)loop """
         for l in range(self.co.Nl):
             for n in range(self.co.Nloop):
+                # pass
                 shotnoise = self.Ploopl[l, n, 0]
                 self.Ploopl[l, n] -= shotnoise
 

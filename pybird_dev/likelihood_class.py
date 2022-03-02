@@ -3270,15 +3270,17 @@ class Likelihood_bird(Likelihood):
 
     def __load_spectrum(self, data_directory, spectrum_file):
         fname = os.path.join(data_directory, spectrum_file)
-        try:
-            kPS, PSdata, _ = np.loadtxt(fname, unpack=True)
-        except:
-            try:
-                kPS, PSdata = np.loadtxt(fname, unpack=True)
-            except:
-                kPS, l0, l2, l4 = np.loadtxt(fname, unpack=True)
-                kPS = np.concatenate([kPS, kPS, kPS])
-                PSdata = np.concatenate([l0, l2, l4])
+
+        kPS, PSdata = np.loadtxt(fname, usecols=(0,1), unpack=True)
+        # try:
+        #     kPS, PSdata, _ = np.loadtxt(fname, unpack=True)
+        # except:
+        #     try:
+        #         kPS, PSdata = np.loadtxt(fname, unpack=True)
+        #     except:
+        #         kPS, l0, l2, l4 = np.loadtxt(fname, unpack=True)
+        #         kPS = np.concatenate([kPS, kPS, kPS])
+        #         PSdata = np.concatenate([l0, l2, l4])
         return kPS, PSdata
 
     def __load_gaussian_spectrum(self, data_directory, spectrum_file):
@@ -3321,7 +3323,7 @@ class Likelihood_bird(Likelihood):
                 b3, cct, cr1, ce2 = priors
                 print ('EFT priors: b3: %s, cct: %s, cr1(+cr2): %s, ce2: %s (default)' % (b3, cct, cr1, ce2))
             elif model == 3:
-                priors = np.array([ 10., 4., 8., 4., 2. ]) # np.array([2., 2., 8., 2., 2.]) 
+                priors =  np.array([2., 2., 8., 2., 2.]) # np.array([ 10., 4., 8., 4., 2. ]) #
                 b3, cct, cr1, ce2, ce1 = priors
                 print ('EFT priors: b3: %s, cct: %s, cr1(+cr2): %s, ce2: %s, ce1: %s (default)' % (b3, cct, cr1, ce2, ce1))
             elif model == 4:

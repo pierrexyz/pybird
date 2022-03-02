@@ -43,7 +43,7 @@ class NonLinear(object):
         Optimization settings for NumPy einsum when performing matrix multiplications to compute the 22-loop correlation function. For speedup purpose in repetitive evaluations. 
     """
 
-    def __init__(self, load=True, save=True, path='./', NFFT=256, co=co):
+    def __init__(self, load=True, save=True, path='./', NFFT=256, fftbias=-1.6, co=co):
 
         self.co = co
 
@@ -61,6 +61,10 @@ class NonLinear(object):
                 if self.co.exact_time: self.pyegg = os.path.join(path, 'pyegg%s_nl%s_exact_time.npz') % (NFFT, self.co.Nl)
                 elif self.co.with_tidal_alignments: self.pyegg = os.path.join(path, 'pyegg%s_nl%s_tidal_alignments.npz') % (NFFT, self.co.Nl)
                 else: self.pyegg = os.path.join(path, 'pyegg%s_nl%s.npz') % (NFFT, self.co.Nl)
+                # else: 
+                #     self.fftsettings = dict(Nmax=NFFT, xmin=1.5e-5, xmax=1000., bias=fftbias)
+                #     self.fft = FFTLog(**self.fftsettings)
+                #     self.pyegg = os.path.join(path, 'pyegg%s_fftbias_%s_nl%s.npz') % (NFFT, fftbias, self.co.Nl)
         else:
             self.pyegg = os.path.join(path, 'pyegg%s_gm_nl%s.npz') % (NFFT, self.co.Nl)
 

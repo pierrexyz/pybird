@@ -212,6 +212,12 @@ class Correlator(object):
             "z2": Option("z2", (float, list, np.ndarray),
                 description="Redshift z_2 for non equal time correlator.",
                 default=None) ,
+            "fftbias": Option("fftbias", float,
+                description="real power bias for fftlog decomposition of P11 (usually to keep to default value)",
+                default=-1.6) ,
+            "keep_loop_pieces_independent": Option("keep_loop_pieces_independent", bool,
+                description="keep the loop pieces 13 and 22 independent (mainly for debugging)",
+                default=False) ,
         }
         
         if config_dict is not None: self.set(config_dict, load_engines=load_engines)
@@ -384,13 +390,16 @@ class Correlator(object):
                 if self.config["with_binning"]: self.projection[i].xbinning(self.birds[i])
                 else: self.projection[i].xdata(self.birds[i])
 
-    def get(self, bias=None):
+    def get(self, bias=None, what="full"):
+
+        if "full" not in what and not self.config["keep_loop_pieces_independent"]:
+            raise Exception("If you want to get something else than the full correlator, please set keep_loop_pieces_independent: True")
 
         if self.config["skycut"] == 1:
             if not self.config["with_bias"]: 
                 self.__is_bias_conflict(bias)
-                if "Pk" in self.config["output"]: self.bird.setreducePslb(self.bias)
-                elif "Cf" in self.config["output"]: self.bird.setreduceCflb(self.bias)
+                if "Pk" in self.config["output"]: self.bird.setreducePslb(self.bias, what=what)
+                elif "Cf" in self.config["output"]: self.bird.setreduceCflb(self.bias, what=what)
             if "Pk" in self.config["output"]: return self.bird.fullPs
             elif "Cf" in self.config["output"]: return self.bird.fullCf  
 
@@ -487,10 +496,10 @@ class Correlator(object):
 
         self.co = Common(Nl=self.config["multipole"], kmax=self.config["kmax"], km=self.config["km"], nd=self.config["nd"], halohalo=self.config["halohalo"], 
             with_cf=self.config["with_cf"], with_time=self.config["with_time"], optiresum=self.config["optiresum"], 
-            exact_time=self.config["with_exact_time"], quintessence=self.config["with_quintessence"], with_tidal_alignments=self.config["with_tidal_alignments"], nonequaltime=self.config["with_common_nonequal_time"])
+            exact_time=self.config["with_exact_time"], quintessence=self.config["with_quintessence"], with_tidal_alignments=self.config["with_tidal_alignments"], nonequaltime=self.config["with_common_nonequal_time"], keep_loop_pieces_independent=self.config["keep_loop_pieces_independent"])
         
         if load_engines:
-            self.nonlinear = NonLinear(load=True, save=True, co=self.co)
+            self.nonlinear = NonLinear(load=True, save=True, fftbias=self.config["fftbias"], co=self.co)
             self.resum = Resum(co=self.co)
 
             if self.config["with_nnlo_counterterm"]: self.nnlo_counterterm = NNLO_counterterm(co=self.co)

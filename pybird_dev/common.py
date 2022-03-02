@@ -26,7 +26,7 @@ class Common(object):
         The maximum multipole to calculate (default 2)
     """
 
-    def __init__(self, Nl=2, kmin=0.001, kmax=0.25, km=1., nd=3e-4, halohalo=True, with_cf=False, with_time=True, accboost=1., optiresum=False, orderresum=16, exact_time=False, quintessence=False, with_tidal_alignments=False, nonequaltime=False):
+    def __init__(self, Nl=2, kmin=0.001, kmax=0.25, km=1., nd=3e-4, halohalo=True, with_cf=False, with_time=True, accboost=1., optiresum=False, orderresum=16, exact_time=False, quintessence=False, with_tidal_alignments=False, nonequaltime=False, keep_loop_pieces_independent=False):
         
         self.halohalo = halohalo
         self.nd = nd
@@ -39,6 +39,7 @@ class Common(object):
         # if self.quintessence: self.exact_time = True
         self.with_tidal_alignments = with_tidal_alignments
         self.nonequaltime = nonequaltime
+        self.keep_loop_pieces_independent = keep_loop_pieces_independent
 
         if Nl is 0: self.Nl = 1
         elif Nl > 0: self.Nl = Nl
@@ -60,7 +61,10 @@ class Common(object):
                 self.N22 = 28  # number of 22-loops
                 self.N13 = 10  # number of 13-loops
             
-            if self.with_time: # giving f (and other time functions e.g. Y if != EdS)
+
+            if self.keep_loop_pieces_independent: 
+                self.Nloop = self.N13+self.N22
+            elif self.with_time: # giving f (and other time functions e.g. Y if != EdS)
                 if self.with_tidal_alignments: self.Nloop = 18          
                 else: self.Nloop = 12
             else: 
