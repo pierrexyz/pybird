@@ -2616,6 +2616,7 @@ class Likelihood_isw(Likelihood):
 
 import scipy.constants as conts
 import yaml
+from copy import deepcopy
 from astropy.io import fits
 from scipy.interpolate import interp1d
 from scipy.linalg import block_diag
@@ -2636,7 +2637,7 @@ class Likelihood_bird(Likelihood):
 
         # Loading data and priors
         options = [ "with_stoch", "with_exact_time", "with_tidal_alignments", "with_nnlo_counterterm", "with_nnlo_higher_derivative", 
-        "with_quintessence", "with_cf_sys", "xmaxspacing", "nonmarg", "get_chi2_from_marg", "with_derived_bias", "get_fit"]
+        "with_quintessence", "with_cf_sys", "xmaxspacing", "nonmarg", "get_chi2_from_marg", "with_derived_bias", "get_fit", "get_fake"]
 
         for keys in options:
             if not keys in self.config: self.config[keys] = False
@@ -2879,11 +2880,40 @@ class Likelihood_bird(Likelihood):
                 chi2 += chi2_i
                 chi2 += np.sum(np.array([bg[i]/self.priors[i]])**2)
 
-            if self.config["get_fit"] and self.firt_evaluation:  # so this doesn't work with (varying-kmax) wedges or for multiple skies with different kmax's
-                kk = np.array([self.x for i in range(self.config["multipole"])]).reshape(-1)[self.xmask[0]]
+            if self.config["get_fake"] and self.firt_evaluation:
+                best_fit_string = "best fit: "
+                for key, value in cosmo.get_current_derived_parameters(["Omega_m", "h", "A_s", "n_s", "sigma8"]).items(): 
+                    best_fit_string += "%s: %.4e, " % (key, value)
+                best_fit_string += "\n"
+                
+                if self.config["skycut"] == 1: 
+                    theo_correlator = nonmarg_correlator.reshape(-1)
+                    for key, value in nonmarg_bdict[0].items(): best_fit_string += "%s: %.4f, " % (key, value)
+                    best_fit_string += "\n"
+                    np.savetxt(
+                        '%s.dat' % self.config["fake_filename"], 
+                        np.vstack([ np.concatenate([self.x[0] for l in range(3)]), np.pad(nonmarg_correlator.reshape(-1), (0, (3-self.config["multipole"])*len(self.x[0])), mode='constant', constant_values=0.) ]).T,  
+                        header=best_fit_string + "\n k [h/Mpc], Pfake_l",
+                        fmt="%.4f %.6e",
+                    )
+                elif self.config["skycut"] > 1: 
+                    for i in range(self.config["skycut"]):
+                        best_fit_string_i = deepcopy(best_fit_string)
+                        for key, value in nonmarg_bdict[i].items(): best_fit_string_i += "%s: %.4f, " % (key, value)
+                        best_fit_string_i += "\n"
+                        np.savetxt(
+                            '%s.dat' % self.config["fake_filename"][i], 
+                            np.vstack([ np.concatenate([self.x[i] for l in range(3)]), np.pad(nonmarg_correlator[i].reshape(-1), (0, (3-self.config["multipole"])*len(self.x[i])), mode='constant', constant_values=0.) ]).T, 
+                            header=best_fit_string_i + "\n k [h/Mpc], Pfake_l",
+                            fmt="%.4f %.6e",
+                        )
+
+            if self.config["get_fit"] and self.firt_evaluation:  # so this doesn't work with (varying-kmax) wedges
+                ndatapoints = len(np.concatenate([self.ydata[i].reshape(-1) for i in range(self.config["skycut"])]))
                 nparams = len(data.get_mcmc_parameters(['varying'])) + len(data.get_mcmc_parameters(['derived_lkl']))
-                dof = len(kk) - nparams
-                best_fit_string = "chi2 = %.3f, dof = %.0f-%.0f, chi2/dof = %.3f, pvalue = %.4f \n" % (chi2, len(kk), nparams, chi2/dof, pvalue(chi2, dof))
+                dof = ndatapoints - nparams
+                best_fit_string = "Note: in dev... these numbers might not be correct depending on the options used... please refer to the specific implementation. "
+                best_fit_string += "chi2 = %.3f, dof = %.0f-%.0f, chi2/dof = %.3f, pvalue = %.4f \n" % (chi2, ndatapoints, nparams, chi2/dof, pvalue(chi2, dof))
                 best_fit_string += "best fit: "
                 for key, value in cosmo.get_current_derived_parameters(["Omega_m", "h", "A_s", "n_s", "sigma8"]).items(): 
                     best_fit_string += "%s: %.4e, " % (key, value)
@@ -2894,19 +2924,29 @@ class Likelihood_bird(Likelihood):
                     data_error = np.sqrt(np.diag(np.linalg.inv(self.invcov[0])))
                     for key, value in nonmarg_bdict[0].items(): best_fit_string += "%s: %.4f, " % (key, value)
                     best_fit_string += "\n"
-                elif self.config["skycut"] > 1: 
-                    theo_correlator = np.vstack([nonmarg_correlator[i].reshape(-1)[self.xmask[i]] for i in range(self.config["skycut"])])
-                    data_correlator = np.vstack([self.ydata[i].reshape(-1) for i in range(self.config["skycut"])])
-                    data_error = np.vstack([np.sqrt(np.diag(np.linalg.inv(self.invcov[i]))) for i in range(self.config["skycut"])])
-                    for i in range(self.config["skycut"]):
-                        for key, value in nonmarg_bdict[i].items(): best_fit_string += "%s: %.4f, " % (key, value)
-                        best_fit_string += "\n"
-                np.savetxt(
+                    kconc = np.concatenate([self.x[0] for l in range(self.config["multipole"])])[self.xmask[0]]
+                    np.savetxt(
                         '%s.dat' % self.config["fit_filename"], 
-                        np.vstack([ kk, theo_correlator, data_correlator, data_error ]).T, 
+                        np.vstack([ kconc, theo_correlator, data_correlator, data_error ]).T, 
                         header=best_fit_string + "\n k [h/Mpc], Pfit_l, Pdata_l, sigmaPdata_l",
                         fmt="%.4f %.6e %.6e %.6e",
                     )
+                elif self.config["skycut"] > 1: 
+                    for i in range(self.config["skycut"]):
+                        theo_correlator = nonmarg_correlator[i].reshape(-1)[self.xmask[i]]
+                        data_correlator = self.ydata[i].reshape(-1)
+                        data_error = np.sqrt(np.diag(np.linalg.inv(self.invcov[i])))
+                        best_fit_string_i = deepcopy(best_fit_string)
+                        for key, value in nonmarg_bdict[i].items(): best_fit_string_i += "%s: %.4f, " % (key, value)
+                        best_fit_string_i += "\n"
+                        kconc = np.concatenate([self.x[i] for l in range(self.config["multipole"])])[self.xmask[i]]
+                        np.savetxt(
+                            '%s.dat' % self.config["fit_filename"][i], 
+                            np.vstack([kconc, theo_correlator, data_correlator, data_error ]).T, 
+                            header=best_fit_string_i + "\n k [h/Mpc], Pfit_l, Pdata_l, sigmaPdata_l",
+                            fmt="%.4f %.6e %.6e %.6e",
+                        )
+
 
 
         if self.config["with_nnlo_higher_derivative"]: # this does not work with get_chi2_from_marg
@@ -3365,6 +3405,8 @@ class Likelihood_bird(Likelihood):
             priors = np.concatenate((priors, [2., 2.]))
 
         return priors
+
+
 
 
 # #################################################
