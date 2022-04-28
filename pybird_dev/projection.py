@@ -281,7 +281,8 @@ class Projection(object):
             #     self.Qal = interp1d(sw, Qal, axis=-1, kind='cubic', bounds_error=False, fill_value='extrapolate')(self.co.s)
 
             # else:
-            self.fftsettings = dict(Nmax=4096, xmin=sw[0], xmax=sw[-1]*100., bias=-1.6) # 1e-2 - 1e6 [Mpc/h]
+            # self.fftsettings = dict(Nmax=4096, xmin=sw[0], xmax=sw[-1]*100., bias=-1.6) # 1e-2 - 1e6 [Mpc/h]
+            self.fftsettings = dict(Nmax=2048, xmin=1.e-2, xmax=1.e6, bias=-1.6) 
             self.fft = FFTLog(**self.fftsettings)
             self.pPow = exp(np.einsum('n,s->ns', -self.fft.Pow-3., log(self.p)))
             self.M = np.empty(shape=(Nl, self.fft.Pow.shape[0]), dtype='complex')

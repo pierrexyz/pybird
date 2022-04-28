@@ -26,12 +26,16 @@ class Common(object):
         The maximum multipole to calculate (default 2)
     """
 
-    def __init__(self, Nl=2, kmin=0.001, kmax=0.25, km=1., nd=3e-4, halohalo=True, with_cf=False, with_time=True, accboost=1., optiresum=False, orderresum=16, exact_time=False, quintessence=False, with_tidal_alignments=False, nonequaltime=False, keep_loop_pieces_independent=False):
+    def __init__(self, Nl=2, kmin=0.001, kmax=0.25, km=1., kr=1., nd=3e-4, eft_basis='eftoflss',
+        halohalo=True, with_cf=False, with_time=True, accboost=1., optiresum=False, orderresum=16, 
+        exact_time=False, quintessence=False, with_tidal_alignments=False, nonequaltime=False, keep_loop_pieces_independent=False):
         
+        self.eft_basis = eft_basis
         self.halohalo = halohalo
         self.nd = nd
         self.km = km                            # b1/2! * {cr1~1} / kr^2 ~ 8 / km^2                             ~~> 1 / kr^2 ~ 8 / km^2
-        self.kr4 = self.km**4 / 16.**1           # 3(perm.)/4! * {cr4~1} / kr^4 ~ 1/8 * 8^2 * {cr4~1} / km^4     ~~> 1 / kmr4 ~ 8 / km^4 # there is another factor 2 ~~> 1 / kmr4 ~ 16 / km^4
+        self.kr = kr # I've put back the factor 1/4 in front of the NNLO term
+        # self.kr4 = self.km**4 / 16.**1           # 3(perm.)/4! * {cr4~1} / kr^4 ~ 1/8 * 8^2 * {cr4~1} / km^4     ~~> 1 / kmr4 ~ 8 / km^4 # there is another factor 2 ~~> 1 / kmr4 ~ 16 / km^4
         self.optiresum = optiresum
         self.with_time = with_time
         self.exact_time = exact_time
@@ -49,8 +53,8 @@ class Common(object):
         if self.halohalo:
             
             self.N11 = 3  # number of linear termss
-            self.Nct = 6  # number of counterterms
-
+            if self.eft_basis in ["eftoflss", "westcoast"]: self.Nct, self.Nnnlo = 6, 2  # number of counterterms k^2 P11, number of NNLO counterterms k^4 P11
+            elif self.eft_basis == "eastcoast": self.Nct, self.Nnnlo = 3, 3
             if self.exact_time:
                 self.N22 = 36  # number of 22-loops
                 self.N13 = 15  # number of 13-loops
@@ -123,14 +127,18 @@ class Common(object):
         self.lct = np.empty(shape=(self.Nl, self.Nct))
         self.l22 = np.empty(shape=(self.Nl, self.N22))
         self.l13 = np.empty(shape=(self.Nl, self.N13))
-        self.lnnlo = np.empty(shape=(self.Nl, 2))
+        self.lnnlo = np.empty(shape=(self.Nl, self.Nnnlo))
         
         for i in range(self.Nl):
             l = 2 * i
             if self.halohalo:
                 self.l11[i] = np.array([mu[0][l], mu[2][l], mu[4][l]])
-                self.lct[i] = np.array([mu[0][l], mu[2][l], mu[4][l], mu[2][l], mu[4][l], mu[6][l]])
-                self.lnnlo[i] = np.array([mu[4][l], mu[6][l]])
+                if self.eft_basis in ["eftoflss", "westcoast"]: 
+                    self.lct[i] = np.array([mu[0][l], mu[2][l], mu[4][l], mu[2][l], mu[4][l], mu[6][l]])
+                    self.lnnlo[i] = np.array([mu[4][l], mu[6][l]])
+                elif self.eft_basis == "eastcoast": 
+                    self.lct[i] = np.array([mu[0][l], mu[2][l], mu[4][l]])
+                    self.lnnlo[i] = np.array([mu[4][l], mu[6][l], mu[8][l]])
                 if self.exact_time:
                     self.l22[i] = np.array([ 6 * [mu[0][l]] + 7 * [mu[2][l]] + [mu[4][l], mu[2][l], mu[4][l], mu[2][l], mu[4][l], mu[2][l]] 
                         + 3 * [mu[4][l]] + [mu[6][l], mu[4][l], mu[6][l], mu[4][l], mu[6][l], mu[8][l]] 

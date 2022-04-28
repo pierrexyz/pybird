@@ -63,11 +63,12 @@ class Bird(object):
         EFT parameters for the counter terms per multipole
     """
 
-    def __init__(self, cosmology=None, with_bias=True, with_stoch=False, with_nnlo_counterterm=False, co=co):
+    def __init__(self, cosmology=None, with_bias=True, eft_basis='eftoflss', with_stoch=False, with_nnlo_counterterm=False, co=co):
         
         self.co = co
 
         self.with_bias = with_bias
+        self.eft_basis = eft_basis
         self.with_stoch = with_stoch
         self.with_nnlo_counterterm = with_nnlo_counterterm
         self.with_tidal_alignments = self.co.with_tidal_alignments
@@ -148,9 +149,9 @@ class Bird(object):
         if self.with_nnlo_counterterm:
             self.cnnlo = np.zeros(shape=(self.co.Nl))
             self.Cnnlo = np.empty(shape=(self.co.Nl, self.co.Ns))
-            self.Cnnlol = np.empty(shape=(self.co.Nl, 2, self.co.Ns))
+            self.Cnnlol = np.empty(shape=(self.co.Nl, self.co.Nnnlo, self.co.Ns))
             self.Pnnlo = np.empty(shape=(self.co.Nk))
-            self.Pnnlol = np.empty(shape=(self.co.Nl, 2, self.co.Nk))
+            self.Pnnlol = np.empty(shape=(self.co.Nl, self.co.Nnnlo, self.co.Nk))
         else: # this was clashing with redshift_bin: True, because for output: 'bpk', it is the correlation that is first computed, so co.with_cf = True at the instatiation of the bird... need to change that # PZ
             self.Pnnlol = None 
             self.Cnnlol = None
@@ -227,9 +228,11 @@ class Bird(object):
         b2 = bias["b2"]
         b3 = bias["b3"]
         b4 = bias["b4"]
-        b5 = bias["cct"] / self.co.km**2
-        b6 = bias["cr1"] / self.co.km**2
-        b7 = bias["cr2"] / self.co.km**2
+        if self.eft_basis in ["eftoflss", "westcoast"]: 
+            b5 = bias["cct"] / self.co.km**2
+            b6 = bias["cr1"] / self.co.kr**2
+            b7 = bias["cr2"] / self.co.kr**2
+        # elif self.eft_basis == 'eastcoast': see below
 
         if self.with_stoch:
             self.bst[0] = bias["ce0"] 
@@ -243,10 +246,13 @@ class Bird(object):
             if self.with_bias: # evaluation with biases specified
                 for i in range(self.co.Nl):
                     l = 2 * i
-                    if self.with_nnlo_counterterm: self.cnnlo[i] = ( b1**2 * bias["cnnlo_mu4k4P11"] * mu[4][l] + b1 * bias["cnnlo_mu6k4P11"] * mu[6][l] ) / self.co.kr4
+                    if self.with_nnlo_counterterm: 
+                        if self.eft_basis in ["eftoflss", "westcoast"]: self.cnnlo[i] = 0.25 * ( b1**2 * bias["cr4"] * mu[4][l] + b1 * bias["cr6"] * mu[6][l] ) / self.co.kr**4
+                        elif self.eft_basis == "eastcoast": self.cnnlo[i] = - bias["ct"] * f**4 * ( b1**2 * mu[4][l] + 2. * b1 * f * mu[6][l] + f**2 * mu[8][l] )  # these are not divided by kr^4 according to eastcoast definition; the prior is adjusted accordingly
                     if self.with_tidal_alignments: self.b11[i] = (b1-bq/3.)**2 * mu[0][l] + 2. * (b1-bq/3.) * (f+bq) * mu[2][l] + (f+bq)**2 * mu[4][l]
                     else: self.b11[i] = b1**2 * mu[0][l] + 2. * b1 * f * mu[2][l] + f**2 * mu[4][l]
-                    self.bct[i] = 2. * b1 * (b5 * mu[0][l] + b6 * mu[2][l] + b7 * mu[4][l]) + 2. * f * (b5 * mu[2][l] + b6 * mu[4][l] + b7 * mu[6][l])
+                    if self.eft_basis in ["eftoflss", "westcoast"]: self.bct[i] = 2. * b1 * (b5 * mu[0][l] + b6 * mu[2][l] + b7 * mu[4][l]) + 2. * f * (b5 * mu[2][l] + b6 * mu[4][l] + b7 * mu[6][l])
+                    elif self.eft_basis == "eastcoast": self.bct[i] = - 2. * (bias["ct0"] * mu[0][l] + bias["ct2"] * f * mu[2][l] + bias["ct4"] * f**2 * mu[4][l])  # these are not divided by km^2 or kr^2 according to eastcoast definition; the prior is adjusted accordingly
                     if self.co.exact_time:
                         self.b22[i] = np.array([ b1**2*G1**2*mu[0][l], b1*b2*G1*mu[0][l], b1*b4*G1*mu[0][l], b2**2*mu[0][l], b2*b4*mu[0][l], b4**2*mu[0][l], b1**2*f*G1*mu[2][l], b1*b2*f*mu[2][l], b1*b4*f*mu[2][l], b1*f*G1**2*mu[2][l], b2*f*G1*mu[2][l], b4*f*G1*mu[2][l], b1**2*f**2*mu[2][l], b1**2*f**2*mu[4][l], b1*f**2*G1*mu[2][l], b1*f**2*G1*mu[4][l], b2*f**2*mu[2][l], b2*f**2*mu[4][l], b4*f**2*mu[2][l], b4*f**2*mu[4][l], f**2*G1**2*mu[4][l], b1*f**3*mu[4][l], b1*f**3*mu[6][l], f**3*G1*mu[4][l], f**3*G1*mu[6][l], f**4*mu[4][l], f**4*mu[6][l], f**4*mu[8][l], b1*f*G1*G1t*mu[2][l], b2*f*G1t*mu[2][l], b4*f*G1t*mu[2][l], b1*f**2*G1t*mu[4][l], f**2*G1*G1t*mu[4][l], f**3*G1t*mu[4][l], f**3*G1t*mu[6][l], f**2*G1t**2*mu[4][l] ])
                         self.b13[i] = np.array([ b1**2*G1**2*mu[0][l], b1*b3*mu[0][l], b1*f*G1**2*mu[2][l], b3*f*mu[2][l], f**2*G1**2*mu[4][l], b1**2*Y1*mu[0][l], b1*f*mu[2][l]*Y1, f**2*mu[4][l]*Y1, b1**2*f*G1t*mu[2][l], b1*f**2*G1t*mu[2][l], b1*f**2*G1t*mu[4][l], f**3*G1t*mu[4][l], f**3*G1t*mu[6][l], b1*f*mu[2][l]*V12t, f**2*mu[4][l]*V12t ])
@@ -260,10 +266,13 @@ class Bird(object):
                         self.b22[i] = np.array([b1**2 * mu[0][l], b1 * b2 * mu[0][l], b1 * b4 * mu[0][l], b2**2 * mu[0][l], b2 * b4 * mu[0][l], b4**2 * mu[0][l], b1**2 * f * mu[2][l], b1 * b2 * f * mu[2][l], b1 * b4 * f * mu[2][l], b1 * f * mu[2][l], b2 * f * mu[2][l], b4 * f * mu[2][l], b1**2 * f**2 * mu[2][l], b1**2 * f**2 * mu[4][l], b1 * f**2 * mu[2][l], b1 * f**2 * mu[4][l], b2 * f**2 * mu[2][l], b2 * f**2 * mu[4][l], b4 * f**2 * mu[2][l], b4 * f**2 * mu[4][l], f**2 * mu[4][l], b1 * f**3 * mu[4][l], b1 * f**3 * mu[6][l], f**3 * mu[4][l], f**3 * mu[6][l], f**4 * mu[4][l], f**4 * mu[6][l], f**4 * mu[8][l]])
                         self.b13[i] = np.array([b1**2 * mu[0][l], b1 * b3 * mu[0][l], b1**2 * f * mu[2][l], b1 * f * mu[2][l], b3 * f * mu[2][l], b1 * f**2 * mu[2][l], b1 * f**2 * mu[4][l], f**2 * mu[4][l], f**3 * mu[4][l], f**3 * mu[6][l]])
             else: # evaluation with biases unspecified
-                if self.with_nnlo_counterterm: self.cnnlo = np.array([b1**2 * bias["cnnlo_mu4k4P11"], b1 * bias["cnnlo_mu6k4P11"]]) / self.co.kr4
+                if self.with_nnlo_counterterm: 
+                    if self.eft_basis in ["eftoflss", "westcoast"]: self.cnnlo = 0.25 * np.array([b1**2 * bias["cr4"], b1 * bias["cr6"]]) / self.co.kr**4
+                    elif self.eft_basis == "eastcoast": self.cnnlo = - bias["ct"] * f**4 * np.array([b1**2, 2. * b1 * f, f**2])   # these are not divided by kr^4 according to eastcoast definition; the prior is adjusted accordingly
                 if self.with_tidal_alignments: self.b11 = np.array([(b1-bq/3.)**2, 2. * (b1-bq/3.) * (f+bq), (f+bq)**2])
                 else: self.b11 = np.array([b1**2, 2. * b1 * f, f**2])
-                self.bct = np.array([2. * b1 * b5, 2. * b1 * b6, 2. * b1 * b7, 2. * f * b5, 2. * f * b6, 2. * f * b7])
+                if self.eft_basis in ["eftoflss", "westcoast"]: self.bct = np.array([2. * b1 * b5, 2. * b1 * b6, 2. * b1 * b7, 2. * f * b5, 2. * f * b6, 2. * f * b7])
+                elif self.eft_basis == "eastcoast": self.bct = - np.array([2. * bias["ct0"], 2. * f * bias["ct2"], 2. * f**2 * bias["ct4"]]) # these are not divided by km^2 or kr^2 according to eastcoast definition; the prior is adjusted accordingly
                 if self.co.Nloop is 12: self.bloop = np.array([1., b1, b2, b3, b4, b1 * b1, b1 * b2, b1 * b3, b1 * b4, b2 * b2, b2 * b4, b4 * b4])
                 elif self.co.Nloop is 22: self.bloop = np.array([f**2, f**3, f**4, b1*f, b1*f**2, b1*f**3, b2*f, b2*f**2, b3*f, b4*f, b4*f**2, b1**2, b1**2*f, b1**2*f**2, b1*b2, b1*b2*f, b1*b3, b1*b4, b1*b4*f, b2**2, b2*b4, b4**2])
                 elif self.co.Nloop is 35: self.bloop = np.array([f**2, f**2*G1t, f**2*G1t**2, f**2*Y1, f**2*V12t, f**3, f**3*G1t, f**4, b1*f, b1*f*G1t, b1*f*Y1, b1*f*V12t, b1*f**2, b1*f**2*G1t, b1*f**3, b2*f, b2*f*G1t, b2*f**2, b3*f, b4*f, b4*f*G1t, b4*f**2, b1**2, b1**2*Y1, b1**2*f, b1**2*f*G1t, b1**2*f**2, b1*b2, b1*b2*f, b1*b3, b1*b4, b1*b4*f, b2**2, b2*b4, b4**2])
