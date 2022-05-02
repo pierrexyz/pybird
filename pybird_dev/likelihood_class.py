@@ -2638,7 +2638,7 @@ class Likelihood_bird(Likelihood):
 
         options = ["nonmarg", "get_chi2_from_marg", "with_derived_bias", "get_fit", "get_fake",
         "with_window", "with_fibercol", "with_redshift_bin", "with_stoch", "with_exact_time", "with_tidal_alignments", "with_nnlo_counterterm", 
-        "with_quintessence", "with_cf_sys", "xmaxspacing", "with_rs_marg"]
+        "with_quintessence", "with_cf_sys", "multipole_rotation", "with_rs_marg"]
 
         for keys in options:
             if not keys in self.config: self.config[keys] = False
@@ -2684,7 +2684,7 @@ class Likelihood_bird(Likelihood):
                 xi, xmaski, ydatai, chi2datai, invcovi, invcovdatai = self.__load_data_ps(
                     self.config["multipole"], self.config["wedge"],
                     self.data_directory, self.config["spectrum_file"][i], self.config["covmat_file"][i],
-                    xmin=self.config["xmin"][i], xmax=xmax, xmax0=xmax0, xmax1=xmax1, xmaxspacing=self.config["xmaxspacing"], with_bao=self.config["with_bao"], baoH=baoH, baoD=baoD)
+                    xmin=self.config["xmin"][i], xmax=xmax, xmax0=xmax0, xmax1=xmax1, multipole_rotation=self.config["multipole_rotation"], with_bao=self.config["with_bao"], baoH=baoH, baoD=baoD)
             else:
                 xi, xmaski, ydatai, chi2datai, invcovi, invcovdatai = self.__load_data_cf(
                     self.config["multipole"], self.config["wedge"],
@@ -2983,7 +2983,7 @@ class Likelihood_bird(Likelihood):
 
         return cosmo
 
-    def __load_data_ps(self, multipole, wedge, data_directory, spectrum_file, covmat_file, xmin, xmax=None, xmax0=None, xmax1=None, xmaxspacing='default', with_bao=False, baoH=None, baoD=None):
+    def __load_data_ps(self, multipole, wedge, data_directory, spectrum_file, covmat_file, xmin, xmax=None, xmax0=None, xmax1=None, multipole_rotation='default', with_bao=False, baoH=None, baoD=None):
 
         # cov = None
         # try:
@@ -3003,23 +3003,10 @@ class Likelihood_bird(Likelihood):
 
             xmask0 = np.argwhere((x <= xmax0) & (x >= xmin))[:, 0]
             xmask = xmask0
+            
+            def getmask(kmax, i): return np.argwhere((x <= kmax) & (x >= xmin))[:, 0] + i * Nx
 
-            if 'linear' in xmaxspacing:
-                dxmax = (xmax1 - xmax0) / (wedge - 1.)
-                for i in range(wedge - 1):
-                    xmaski = np.argwhere((x <= xmax0 + (i + 1) * dxmax) & (x >= xmin))[:, 0] + (i + 1) * Nx
-                    xmask = np.concatenate((xmask, xmaski))
-            elif 'formula0' in xmaxspacing:
-                def get_xmax(k0, k1, N=wedge):
-                    a = ((k0 - k1) * (-1 + 2 * N)**2) / (16. * (-1 + N) * N**3)
-                    b = -(k0 - k1 + 4 * k1 * N - 4 * k1 * N**2) / (4. * (-1 + N) * N)
-                    mu = (np.arange(0, N, 1) + 0.5) / N
-                    return a / mu**2 + b
-                xmaxs = get_xmax(xmax0, xmax1)
-                for i, xmaxi in enumerate(xmaxs[1:]):
-                    xmaski = np.argwhere((x <= xmaxi) & (x >= xmin))[:, 0] + (i + 1) * Nx
-                    xmask = np.concatenate((xmask, xmaski))
-            elif 'optimal' in xmaxspacing: # optimal
+            if 'PA_w1_w2_1loop' in multipole_rotation: # optimal
                 cov_resh = cov.reshape((3, cov.shape[0] // 3, 3, cov.shape[1] // 3))
                 mat = np.array([[1., -3./7., 11./56.], [1., -3/8., 15/128.], [1., 3/8., -15./128.]]) # PA + w1 + w2
                 ydata = np.einsum('al,lk->ak', mat, ydata.reshape(3,-1)).reshape(-1) # rotate the data to optimal basis for minimal theoretical error
@@ -3039,11 +3026,8 @@ class Likelihood_bird(Likelihood):
                 with np.printoptions(precision=2, suppress=True): 
                     print ('kmax: ', np.array([kmaxA, kmaxB, kmaxC]))
                     print ('errB/errA, errC/errA', np.array([ratiosigmaB, ratiosigmaC]))
-                def getmask(kmax, i): return np.argwhere((x <= kmax) & (x >= xmin))[:, 0] + i * Nx
-                kmask = []
-                for i, kmax in enumerate([kmaxA, kmaxB, kmaxC]): kmask.append(getmask(kmax, i))
-                xmask = np.concatenate((kmask))
-            elif 'great' in xmaxspacing: # great
+                xmask = np.array([getmask(kmax, i) for i, kmax in enumerate([kmaxA, kmaxB, kmaxC])])
+            elif 'PA_w1_w2_1loop+' in multipole_rotation: # great
                 cov_resh = cov.reshape((3, cov.shape[0] // 3, 3, cov.shape[1] // 3))
                 mat = np.array([[1., -3./7., 11./56.], [1., -3/8., 15/128.], [1., 3/8., -15./128.]]) # PA + w1 + w2
                 ydata = np.einsum('al,lk->ak', mat, ydata.reshape(3,-1)).reshape(-1) # rotate the data to optimal basis for minimal theoretical error
@@ -3060,11 +3044,16 @@ class Likelihood_bird(Likelihood):
                 with np.printoptions(precision=2, suppress=True): 
                     print ('kmax: ', np.array([kmaxA, kmaxB, kmaxC]))
                     print ('errB/errA, errC/errA', np.array([ratiosigmaB, ratiosigmaC]))
-                def getmask(kmax, i): 
-                    return np.argwhere((x <= kmax) & (x >= xmin))[:, 0] + i * Nx
-                kmask = []
-                for i, kmax in enumerate([kmaxA, kmaxB, kmaxC]): kmask.append(getmask(kmax, i))
-                xmask = np.concatenate((kmask))
+                xmask = np.array([getmask(kmax, i) for i, kmax in enumerate([kmaxA, kmaxB, kmaxC])])
+            elif 'Q0_l0_l2' in multipole_rotation: 
+                cov_resh = cov.reshape((3, cov.shape[0] // 3, 3, cov.shape[1] // 3))
+                mat = np.array([[1., -1./2., 3./8.], [1., 0., 0.], [0., 1., 0.]]) # Q0 + P0 + P2
+                ydata = np.einsum('al,lk->ak', mat, ydata.reshape(3,-1)).reshape(-1) # rotate the data to optimal basis for minimal theoretical error
+                cov = np.einsum('al,bm,lkmj->akbj', mat, mat, cov_resh).reshape(cov.shape) # rotate the covariance to optimal basis for minimal theoretical error
+                err = np.sqrt(np.diag(cov)).reshape(3, -1)
+                kmaxs = np.array([0.40, 0.20, 0.20]) # PZ: hard-coded !!!
+                with np.printoptions(precision=2, suppress=True): print ('kmax: ', kmaxs)
+                xmask = np.array([getmask(kmax, i) for i, kmax in enumerate(kmaxs)])
 
         elif multipole != 0:
             x = xdata.reshape(3, -1)[0]
@@ -3092,7 +3081,9 @@ class Likelihood_bird(Likelihood):
             print ("BAO recon: none")
 
         covred = cov[xmask.reshape((len(xmask), 1)), xmask]
-        invcov = np.linalg.inv(covred)
+        # hartlap = (2048. - len(xmask) - 2.) / (2048. - 1.) 
+        hartlap = 1.
+        invcov = hartlap * np.linalg.inv(covred)
 
         chi2data = np.dot(ydata, np.dot(invcov, ydata))
         invcovdata = np.dot(ydata, invcov)

@@ -140,8 +140,14 @@ class Bird(object):
             self.bst = np.zeros(shape=(self.co.Nst))
             self.Pstl = np.zeros(shape=(self.co.Nl, self.co.Nst, self.co.Nk))
             self.Pstl[0,0] = self.co.k**0 / self.co.nd
-            self.Pstl[0,1] = self.co.k**2 / self.co.km**2 / self.co.nd
-            self.Pstl[1,2] = self.co.k**2 / self.co.km**2 / self.co.nd
+            if self.eft_basis in ["eftoflss", "westcoast"]: 
+                self.Pstl[0,1] = self.co.k**2 / self.co.km**2 / self.co.nd
+                self.Pstl[1,2] = self.co.k**2 / self.co.km**2 / self.co.nd
+            elif self.eft_basis == 'eastcoast': 
+                for i in range(self.co.Nl):
+                    self.Pstl[i,1] = mu[0][2*i] * self.co.k**2 / self.co.km**2 / self.co.nd
+                    self.Pstl[i,2] = mu[2][2*i] * self.co.k**2 / self.co.km**2 / self.co.nd
+
         else:
             if self.co.with_cf: self.Cstl = None
             else: self.Pstl = None 
@@ -232,7 +238,10 @@ class Bird(object):
             b5 = bias["cct"] / self.co.km**2
             b6 = bias["cr1"] / self.co.kr**2
             b7 = bias["cr2"] / self.co.kr**2
-        # elif self.eft_basis == 'eastcoast': see below
+        elif self.eft_basis == 'eastcoast': # inversion of (2.23) of 2004.10607
+            ct0 = bias["c0"] - f/3. * bias["c2"] + 3/35. * f**2 * bias["c4"]
+            ct2 = bias["c2"] - 6/7. * f * bias["c4"]
+            ct4 = bias["c4"]
 
         if self.with_stoch:
             self.bst[0] = bias["ce0"] 
@@ -252,7 +261,7 @@ class Bird(object):
                     if self.with_tidal_alignments: self.b11[i] = (b1-bq/3.)**2 * mu[0][l] + 2. * (b1-bq/3.) * (f+bq) * mu[2][l] + (f+bq)**2 * mu[4][l]
                     else: self.b11[i] = b1**2 * mu[0][l] + 2. * b1 * f * mu[2][l] + f**2 * mu[4][l]
                     if self.eft_basis in ["eftoflss", "westcoast"]: self.bct[i] = 2. * b1 * (b5 * mu[0][l] + b6 * mu[2][l] + b7 * mu[4][l]) + 2. * f * (b5 * mu[2][l] + b6 * mu[4][l] + b7 * mu[6][l])
-                    elif self.eft_basis == "eastcoast": self.bct[i] = - 2. * (bias["ct0"] * mu[0][l] + bias["ct2"] * f * mu[2][l] + bias["ct4"] * f**2 * mu[4][l])  # these are not divided by km^2 or kr^2 according to eastcoast definition; the prior is adjusted accordingly
+                    elif self.eft_basis == "eastcoast": self.bct[i] = - 2. * (ct0 * mu[0][l] + ct2 * f * mu[2][l] + ct4 * f**2 * mu[4][l])  # these are not divided by km^2 or kr^2 according to eastcoast definition; the prior is adjusted accordingly
                     if self.co.exact_time:
                         self.b22[i] = np.array([ b1**2*G1**2*mu[0][l], b1*b2*G1*mu[0][l], b1*b4*G1*mu[0][l], b2**2*mu[0][l], b2*b4*mu[0][l], b4**2*mu[0][l], b1**2*f*G1*mu[2][l], b1*b2*f*mu[2][l], b1*b4*f*mu[2][l], b1*f*G1**2*mu[2][l], b2*f*G1*mu[2][l], b4*f*G1*mu[2][l], b1**2*f**2*mu[2][l], b1**2*f**2*mu[4][l], b1*f**2*G1*mu[2][l], b1*f**2*G1*mu[4][l], b2*f**2*mu[2][l], b2*f**2*mu[4][l], b4*f**2*mu[2][l], b4*f**2*mu[4][l], f**2*G1**2*mu[4][l], b1*f**3*mu[4][l], b1*f**3*mu[6][l], f**3*G1*mu[4][l], f**3*G1*mu[6][l], f**4*mu[4][l], f**4*mu[6][l], f**4*mu[8][l], b1*f*G1*G1t*mu[2][l], b2*f*G1t*mu[2][l], b4*f*G1t*mu[2][l], b1*f**2*G1t*mu[4][l], f**2*G1*G1t*mu[4][l], f**3*G1t*mu[4][l], f**3*G1t*mu[6][l], f**2*G1t**2*mu[4][l] ])
                         self.b13[i] = np.array([ b1**2*G1**2*mu[0][l], b1*b3*mu[0][l], b1*f*G1**2*mu[2][l], b3*f*mu[2][l], f**2*G1**2*mu[4][l], b1**2*Y1*mu[0][l], b1*f*mu[2][l]*Y1, f**2*mu[4][l]*Y1, b1**2*f*G1t*mu[2][l], b1*f**2*G1t*mu[2][l], b1*f**2*G1t*mu[4][l], f**3*G1t*mu[4][l], f**3*G1t*mu[6][l], b1*f*mu[2][l]*V12t, f**2*mu[4][l]*V12t ])
@@ -272,7 +281,7 @@ class Bird(object):
                 if self.with_tidal_alignments: self.b11 = np.array([(b1-bq/3.)**2, 2. * (b1-bq/3.) * (f+bq), (f+bq)**2])
                 else: self.b11 = np.array([b1**2, 2. * b1 * f, f**2])
                 if self.eft_basis in ["eftoflss", "westcoast"]: self.bct = np.array([2. * b1 * b5, 2. * b1 * b6, 2. * b1 * b7, 2. * f * b5, 2. * f * b6, 2. * f * b7])
-                elif self.eft_basis == "eastcoast": self.bct = - np.array([2. * bias["ct0"], 2. * f * bias["ct2"], 2. * f**2 * bias["ct4"]]) # these are not divided by km^2 or kr^2 according to eastcoast definition; the prior is adjusted accordingly
+                elif self.eft_basis == "eastcoast": self.bct = - 2. * np.array([ct0, f * ct2, f**2 * ct4]) # these are not divided by km^2 or kr^2 according to eastcoast definition; the prior is adjusted accordingly
                 if self.co.Nloop is 12: self.bloop = np.array([1., b1, b2, b3, b4, b1 * b1, b1 * b2, b1 * b3, b1 * b4, b2 * b2, b2 * b4, b4 * b4])
                 elif self.co.Nloop is 22: self.bloop = np.array([f**2, f**3, f**4, b1*f, b1*f**2, b1*f**3, b2*f, b2*f**2, b3*f, b4*f, b4*f**2, b1**2, b1**2*f, b1**2*f**2, b1*b2, b1*b2*f, b1*b3, b1*b4, b1*b4*f, b2**2, b2*b4, b4**2])
                 elif self.co.Nloop is 35: self.bloop = np.array([f**2, f**2*G1t, f**2*G1t**2, f**2*Y1, f**2*V12t, f**3, f**3*G1t, f**4, b1*f, b1*f*G1t, b1*f*Y1, b1*f*V12t, b1*f**2, b1*f**2*G1t, b1*f**3, b2*f, b2*f*G1t, b2*f**2, b3*f, b4*f, b4*f*G1t, b4*f**2, b1**2, b1**2*Y1, b1**2*f, b1**2*f*G1t, b1**2*f**2, b1*b2, b1*b2*f, b1*b3, b1*b4, b1*b4*f, b2**2, b2*b4, b4**2])

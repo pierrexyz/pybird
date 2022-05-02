@@ -63,7 +63,7 @@ class Correlator(object):
                 description="EFT parameters in dictionary to specify as \
                     (\'eft_basis\': \'eftoflss\') \{ \'b1\'(a), \'b2\'(a), \'b3\'(a), \'b4\'(a), \'cct\', \'cr1\'(b), \'cr2\'(b), \'ce0\'(d), \'ce1\'(d), \'ce2\'(d)] \} \
                     (\'eft_basis\': \'westcoast\') \{ \'b1\'(a), \'c2\'(a), \'c4\'(a), \'b3\'(a), \'cct\', \'cr1\'(b), \'cr2\'(b), \'ce0\'(d), \'ce1\'(d), \'ce2\'(d)] \} \
-                    (\'eft_basis\': \'eastcoast\') \{ \'b1\'(a), \'b2\'(a), \'bG2\'(a), \'bgamma3\'(a), \'cct\', \'cr1\'(b), \'cr2\'(c), \'ce0\'(d), \'ce1\'(d), \'ce2\'(d)] \} \
+                    (\'eft_basis\': \'eastcoast\') \{ \'b1\'(a), \'b2\'(a), \'bG2\'(a), \'bgamma3\'(a), \'c0\', \'c2\'(b), \'c4\'(c), \'ce0\'(d), \'ce1\'(d), \'ce2\'(d)] \} \
                     if (a): \'b\' in \'output\'; (b): \'multipole\'>=2; (d): \'with_stoch\' is True ",
                 default=None) ,
             "Omega0_m": Option("Omega0_m", float,
@@ -422,10 +422,12 @@ class Correlator(object):
                 elif p == 'cct': pg[i] = 2 * (f * ct[0+3] + b1 * ct[0]) / self.config["km"]**2 # ~ 2 (b1 + f * mu^2) k^2/km^2 P11 
                 elif p == 'cr1': pg[i] = 2 * (f * ct[1+3] + b1 * ct[1]) / self.config["kr"]**2 # ~ 2 (b1 mu^2 + f * mu^4) k^2/kr^2 P11 
                 elif p == 'cr2': pg[i] = 2 * (f * ct[2+3] + b1 * ct[2]) / self.config["kr"]**2 # ~ 2 (b1 mu^4 + f * mu^6) k^2/kr^2 P11 
-                # counterterm : config["eft_basis"] = 'eastcoast'
-                elif p == 'ct0': pg[i] = - 2 * ct[0] # ~ - 2 k^2 P11 
-                elif p == 'ct2': pg[i] = - 2 * ct[1] # ~ - 2 f mu^2 k^2 P11 
-                elif p == 'ct4': pg[i] = - 2 * ct[2] # ~ - 2 f^4 mu^4 k^2 P11 
+                # counterterm : config["eft_basis"] = 'eastcoast'                       # (2.15) and (2.23) of 2004.10607
+                elif p in ['c0', 'c2', 'c4']:
+                    ct0, ct2, ct4 = - 2 * ct[0], - 2 * f * ct[1], - 2 * f**1 * ct[2]    # - 2 ct0 k^2 P11 , - 2 ct2 f mu^2 k^2 P11 , - 2 ct4 f^2 mu^4 k^2 P11 
+                    if p == 'c0': pg[i] = ct0 + f/3. * ct2 + f**2/5. * ct4              # c0 = ct0 + f/3 ct2 + f^2/5 ct4
+                    elif p == 'c2': pg[i] = ct2 + 6/7. * f * ct4                        # c2 = ct2 + 6f/7 ct4
+                    elif p == 'c4': pg[i] = ct4                                         # c4 = ct4
                 # stochastic term
                 elif p == 'ce0': pg[i] = st[0] # k^0 / nd mono
                 elif p == 'ce1': pg[i] = st[1] # k^2 / km^2 / nd mono
@@ -569,6 +571,8 @@ class Correlator(object):
         for p in self.eft_parameters_list:
             if p not in self.cosmo["bias"]: 
                 raise Exception ("%s not found, please provide (given command \'eft_basis\': \'%s\') %s" % (p, self.config["eft_basis"], self.eft_parameters_list))
+
+        # PZ: here I should auto-fill the EFT parameters for all output options!!!
         
         self.bias = self.cosmo["bias"]
 
@@ -588,8 +592,8 @@ class Correlator(object):
             self.gauss_eft_parameters_list = ['cct']
             if self.config["multipole"] >= 2: self.gauss_eft_parameters_list.extend(['cr1', 'cr2'])
         elif self.config["eft_basis"] == "eastcoast": 
-            self.gauss_eft_parameters_list = ['ct0']
-            if self.config["multipole"] >= 2: self.gauss_eft_parameters_list.extend(['ct2', 'ct4'])
+            self.gauss_eft_parameters_list = ['c0']
+            if self.config["multipole"] >= 2: self.gauss_eft_parameters_list.extend(['c2', 'c4'])
         if self.config["with_stoch"]: self.gauss_eft_parameters_list.extend(['ce0', 'ce1', 'ce2'])
         if self.config["with_nnlo_counterterm"]: 
             if self.config["eft_basis"] in ["eftoflss", "westcoast"]: self.gauss_eft_parameters_list.extend(['cr4', 'cr6'])
