@@ -424,7 +424,7 @@ class Correlator(object):
                 elif p == 'cr2': pg[i] = 2 * (f * ct[2+3] + b1 * ct[2]) / self.config["kr"]**2 # ~ 2 (b1 mu^4 + f * mu^6) k^2/kr^2 P11 
                 # counterterm : config["eft_basis"] = 'eastcoast'                       # (2.15) and (2.23) of 2004.10607
                 elif p in ['c0', 'c2', 'c4']:
-                    ct0, ct2, ct4 = - 2 * ct[0], - 2 * f * ct[1], - 2 * f**1 * ct[2]    # - 2 ct0 k^2 P11 , - 2 ct2 f mu^2 k^2 P11 , - 2 ct4 f^2 mu^4 k^2 P11 
+                    ct0, ct2, ct4 = - 2 * ct[0], - 2 * f * ct[1], - 2 * f**2 * ct[2]    # - 2 ct0 k^2 P11 , - 2 ct2 f mu^2 k^2 P11 , - 2 ct4 f^2 mu^4 k^2 P11 
                     if p == 'c0': pg[i] = ct0 + f/3. * ct2 + f**2/5. * ct4              # c0 = ct0 + f/3 ct2 + f^2/5 ct4
                     elif p == 'c2': pg[i] = ct2 + 6/7. * f * ct4                        # c2 = ct2 + 6f/7 ct4
                     elif p == 'c4': pg[i] = ct4                                         # c4 = ct4
