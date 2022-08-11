@@ -425,9 +425,9 @@ class Correlator(object):
                 # counterterm : config["eft_basis"] = 'eastcoast'                       # (2.15) and (2.23) of 2004.10607
                 elif p in ['c0', 'c2', 'c4']:
                     ct0, ct2, ct4 = - 2 * ct[0], - 2 * f * ct[1], - 2 * f**2 * ct[2]    # - 2 ct0 k^2 P11 , - 2 ct2 f mu^2 k^2 P11 , - 2 ct4 f^2 mu^4 k^2 P11 
-                    if p == 'c0': pg[i] = ct0 + f/3. * ct2 + f**2/5. * ct4              # c0 = ct0 + f/3 ct2 + f^2/5 ct4
-                    elif p == 'c2': pg[i] = ct2 + 6/7. * f * ct4                        # c2 = ct2 + 6f/7 ct4
-                    elif p == 'c4': pg[i] = ct4                                         # c4 = ct4
+                    if p == 'c0':   pg[i] = ct0                                           
+                    elif p == 'c2': pg[i] = - f/3. * ct0 + ct2                        
+                    elif p == 'c4': pg[i] = 3/35. * f**2 * ct0 - 6/7. * f * ct2 + ct4                                      
                 # stochastic term
                 elif p == 'ce0': pg[i] = st[0] # k^0 / nd mono
                 elif p == 'ce1': pg[i] = st[1] # k^2 / km^2 / nd mono
@@ -585,7 +585,9 @@ class Correlator(object):
                 self.bias["b2"] = self.bias["bt1"] + 7/2. * self.bias["bG2"]
                 self.bias["b3"] = self.bias["bt1"] + 15. * self.bias["bG2"] + 6. * self.bias["bGamma3"]
                 self.bias["b4"] = 1/2. * self.bias["bt2"] - 7/2. * self.bias["bG2"]
-    
+        elif "m" in self.config["output"]: self.bias.update({"b1": 1., "b2": 1., "b3": 1., "b4": 0.})
+        if self.config["multipole"] == 0: self.bias.update({"cr1": 0., "cr2": 0.})
+
     def __set_eft_parameters_list(self):
 
         if self.config["eft_basis"] in ["eftoflss", "westcoast"]: 
