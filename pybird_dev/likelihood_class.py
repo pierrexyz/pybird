@@ -601,9 +601,6 @@ class Likelihood_bird(Likelihood):
         if self.first_evaluation: self.first_evaluation = False
         
         lkl = - 0.5 * ( chi2 + prior )
-
-        
-
         return lkl
 
     def __set_prior(self, x, mean, sigma):
