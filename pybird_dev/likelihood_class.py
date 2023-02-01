@@ -611,12 +611,19 @@ class Likelihood_bird(Likelihood):
         modelX = modelX.reshape(-1)
 
         if self.config["with_bao"] and self.config["baoH"][i] > 0 and self.config["baoD"][i] > 0:  # BAO
-            DM_at_z = cosmo.angular_distance(self.config["zbao"][i]) * (1. + self.config["zbao"][i])
-            H_at_z = cosmo.Hubble(self.config["zbao"][i]) * conts.c / 1000.0
-            rd = cosmo.rs_drag() * self.config["rs_rescale"][i]
-            theo_DM_rdfid_by_rd_in_Mpc = DM_at_z / rd * self.config["rd_fid_in_Mpc"][i]
-            theo_H_rd_by_rdfid = H_at_z * rd / self.config["rd_fid_in_Mpc"][i]
-            modelX = np.concatenate((modelX, [theo_H_rd_by_rdfid, theo_DM_rdfid_by_rd_in_Mpc]))
+            # DM_at_z = cosmo.angular_distance(self.config["zbao"][i]) * (1. + self.config["zbao"][i])
+            # H_at_z = cosmo.Hubble(self.config["zbao"][i]) * conts.c / 1000.0
+            # rd = cosmo.rs_drag() * self.config["rs_rescale"][i]
+            # theo_DM_rdfid_by_rd_in_Mpc = DM_at_z / rd * self.config["rd_fid_in_Mpc"][i]
+            # theo_H_rd_by_rdfid = H_at_z * rd / self.config["rd_fid_in_Mpc"][i]
+            # modelX = np.concatenate((modelX, [theo_H_rd_by_rdfid, theo_DM_rdfid_by_rd_in_Mpc]))
+            rd_by_rdfid = cosmo.rs_drag() / self.config["rd_fid"][i]
+            DM_by_DMfid = cosmo.angular_distance(self.config["z"][i]) / self.config["DA_fid"][i]
+            H_by_Hfid = cosmo.Hubble(self.config["z"][i]) / self.config["H_fid"]
+            alpha_par = 1. / (rd_by_rdfid * H_by_Hfid)
+            alpha_per = DM_by_DMfid / rd_by_rdfid
+            modelX = np.concatenate((modelX, [alpha_par, alpha_per]))
+            
 
         modelX = modelX[self.xmask[i]]
 
