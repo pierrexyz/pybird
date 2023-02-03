@@ -419,7 +419,7 @@ class Likelihood_bird(Likelihood):
 
         options = ["nonmarg", "get_chi2_from_marg", "with_derived_bias", "get_fit", "get_fake",
         "with_window", "with_fibercol", "with_redshift_bin", "with_stoch", "with_exact_time", "with_tidal_alignments", "with_nnlo_counterterm", 
-        "with_quintessence", "with_cf_sys", "multipole_rotation", "with_rs_marg"]
+        "with_quintessence", "with_cf_sys", "multipole_rotation", "with_rs_marg", "with_gamma_time"]
 
         for keys in options:
             if not keys in self.config: self.config[keys] = False
@@ -512,6 +512,9 @@ class Likelihood_bird(Likelihood):
         if "Pk" in self.config["output"]:
             self.config["kmax"] = self.xmax + 0.05
 
+        ### something maybe interesting?
+        # if self.config["with_gamma_time"]: self.config["with_exact_time"] = True
+
         print ("output: %s" % self.config["output"])
         print ("skycut: %s" % self.config["skycut"])
         print ("multipole: %s" % self.config["multipole"])
@@ -542,12 +545,13 @@ class Likelihood_bird(Likelihood):
         if self.first_evaluation: # if we run with zero varying cosmological parameter, we evaluate the model only once
             data.update_cosmo_arguments() 
             data.need_cosmo_update = True
-        
-        if data.need_cosmo_update: 
+
+        if data.need_cosmo_update or self.config["with_gamma_time"] or self.config["with_rs_marg"]: 
             self.correlator.compute(self.__set_cosmo(cosmo, data))
         
         free_eft_parameters_list = self.use_nuisance
         if self.config["with_rs_marg"]: free_eft_parameters_list = self.use_nuisance[1:]
+        elif self.config["with_gamma_time"]: free_eft_parameters_list = self.use_nuisance[1:] # as this is coded, with_rs_marg and with_gamma_time can not be used in the same time 
         free_eft_parameters_list = np.array(free_eft_parameters_list).reshape(self.config["skycut"], -1)
         bdict = [] # list of dictionaries of free EFT parameters per sky
         for free_eft_parameters_list_per_sky in free_eft_parameters_list:
@@ -576,7 +580,8 @@ class Likelihood_bird(Likelihood):
                 chi2_i, _ = self.__get_chi2(modelX, cosmo, data, marg=False, i=i)
                 # print ('sky %s, chi2 = %s' % (i+1, chi2_i))
                 chi2 += chi2_i
-                chi2 += self.__set_prior(np.array([bdict[i][param] for param in self.marg_gauss_eft_parameters_list]), 
+                if self.marg_gauss_eft_parameters_list: 
+                    chi2 += self.__set_prior(np.array([bdict[i][param] for param in self.marg_gauss_eft_parameters_list]), 
                     self.marg_gauss_eft_parameters_prior_mean[i], self.marg_gauss_eft_parameters_prior_sigma[i])
 
                 # print ('chi2_prior = %s' % self.__set_prior(np.array([bdict[i][param] for param in self.marg_gauss_eft_parameters_list]), self.marg_gauss_eft_parameters_prior_mean[i], self.marg_gauss_eft_parameters_prior_sigma[i]))
@@ -693,11 +698,21 @@ class Likelihood_bird(Likelihood):
         cosmo = {}
 
         cosmo["k11"] = self.kin  # k in h/Mpc
-        cosmo["P11"] = np.array([M.pk_lin(k * M.h(), zfid) * M.h()**3 for k in self.kin])  # P(k) in (Mpc/h)**3
+        if not self.config["with_gamma_time"]: 
+            cosmo["P11"] = np.array([M.pk_lin(k * M.h(), zfid) * M.h()**3 for k in self.kin])  # P(k) in (Mpc/h)**3 at z
+        else:
+            gamma = data.mcmc_parameters['gamma']['current'] * data.mcmc_parameters['gamma']['scale']
+            cosmo["P11"] = np.array([M.pk_lin(k * M.h(), 0.) * M.h()**3 for k in self.kin])  # P(k) in (Mpc/h)**3 TODAY (z=0)
+            from scipy.integrate import quad
+            def Om_by_a(a): return M.Om_m(1/(1.+a))**gamma / a # je suis pas 100% sur que c'est la bonne fonction de CLASS pour Omega_m(a)
+            D = np.exp( - quad(Om_by_a, 1/(1.+zfid), 1, epsrel=1e-6)[0] ) # 2302.01331, eq. (3)
+            cosmo["P11"] *= D**2 # P(k) at z
 
         if self.config["skycut"] == 1:
             # if self.config["multipole"] is not 0:
-            cosmo["f"] = M.scale_independent_growth_factor_f(zfid)
+            if not self.config["with_gamma_time"]: cosmo["f"] = M.scale_independent_growth_factor_f(zfid)
+            else: cosmo["f"] = M.Om_m(zfid)**gamma # 2302.01331, eq. (2)
+
             if self.config["with_exact_time"] or self.config["with_quintessence"]:
                 cosmo["z"] = self.config["z"][0]
                 cosmo["Omega0_m"] = M.Omega0_m()
@@ -710,8 +725,10 @@ class Likelihood_bird(Likelihood):
 
         elif self.config["skycut"] > 1:
             # if self.config["multipole"] is not 0:
-            cosmo["f"] = np.array([M.scale_independent_growth_factor_f(z) for z in self.config["z"]])
-            cosmo["D"] = np.array([M.scale_independent_growth_factor(z) for z in self.config["z"]])
+            if not self.config["with_gamma_time"]: cosmo["f"] = np.array([M.scale_independent_growth_factor_f(z) for z in self.config["z"]])
+            else: cosmo["f"] = np.array([M.Om_m(z)**gamma for z in self.config["z"]]) # 2302.01331, eq. (2)
+            
+            cosmo["D"] = np.array([M.scale_independent_growth_factor(z) for z in self.config["z"]]) # ne pas s'inquieter de ca tant que le redshift est le meme pour chaque skycut (e.g., CMASS NGC / CMASS SGC)
 
             if self.config["with_AP"]:
                 cosmo["DA"] = np.array([M.angular_distance(z) * M.Hubble(0.) for z in self.config["z"]])
