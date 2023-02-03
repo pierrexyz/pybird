@@ -43,7 +43,7 @@ from eisensteinhu import EisensteinHu
 # from eisensteinhu import EisensteinHu
 
 class Correlator(object):
-    
+
     def __init__(self, config_dict=None, load_engines=True):
 
         self.cosmo_catalog = {
@@ -618,8 +618,9 @@ class Correlator(object):
                 if config_key == name:
                     config.check(config_key, config_dict[config_key])
                     is_config = True
-            if not is_config: 
-                raise Exception("%s is not an available configuration option. Please check correlator.info() for help. " % config_key)
+            ### v1.2: we'll activate this later
+            # if not is_config: 
+            #     raise Exception("%s is not an available configuration option. Please check correlator.info() for help. " % config_key)
             
         # Setting unspecified configs to default value 
         for (name, config) in zip(self.config_catalog, self.config_catalog.values()):
@@ -869,7 +870,6 @@ class Correlator(object):
 
             return cosmo
 
-
 class BiasCorrelator(Correlator): 
     '''
     Class to load pre-computed correlator
@@ -920,4 +920,7 @@ class Option(object):
         else:
             try: raise Exception("Input error in \'%s\'; input configs: %s. Check Correlator.info() in any doubt." % (self.name, self.list))
             except Exception as e: print(e)
+
+
+
 
