@@ -11,7 +11,7 @@ mu = {
     8: {0: 1. / 9., 2: 40. / 99., 4: 48. / 148.}
 }
 
-kbird = np.array([0.001, 0.005, 0.0075, 0.01, 0.0125, 0.015, 0.0175, 0.02])
+kbird = np.array([0.001, 0.0025, 0.005, 0.0075, 0.01, 0.0125, 0.015, 0.0175, 0.02])
 sbird = np.array([1.000e+00, 1.124e+00, 1.264e+00, 1.421e+00, 1.597e+00, 1.796e+00, 2.019e+00, 2.270e+00, 2.551e+00, 2.868e+00, 3.225e+00, 3.625e+00, 4.075e+00, 4.582e+00, 5.151e+00, 5.790e+00, 6.510e+00, 7.318e+00, 8.227e+00, 9.249e+00, 1.040e+01, 1.169e+01, 1.314e+01, 1.477e+01, 1.661e+01, 1.867e+01, 2.099e+01, 2.360e+01, 2.653e+01, 2.982e+01, 3.353e+01, 3.769e+01, 4.238e+01, 4.764e+01, 5.356e+01, 6.000e+01, 6.021e+01, 6.526e+01, 6.769e+01,
                   7.053e+01, 7.579e+01, 7.609e+01, 8.105e+01, 8.555e+01, 8.632e+01, 9.158e+01, 9.617e+01, 9.684e+01, 1.021e+02, 1.074e+02, 1.081e+02, 1.126e+02, 1.179e+02, 1.215e+02, 1.232e+02, 1.284e+02, 1.337e+02, 1.366e+02, 1.389e+02, 1.442e+02, 1.495e+02, 1.536e+02, 1.547e+02, 1.600e+02, 1.727e+02, 1.941e+02, 2.183e+02, 2.454e+02, 2.759e+02, 3.101e+02, 3.486e+02, 3.919e+02, 4.406e+02, 4.954e+02, 5.569e+02, 6.261e+02, 7.038e+02, 7.912e+02, 8.895e+02, 1.000e+03])
 
@@ -45,7 +45,7 @@ class Common(object):
         self.nonequaltime = nonequaltime
         self.keep_loop_pieces_independent = keep_loop_pieces_independent
 
-        if Nl is 0: self.Nl = 1
+        if Nl == 0: self.Nl = 1
         elif Nl > 0: self.Nl = Nl
         
         self.Nst = 3  # number of stochastic terms
@@ -95,7 +95,7 @@ class Common(object):
             slogmask = np.where((slog > slin[-1]) | (slog < slin[0] ))[0]
             self.s = np.unique( np.sort( np.concatenate((slog[slogmask], slin)) ) )
         else:
-            if self.optiresum is True: self.s = np.arange(40., 200., 1./accboost)
+            if self.optiresum: self.s = np.arange(40., 200., 1./accboost)
             else: self.s = sbird
         self.Ns = self.s.shape[0]
         
@@ -114,7 +114,7 @@ class Common(object):
 
         # for resummation
         if self.with_cf: self.NIR = 20
-        elif self.Nl is 3 or self.kmax > 0.25: self.NIR = 16
+        elif self.Nl == 3 or self.kmax > 0.25: self.NIR = 16
         else: self.NIR = 8
         
         if self.NIR is 16: self.Na = 3

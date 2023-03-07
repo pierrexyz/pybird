@@ -711,7 +711,7 @@ class Bird(object):
             if "nnlo_counterterm" in what and self.with_nnlo_counterterm: self.Ps[2] = np.einsum('b,lbx->lx', self.cnnlo, self.Pnnlol)
         self.setfullPs()
 
-    def setreduceCflb(self, bs):
+    def setreduceCflb(self, bs, what="full"):
         """ For option: which='all'. Given an array of EFT parameters, multiply them accordingly to the correlation multipole regrouped terms and adds the resulting terms together per loop order.
 
         Parameters

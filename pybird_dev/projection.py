@@ -86,58 +86,34 @@ class Projection(object):
     - Fiber collision corrections
     - Wedges
     """
-    def __init__(self, xout, Om_AP=None, z_AP=None, nbinsmu=100, 
-        window_fourier_name=None, path_to_window=None, window_configspace_file=None, 
-        binning=False, fibcol=False, Nwedges=0, wedges_bounds=None, 
-        zz=None, nz=None, co=co):
+    def __init__(self, xout, 
+        with_ap=False, H_fid=None, D_fid=None, 
+        with_survey_mask=False, survey_mask_arr_p=None, survey_mask_mat_kp=None, 
+        with_binning=False, binsize=None, 
+        fibcol=False, 
+        with_wedge=0, wedge_mat_wl=None, 
+        with_redshift_bin=False, redshift_bin_zz=None, redshift_bin_nz=None, 
+        co=co):
 
         self.co = co
         self.cf = self.co.with_cf
         self.xout = xout
 
-        if Om_AP is not None and z_AP is not None:
-            self.Om_AP = Om_AP
-            self.z_AP = z_AP
-
-            self.DA = DA(self.Om_AP, self.z_AP)
-            self.H = Hubble(self.Om_AP, self.z_AP)
-            self.muacc = np.linspace(0., 1., nbinsmu)
+        if with_ap: 
+            self.H_fid, self.D_fid, = H_fid, D_fid
+            self.muacc = np.linspace(0., 1., 100)
             self.sgrid, self.musgrid = np.meshgrid(self.co.s, self.muacc, indexing='ij')
             self.kgrid, self.mukgrid = np.meshgrid(self.co.k, self.muacc, indexing='ij')
             self.arrayLegendremusgrid = np.array([(2*2*l+1)/2.*legendre(2*l)(self.musgrid) for l in range(self.co.Nl)])
             self.arrayLegendremukgrid = np.array([(2*2*l+1)/2.*legendre(2*l)(self.mukgrid) for l in range(self.co.Nl)])
 
-        self.with_window = False
-        if window_configspace_file is not None: 
-            if window_fourier_name is not None:
-                self.path_to_window = path_to_window
-                self.window_fourier_name = window_fourier_name
-            self.window_configspace_file = window_configspace_file
-            self.setWindow(Nl=self.co.Nl)
-            self.with_window = True
-
-        if binning: 
-            self.loadBinning(self.xout)
-
-        # wedges
-        if Nwedges != 0:
-            self.Nw = Nwedges
-            if Nwedges != 3 or wedges_bounds is not None: 
-                self.IL = self.IntegralLegendreArray(Nw=self.Nw, Nl=self.co.Nl, bounds=wedges_bounds)
-            else:
-                assert Nwedges == 3, "The formula has been implemented only for 3 pseudo-wedges" 
-                # Matrix that gives the pseudo-wedges from the multipoles
-                # Transformation matrix from 3 multipoles to 3 wedges 
-                # self.IL = np.array([[1., 0., 0.], [0., 1., 0.], [0., 0., 1.]])
-                self.IL = np.array([[1., -3./7., 11./56.], [1., -3/8., 15/128.], [1., 3/8., -15./128.]]) # PA + w1/2 + w2/2
-                # self.IL = np.array([[1., -3./7., 11./56.], [1., -1./9., -85./324.], [1., 5./9., 5./324.]]) # PA + w2/3 + w3/3
-                #np.array([[1., -4./9., 20./81.], [1., -1./9., -85./324.], [1., 5./9., 5./324.]]) # w1/3 + w2/3 + w3/3
-                
-
+        if with_survey_mask: self.arr_p, self.mat_kp = survey_mask_arr_p, survey_mask_mat_kp
+        if with_binning: self.loadBinning(self.xout, binsize)
+        if with_wedge: self.wedge_mat_wl = wedge_mat_wl
+        
         # redshift bin evolution
-        if zz is not None and nz is not None:
-            self.zz = zz
-            self.nz = nz
+        if with_redshift_bin:
+            self.zz, self.nz = redshift_bin_zz, redshift_bin_nz
             mu = np.linspace(0, 1, 60)
             self.s, self.z1, self.mu = np.meshgrid(self.co.s, self.zz, mu, indexing='ij')
             self.n1 = self.mesheval1d(self.zz, self.z1, nz)
@@ -149,15 +125,11 @@ class Projection(object):
         """
         Compute the AP parameters
         """
-        if bird is not None:
-            qperp = bird.DA / self.DA
-            qpar = self.H / bird.H
-        elif DA is not None and H is not None:
-            qperp = DA / self.DA
-            qpar = self.H / H
+        if bird is not None: qpar, qperp = self.H_fid / bird.H, bird.DA / self.D_fid
+        elif DA is not None and H is not None: qpar, qperp = self.H_fid / H, DA / self.D_fid
         return qperp, qpar
 
-    def integrAP(self, k, Pk, kp, arrayLegendremup, many=False):
+    def integrAP(self, k, Pk, kp, arrayLegendremup):
         """
         AP integration
         Credit: Jerome Gleyzes
@@ -169,12 +141,8 @@ class Projection(object):
             mugrid = self.mukgrid
             arrayLegendremugrid = self.arrayLegendremukgrid
         Pkint = interp1d(k, Pk, axis=-1, kind='cubic', bounds_error=False, fill_value='extrapolate')
-        if many:
-            Pkmu = np.einsum('lpkm,lkm->pkm', Pkint(kp), arrayLegendremup)
-            Integrandmu = np.einsum('pkm,lkm->lpkm', Pkmu, arrayLegendremugrid)
-        else:
-            Pkmu = np.einsum('lkm,lkm->km', Pkint(kp), arrayLegendremup)
-            Integrandmu = np.einsum('km,lkm->lkm', Pkmu, arrayLegendremugrid)
+        Pkmu = np.einsum('l...km,lkm->...km', Pkint(kp), arrayLegendremup)
+        Integrandmu = np.einsum('...km,lkm->l...km', Pkmu, arrayLegendremugrid)
         return 2 * np.trapz(Integrandmu, x=mugrid, axis=-1)
 
     def AP(self, bird=None, q=None):
@@ -192,12 +160,12 @@ class Projection(object):
             arrayLegendremup = np.array([legendre(2*l)(mup) for l in range(self.co.Nl)])
 
             if bird.with_bias:
-                bird.fullCf = self.integrAP(self.co.s, bird.fullCf, sp, arrayLegendremup, many=False)
+                bird.fullCf = self.integrAP(self.co.s, bird.fullCf, sp, arrayLegendremup)
             else:
-                bird.C11l = self.integrAP(self.co.s, bird.C11l, sp, arrayLegendremup, many=True)
-                bird.Cctl = self.integrAP(self.co.s, bird.Cctl, sp, arrayLegendremup, many=True)
-                bird.Cloopl = self.integrAP(self.co.s, bird.Cloopl, sp, arrayLegendremup, many=True)
-                if bird.with_nnlo_counterterm: bird.Cnnlol = self.integrAP(self.co.s, bird.Cnnlol, sp, arrayLegendremup, many=True)
+                bird.C11l = self.integrAP(self.co.s, bird.C11l, sp, arrayLegendremup)
+                bird.Cctl = self.integrAP(self.co.s, bird.Cctl, sp, arrayLegendremup)
+                bird.Cloopl = self.integrAP(self.co.s, bird.Cloopl, sp, arrayLegendremup)
+                if bird.with_nnlo_counterterm: bird.Cnnlol = self.integrAP(self.co.s, bird.Cnnlol, sp, arrayLegendremup)
         else:
             F = qpar / qperp
             kp = self.kgrid / qperp * (1 + self.mukgrid**2 * (F**-2 - 1))**0.5
@@ -205,141 +173,32 @@ class Projection(object):
             arrayLegendremup = np.array([legendre(2*l)(mup) for l in range(self.co.Nl)])
 
             if bird.with_bias:
-                bird.fullPs = 1. / (qperp**2 * qpar) * self.integrAP(self.co.k, bird.fullPs, kp, arrayLegendremup, many=False)
+                bird.fullPs = 1. / (qperp**2 * qpar) * self.integrAP(self.co.k, bird.fullPs, kp, arrayLegendremup)
             else:
-                bird.P11l = 1. / (qperp**2 * qpar) * self.integrAP(self.co.k, bird.P11l, kp, arrayLegendremup, many=True)
-                bird.Pctl = 1. / (qperp**2 * qpar) * self.integrAP(self.co.k, bird.Pctl, kp, arrayLegendremup, many=True)
-                bird.Ploopl = 1. / (qperp**2 * qpar) * self.integrAP(self.co.k, bird.Ploopl, kp, arrayLegendremup, many=True)
-                if bird.with_nnlo_counterterm: bird.Pnnlol = 1. / (qperp**2 * qpar) * self.integrAP(self.co.k, bird.Pnnlol, kp, arrayLegendremup, many=True)
-            
+                bird.P11l = 1. / (qperp**2 * qpar) * self.integrAP(self.co.k, bird.P11l, kp, arrayLegendremup)
+                bird.Pctl = 1. / (qperp**2 * qpar) * self.integrAP(self.co.k, bird.Pctl, kp, arrayLegendremup)
+                bird.Ploopl = 1. / (qperp**2 * qpar) * self.integrAP(self.co.k, bird.Ploopl, kp, arrayLegendremup)
+                if bird.with_nnlo_counterterm: bird.Pnnlol = 1. / (qperp**2 * qpar) * self.integrAP(self.co.k, bird.Pnnlol, kp, arrayLegendremup)      
 
-    def setWindow(self, load=True, save=True, Nl=3, withmask=True, windowk=0.05):
-        """
-        Pre-load the window function to apply to the power spectrum by convolution in Fourier space
-        Wal is an array of shape l,l',k',k where so that $P_a(k) = \int dk' \sum_l W_{a l}(k,k') P_l(k')$
-        If it cannot find the file, it will compute a new one from a provided mask in configuration space.
-
-        Inputs
-        ------
-        withmask: whether to only do the convolution over a small range around k
-        windowk: the size of said range
-        """
-
-        compute = True
-
-        # if self.cf: # no window for cf estimator
-        #     try:
-        #         swindow_config_space = np.loadtxt(self.window_configspace_file)
-        #     except:
-        #         print ('Error: can\'t load mask file: %s.'%self.window_configspace_file)
-        #         compute = False
-
-        # else:
-        self.p = np.concatenate([ np.geomspace(1e-5, 0.015, 100, endpoint=False) , np.arange(0.015, self.co.kmax, 1e-3) ])
-        window_fourier_file = os.path.join(self.path_to_window, '%s_Nl%s_kmax%.2f.npy') % (self.window_fourier_name, self.co.Nl, self.co.kmax)
-        
-        if load:
-            try:
-                self.Wal = np.load(window_fourier_file)
-                print ('Loaded mask: %s' % window_fourier_file)
-                save = False
-                compute = False
-            except:
-                print ('Can\'t load mask: %s \n instead,' % window_fourier_file )
-                load = False
-
-        if not load: # do not change to else
-            print ('Computing new mask.')
-            if self.window_configspace_file is None:
-                print ('Error: please specify a configuration-space mask file.')
-                compute = False
-            else:    
-                try:
-                    swindow_config_space = np.loadtxt(self.window_configspace_file)
-                except:
-                    print ('Error: can\'t load mask file: %s.'%self.window_configspace_file)
-                    compute = False
-        
-        if compute is True:
-            Calp = np.array([ 
-                [ [1., 0., 0.],
-                  [0., 1/5., 0.],
-                  [0., 0., 1/9.] ],
-                [ [0., 1., 0.],
-                  [1., 2/7., 2/7.],
-                  [0., 2/7., 100/693.] ],
-                [ [0., 0., 1.],
-                  [0., 18/35., 20/77.],
-                  [1., 20/77., 162/1001.] ],
-                ])
-
-            sw = swindow_config_space[:,0]
-            Qp = np.moveaxis(swindow_config_space[:,1:].reshape(-1,3), 0, -1 )[:Nl]
-            Qal = np.einsum('alp,ps->als', Calp[:Nl,:Nl,:Nl], Qp)
-
-            # if self.cf: # no window for cf estimator
-            #     self.Qal = interp1d(sw, Qal, axis=-1, kind='cubic', bounds_error=False, fill_value='extrapolate')(self.co.s)
-
-            # else:
-            # self.fftsettings = dict(Nmax=4096, xmin=sw[0], xmax=sw[-1]*100., bias=-1.6) # 1e-2 - 1e6 [Mpc/h]
-            self.fftsettings = dict(Nmax=2048, xmin=1.e-2, xmax=1.e6, bias=-1.6) 
-            self.fft = FFTLog(**self.fftsettings)
-            self.pPow = exp(np.einsum('n,s->ns', -self.fft.Pow-3., log(self.p)))
-            self.M = np.empty(shape=(Nl, self.fft.Pow.shape[0]), dtype='complex')
-            for l in range(Nl): self.M[l] = 4*pi * MPC(2*l, -0.5*self.fft.Pow)
-
-            self.Coef = np.empty(shape=(self.co.Nl, Nl, self.co.Nk, self.fft.Pow.shape[0]), dtype='complex')
-            for a in range(self.co.Nl):
-                for l in range(Nl):
-                    for i,k in enumerate(self.co.k):
-                        self.Coef[a,l,i] = (-1j)**(2*a) * 1j**(2*l) * self.fft.Coef(sw, Qal[a,l]*spherical_jn(2*a, k*sw), extrap = 'padding')
-
-            self.Wal = self.p**2 * np.real( np.einsum('alkn,np,ln->alkp', self.Coef, self.pPow, self.M) )
-
-            if save: 
-                print ( 'Saving mask: %s' % window_fourier_file )
-                np.save(window_fourier_file, self.Wal)
-
-        # if not self.cf: # no window for cf estimator
-        self.Wal = self.Wal[:,:self.co.Nl]
-
-        # Apply masking centered around the value of k
-        if withmask:
-            kpgrid, kgrid = np.meshgrid(self.p, self.co.k, indexing='ij')
-            mask = (kpgrid < kgrid + windowk) & (kpgrid > kgrid - windowk)
-            Wal_masked = np.einsum('alkp,pk->alkp', self.Wal, mask)
-
-        # the spacing (needed to do the convolution as a sum)
-        deltap = self.p[1:] - self.p[:-1]
-        deltap = np.concatenate([[0], deltap])
-        self.Waldk = np.einsum('alkp,p->alkp', Wal_masked, deltap)
-
-    def integrWindow(self, P, many=False):
+    def integrWindow(self, P):
         """
         Convolve the window functions to a power spectrum P
         """
-        Pk = interp1d(self.co.k, P, axis=-1, kind='cubic', bounds_error=False, fill_value='extrapolate')(self.p)
-        # (multipole l, multipole ' p, k, k' m) , (multipole ', power pectra s, k' m)
-        #print (self.Qlldk.shape, Pk.shape)
-        if many:
-            return np.einsum('alkp,lsp->ask', self.Waldk, Pk)
-        else:
-            return np.einsum('alkp,lp->ak', self.Waldk, Pk)
+        Pk = interp1d(self.co.k, P, axis=-1, kind='cubic', bounds_error=False, fill_value=0.)(self.arr_p)
+        return np.einsum('alkp,l...p->a...k', self.mat_kp, Pk) # (multipole a, multipole l, k, p) , (multipole l, power pectra s, p)
 
     def Window(self, bird):
         """
         Apply the survey window function to the bird power spectrum 
         """
-        if self.with_window:
-            if bird.with_bias:
-                bird.fullPs = self.integrWindow(bird.fullPs, many=False)
-            else:
-                bird.P11l = self.integrWindow(bird.P11l, many=True)
-                bird.Pctl = self.integrWindow(bird.Pctl, many=True)
-                bird.Ploopl = self.integrWindow(bird.Ploopl, many=True)
-                # bird.Pnnlol = self.integrWindow(bird.Pnnlol, many=True)
-
-            
+        if bird.with_bias:
+            bird.fullPs = self.integrWindow(bird.fullPs)
+        else:
+            bird.P11l = self.integrWindow(bird.P11l)
+            bird.Pctl = self.integrWindow(bird.Pctl)
+            bird.Ploopl = self.integrWindow(bird.Ploopl)
+            if bird.with_stoch: bird.Pstl = self.integrWindow(bird.Pstl)
+            if bird.with_nnlo_counterterm: bird.Pnnlol = self.integrWindow(bird.Pnnlol)
 
     def dPuncorr(self, xout, fs=0.6, Dfc=0.43 / 0.6777):
         """
@@ -415,17 +274,14 @@ class Projection(object):
             bird.Ploopl += self.dPcorr(self.co.k, self.co.k, bird.Ploopl, many=True)
             # bird.Pnnlol += self.dPcorr(self.co.k, self.co.k, bird.Pnnlol, many=True)
 
-    def loadBinning(self, setxout):
+    def loadBinning(self, xout, binsize):
         """
         Create the bins of the data k's
         """
-        delta_k = np.round(setxout[-1] - setxout[-2], 2)
-        kcentral = (setxout[-1] - delta_k * np.arange(len(setxout)))[::-1]
-        binmin = kcentral - delta_k / 2
-        binmax = kcentral + delta_k / 2
-        self.binvol = np.array([quad(lambda k: k**2, kbinmin, kbinmax)[0]
-                                for (kbinmin, kbinmax) in zip(binmin, binmax)])
-
+        kcentral = (xout[-1] - binsize * np.arange(len(xout)))[::-1] # in case the provided ks are not the central ones but effective ones...
+        binmin = kcentral - binsize / 2.
+        binmax = kcentral + binsize / 2.
+        self.binvol = np.array([quad(lambda k: k**2, kbinmin, kbinmax)[0] for (kbinmin, kbinmax) in zip(binmin, binmax)])
         self.points = [np.linspace(kbinmin, kbinmax, 100) for (kbinmin, kbinmax) in zip(binmin, binmax)]
 
     def integrBinning(self, P):
@@ -448,7 +304,6 @@ class Projection(object):
                 bird.C11l = self.integrBinning(bird.C11l)
                 bird.Cctl = self.integrBinning(bird.Cctl)
                 bird.Cloopl = self.integrBinning(bird.Cloopl)
-                # if bird.with_stoch: bird.Cstl = self.integrBinning(bird.Cstl)
                 if bird.with_nnlo_counterterm: bird.Cnnlol = self.integrBinning(bird.Cnnlol)
         else:
             if bird.with_bias:
@@ -459,7 +314,6 @@ class Projection(object):
                 bird.Ploopl = self.integrBinning(bird.Ploopl)
                 if bird.with_stoch: bird.Pstl = self.integrBinning(bird.Pstl)
                 if bird.with_nnlo_counterterm: bird.Pnnlol = self.integrBinning(bird.Pnnlol)
-
 
     def xdata(self, bird):
         """
@@ -472,7 +326,6 @@ class Projection(object):
                 bird.C11l = interp1d(self.co.s, bird.C11l, axis=-1, kind='cubic', bounds_error=False)(self.xout)
                 bird.Cctl = interp1d(self.co.s, bird.Cctl, axis=-1, kind='cubic', bounds_error=False)(self.xout)
                 bird.Cloopl = interp1d(self.co.s, bird.Cloopl, axis=-1, kind='cubic', bounds_error=False)(self.xout)
-                # if bird.with_stoch: bird.Cstl = interp1d(self.co.s, bird.Cstl, axis=-1, kind='cubic', bounds_error=False)(self.xout)
                 if bird.with_nnlo_counterterm: bird.Cnnlol = interp1d(self.co.s, bird.Cnnlol, axis=-1, kind='cubic', bounds_error=False)(self.xout)
         else:
             if bird.with_bias:
@@ -484,49 +337,32 @@ class Projection(object):
                 if bird.with_stoch: bird.Pstl = interp1d(self.co.k, bird.Pstl, kind='cubic', bounds_error=False)(self.xout)
                 if bird.with_nnlo_counterterm: bird.Pnnlol = interp1d(self.co.k, bird.Pnnlol, axis=-1, kind='cubic', bounds_error=False)(self.xout)
 
-    def IntegralLegendre(self, l, a, b):
-        if l == 0: return 1.
-        if l == 2: return 0.5*(b**3-b-a**3+a)/(b-a)
-        if l == 4: return 0.25*(-3/2.*a+5*a**3-7/2.*a**5+3/2.*b-5*b**3+7/2.*b**5)/(b-a)
-
-    def IntegralLegendreArray(self, Nw=3, Nl=2, bounds=None):
-        deltamu = 1./float(Nw)
-        if bounds is None: boundsmu = np.arange(0., 1.+deltamu, deltamu)
-        else: boundsmu = bounds
-        IntegrLegendreArray = np.empty(shape=(Nw, Nl))
-        for w in range(Nw):
-            for l in range(Nl):
-                IntegrLegendreArray[w,l] = self.IntegralLegendre(2*l, boundsmu[w], boundsmu[w+1])
-        return IntegrLegendreArray
-
-    def integrWedges(self, P, many=False):
-        if many: w = np.einsum('lpk,wl->wpk', P, self.IL)
-        else: w = np.einsum('lk,wl->wk', P, self.IL)
+    def integrWedges(self, P):
+        w = np.einsum('l...k,wl->w...k', P, self.wedge_mat_wl)
         return w
 
     def Wedges(self, bird):
         """
-        Produce wedges
+        Rotate multipoles to wedges
         """
         if self.cf:
             if bird.with_bias:
-                bird.fullCf = self.integrWedges(bird.fullCf, many=False)
+                bird.fullCf = self.integrWedges(bird.fullCf)
             else:
-                bird.C11l = self.integrWedges(bird.C11l, many=True)
-                bird.Cctl = self.integrWedges(bird.Cctl, many=True)
-                bird.Cloopl = self.integrWedges(bird.Cloopl, many=True)
-                # if bird.with_stoch: bird.Cstl = self.integrWedges(bird.Cstl, many=True)
-                if bird.with_nnlo_counterterm: bird.Cnnlol = self.integrWedges(bird.Cnnlol, many=True)
+                bird.C11l = self.integrWedges(bird.C11l)
+                bird.Cctl = self.integrWedges(bird.Cctl)
+                bird.Cloopl = self.integrWedges(bird.Cloopl)
+                if bird.with_nnlo_counterterm: bird.Cnnlol = self.integrWedges(bird.Cnnlol)
         else:
             if bird.with_bias:
-                bird.fullPs = self.integrWedges(bird.fullPs, many=False)
+                bird.fullPs = self.integrWedges(bird.fullPs)
             else:
-                bird.P11l = self.integrWedges(bird.P11l, many=True)
-                bird.Pctl = self.integrWedges(bird.Pctl, many=True)
-                bird.Ploopl = self.integrWedges(bird.Ploopl, many=True)
-                if bird.with_stoch: bird.Pstl = self.integrWedges(bird.Pstl, many=True)
-                if bird.with_nnlo_counterterm: bird.Pnnlol = self.integrWedges(bird.Pnnlol, many=True)
-
+                bird.P11l = self.integrWedges(bird.P11l)
+                bird.Pctl = self.integrWedges(bird.Pctl)
+                bird.Ploopl = self.integrWedges(bird.Ploopl)
+                if bird.with_stoch: bird.Pstl = self.integrWedges(bird.Pstl)
+                if bird.with_nnlo_counterterm: bird.Pnnlol = self.integrWedges(bird.Pnnlol)
+    
     def Wedges_external(self, P):
         return self.integrWedges(P, many=False)
 
@@ -631,3 +467,4 @@ class Projection(object):
         
 
             
+
