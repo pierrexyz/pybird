@@ -1,0 +1,3 @@
+eftboss.data_directory = data.path['data'] 
+eftboss.config_file = 'eftboss/config/boss_pk.yaml'
+eftboss.use_nuisance = ['b1_hN', 'b2_hN', 'b4_hN', 'b1_hS', 'b2_hS', 'b4_hS', 'b1_lN', 'b2_lN', 'b4_lN', 'b1_lS', 'b2_lS', 'b4_lS']

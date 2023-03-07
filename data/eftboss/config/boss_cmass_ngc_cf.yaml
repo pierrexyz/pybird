@@ -1,0 +1,54 @@
+data_path: 'data/eftboss/'
+data_file: 'boss_dr12_2pt.npy'
+
+output: 'bCf'
+multipole: 2
+with_ap: True
+with_binning: True
+
+sky:
+     cmass_ngc: #l0,   l2,   l4
+          min: [20, 20] 
+          max: [200, 200] 
+
+write:
+    save: False
+    fake: False
+    plot: False
+    show: False
+    out_path: 'data/eftboss/out/'
+    out_name: 'boss_cmass_ngc_cf'
+
+km: 0.7
+kr: 0.35
+nd: 3.e-4
+
+eft_basis: 'eftoflss' # b1, b2, b4, b3 (biased parameters) & cct, cr1, cr2 (counterterms)
+eft_prior:
+     b1:
+          type: flat
+          range: null
+     b2:
+          type: gauss
+          mean: [0.] 
+          range: [2.] 
+     b4:
+          type: gauss
+          mean: [0.] 
+          range: [2.] 
+     b3:
+          type: marg_gauss
+          mean: [0.] 
+          range: [2.] 
+     cct: # mu^0 k^2 P11
+          type: marg_gauss
+          mean: [0.] 
+          range: [2.] 
+     cr1: # mu^2 k^2 P11
+          type: marg_gauss
+          mean: [0.] 
+          range: [2.] 
+     cr2: # mu^4 k^2 P11
+          type: marg_gauss
+          mean: [0.] 
+          range: [2.] 
