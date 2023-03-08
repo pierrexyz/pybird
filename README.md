@@ -17,7 +17,7 @@ Currently available:
 PyBird also provides likelihoods interfacing the EFT predictions with galaxy-clustering data. 
 
 Currently available: 
-> [BOSS DR12 LRG 2pt full-shape + rec. bao](https://github.com/pierrexyz/pybird/montepython/likelihoods/eftboss)
+> [BOSS DR12 LRG 2pt full-shape + rec. bao](montepython/likelihoods/eftboss)
 
 Soon available: 
 > [eBOSS DR16 QSO 2pt full-shape]
@@ -42,9 +42,9 @@ That's it, now you can simply `import pybird` from wherever in your projects.
 ## Getting Started -- likelihood
 If you are a **[MontePython 3](https://github.com/brinckmann/montepython_public)** user, likelihoods can be installed 'with less than a cup of coffee'.
 * Download and install pybird as above
-* Copy the likelihood folder [eftboss](montepython/likelihoods/eftboss) to your working MontePython repository: montepython_public/montepython/likelihoods/ 
-* Copy the data folder [pybird/data/eftboss](https://github.com/pierrexyz/pybird/data/eftboss) to your working MontePython data folder: montepython_public/data/
-* Try to run the likelihood of BOSS DR12 with the input param file [pybird/montepython/eftboss.param](https://github.com/pierrexyz/pybird/montepython/eftboss.param)
+* Copy the likelihood folder [montepython/likelihoods/eftboss](montepython/likelihoods/eftboss) to your working MontePython repository: montepython_public/montepython/likelihoods/ 
+* Copy the data folder [data/eftboss](data/eftboss) to your working MontePython data folder: montepython_public/data/
+* Try to run the likelihood of BOSS DR12 with the input param file [montepython/eftboss.param](montepython/eftboss.param)
 
 *** Note (23/03/08): the last MontePython version 3.5 seems to have some incompatibilities with the PyBird likelihood related to function `data.need_cosmo_arguments()`. To resolve it, see this [pull-request](https://github.com/brinckmann/montepython_public/pull/276). 
 
@@ -52,10 +52,10 @@ That's it, you are all set!
 
 ## Cookbooks
 Alternatively, if you are curious, here are three cookbooks that should answer the following questions: 
-* [Correlator](https://github.com/pierrexyz/pybird/notebooks/correlator_cookbook.ipynb): How to ask PyBird to compute EFT predictions? 
-* [Likelihood](https://github.com/pierrexyz/pybird/notebooks/likelihood_cookbook.ipynb): How does the PyBird likelihood work? 
-* [Data](https://github.com/pierrexyz/pybird/notebooks/data_cookbook.ipynb): What are the data read by PyBird likelihood?
-* [cbird](https://github.com/pierrexyz/pybird/notebooks/cbird.nb): What is the algebra of the EFT predictions PyBird is based on?
+* [Correlator](notebooks/correlator_cookbook.ipynb): How to ask PyBird to compute EFT predictions? 
+* [Likelihood](likelihood_cookbook.ipynb): How does the PyBird likelihood work? 
+* [Data](ata_cookbook.ipynb): What are the data read by PyBird likelihood?
+* [cbird](notebooks/cbird.nb): What is the algebra of the EFT predictions PyBird is based on?
 
 ## Documentation
 Read the docs at [https://pybird.readthedocs.io](https://pybird.readthedocs.io).
