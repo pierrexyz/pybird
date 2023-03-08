@@ -1,21 +1,31 @@
+
+
+# PyBird: Python code for Biased tracers in redshift space
+
+**EFT predictions for correlators of biased tracers in redshift space**
+
+**Likelihoods of galaxy-clustering data**
+
+
 [![](https://img.shields.io/badge/arXiv-2003.07956%20-red.svg)](https://arxiv.org/abs/2003.07956)
 [![](http://img.shields.io/badge/license-MIT-blue.svg?style=flat)](https://github.com/pierrexyz/pybird/blob/master/LICENSE)
 [![](https://readthedocs.org/projects/pybird/badge/?version=latest)](https://pybird.readthedocs.io/en/latest/?badge=latest)
 
-# PyBird: Python code for Biased tracers in redshift space
-* Written by [Pierre Zhang](mailto:pierrexyz@protonmail.com) and [Guido D'Amico](mailto:damico.guido@gmail.com)
-* License: MIT
 
 ## General info
-PyBird is a fast code written in Python 3 computing EFT predictions for correlators of biased tracers in redshift space. 
+#### Correlator evaluation
+- One-loop EFT predictions for two-point (2pt) functions:
+      - dark matter or biased tracers
+      - real or redshift space
+      - Fourier (power spectrum) or configuration space (correlation function)
+- Additional modeling: 
+      - geometrical (AP) distortion
+      - survey mask
+      - binning
+      - exact-time dependence
+      - and more. 
 
-Currently available: 
-> one-loop predictions for two-point (2pt) functions: dark matter or biased tracers, real or redshift space, Fourier (power spectrum) or configuration space (correlation function).  
-
-> includes additional modelling: geometrical (AP) distortion, survey mask, binning, exact-time dependence, and more. 
-
-PyBird also provides likelihoods interfacing the EFT predictions with galaxy-clustering data. 
-
+#### Likelihoods of galaxy-clustering data
 Currently available: 
 > [BOSS DR12 LRG 2pt full-shape + rec. bao](montepython/likelihoods/eftboss)
 
@@ -31,8 +41,7 @@ The following packages are not strictly neccessary but recommended to run the co
 * PyBird likelihoods are showcased with **[iminuit](https://iminuit.readthedocs.io/)** and **[emcee](https://emcee.readthedocs.io/)**. 
 
 ## Installation
-PyBird is pip-installable.
-Just clone the repo, and install it as a Python package using `pip`:
+Clone the repo, and install it as a Python package using `pip`:
 ```
 git clone https://github.com/pierrexyz/pybird.git
 cd pybird
@@ -42,7 +51,7 @@ That's it, now you can simply `import pybird` from wherever in your projects.
 
 ## Getting Started -- likelihood
 If you are a **[MontePython 3](https://github.com/brinckmann/montepython_public)** user, likelihoods can be installed 'with less than a cup of coffee'.
-* Download and install pybird as above
+* Clone and install PyBird as above
 * Copy the likelihood folder [montepython/likelihoods/eftboss](montepython/likelihoods/eftboss) to your working MontePython repository: montepython_public/montepython/likelihoods/ 
 * Copy the data folder [data/eftboss](data/eftboss) to your working MontePython data folder: montepython_public/data/
 * Try to run the likelihood of BOSS DR12 with the input param file [montepython/eftboss.param](montepython/eftboss.param)
@@ -61,7 +70,11 @@ Alternatively, if you are curious, here are three cookbooks that should answer t
 ## Documentation
 Read the docs at [https://pybird.readthedocs.io](https://pybird.readthedocs.io).
 
-## Citation
+## Attribution
+* Written by [Pierre Zhang](mailto:pierrexyz@protonmail.com) and [Guido D'Amico](mailto:damico.guido@gmail.com)
+* License: MIT
+* Contributions from: Thomas Colas, Théo Simon
+
 When using PyBird in a publication, please acknowledge the code by citing the following paper: 
 > G. D’Amico, L. Senatore and P. Zhang, "Limits on wCDM from the EFTofLSS with the PyBird code", JCAP 01 (2021) 006, [2003.07956](https://arxiv.org/abs/2003.07956)
 
@@ -81,11 +94,10 @@ The BibTeX entry for it is:
 }
 ```
 
-Similarly, when using likelihoods, we would be grateful if you can cite the following papers. 
+When using likelihoods, we would be grateful if you can cite the following papers. 
 
 * When using the likelihood based on BOSS DR12 data, to acknowledge the data: 
 > BOSS collaboration, S. Alam et al., "The clustering of galaxies in the completed SDSS-III Baryon Oscillation Spectroscopic Survey: cosmological analysis of the DR12 galaxy sample", Mon. Not. Roy. Astron. Soc. 470 (2017) 2617–2652, [1607.03155](https://arxiv.org/abs/1607.03155).
-
 
 * When using the likelihood of BOSS DR12 LRG power spectrum, to acknowledge the power spectrum measurements: 
 > G. D’Amico, Y. Donath, M. Lewandowski, L. Senatore and P. Zhang, "The BOSS bispectrum analysis at one loop from the Effective Field Theory of Large-Scale Structure", [2206.08327](https://arxiv.org/abs/2206.08327). 
