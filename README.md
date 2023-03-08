@@ -22,7 +22,12 @@ Soon available:
 * eBOSS DR16 QSO 2pt full-shape
 
 ## Dependencies
-PyBird depends on the numerical libraries [NumPy](https://numpy.org/) and [SciPy](http://scipy.org/).
+PyBird depends on the numerical libraries [NumPy](https://numpy.org/) and [SciPy](http://scipy.org/).  
+
+The following packages are not strictly neccessary but recommended to run the cookbooks:
+* PyBird has extra compatibility with **[CLASS](https://lesgourg.github.io/class_public/class.html)**.  
+* PyBird likelihoods are integrated within **[MontePython 3](https://github.com/brinckmann/montepython_public)**. 
+* PyBird likelihoods are showcased with **[iminuit](https://iminuit.readthedocs.io/)** and **[emcee](https://emcee.readthedocs.io/)**. 
 
 ## Installation
 PyBird is pip-installable.
