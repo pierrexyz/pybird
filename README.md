@@ -4,7 +4,7 @@
 **The Python code for Biased tracers in redshift space**  
 
 - EFT predictions for correlators of biased tracers in redshift space  
-- Likelihoods of galaxy-clustering data  
+- Likelihoods of galaxy-clustering data with EFT predictions  
 
 [![](https://img.shields.io/badge/arXiv-2003.07956%20-red.svg)](https://arxiv.org/abs/2003.07956)
 [![](http://img.shields.io/badge/license-MIT-blue.svg?style=flat)](https://github.com/pierrexyz/pybird/blob/master/LICENSE)
@@ -22,9 +22,10 @@
       - survey mask  
       - binning  
       - exact-time dependence  
+      - wedges
       - and more.  
 
-#### Likelihoods of galaxy-clustering data
+#### Likelihoods of galaxy-clustering data with EFT predictions
 Currently available: 
 > [BOSS DR12 LRG 2pt full-shape + rec. bao](montepython/likelihoods/eftboss)
 
@@ -55,7 +56,7 @@ If you are a **[MontePython 3](https://github.com/brinckmann/montepython_public)
 * Copy the data folder [data/eftboss](data/eftboss) to your working MontePython data folder: montepython_public/data/
 * Try to run the likelihood of BOSS DR12 with the input param file [montepython/eftboss.param](montepython/eftboss.param)
 
-*** Note (23/03/08): the last MontePython version 3.5 seems to have some incompatibilities with the PyBird likelihood related to function `data.need_cosmo_arguments()`. To resolve it, see this [pull-request](https://github.com/brinckmann/montepython_public/pull/276). 
+*** Note (23/03/08): MontePython v3.5 seems to have some incompatibilities with the PyBird likelihood related to the function `data.need_cosmo_arguments()`. To resolve it, see this [pull-request](https://github.com/brinckmann/montepython_public/pull/276). 
 
 That's it, you are all set!
 
@@ -74,7 +75,7 @@ Read the docs at [https://pybird.readthedocs.io](https://pybird.readthedocs.io).
 * License: MIT
 * Contributions from: Thomas Colas, Théo Simon
 
-When using PyBird in a publication, please acknowledge the code by citing the following paper: 
+When using PyBird in a publication, please acknowledge the code by citing the following paper:  
 > G. D’Amico, L. Senatore and P. Zhang, "Limits on wCDM from the EFTofLSS with the PyBird code", JCAP 01 (2021) 006, [2003.07956](https://arxiv.org/abs/2003.07956)
 
 The BibTeX entry for it is:
@@ -93,16 +94,16 @@ The BibTeX entry for it is:
 }
 ```
 
-When using likelihoods, we would be grateful if you can cite the following papers. 
+We would be grateful if you also cite the theory papers when relevant:  
+> The Effective-Field Theory of Large-Scale Structure: [1004.2488](https://arxiv.org/abs/1004.2488), [https://arxiv.org/abs/1310.0464](https://arxiv.org/abs/1004.2488)  
 
-* When using the likelihood based on BOSS DR12 data, to acknowledge the data: 
-> BOSS collaboration, S. Alam et al., "The clustering of galaxies in the completed SDSS-III Baryon Oscillation Spectroscopic Survey: cosmological analysis of the DR12 galaxy sample", Mon. Not. Roy. Astron. Soc. 470 (2017) 2617–2652, [1607.03155](https://arxiv.org/abs/1607.03155).
+> One-loop power spectrum of biased tracers in redshift space: [1610.09321](https://arxiv.org/abs/1610.09321)  
 
-* When using the likelihood of BOSS DR12 LRG power spectrum, to acknowledge the power spectrum measurements: 
-> G. D’Amico, Y. Donath, M. Lewandowski, L. Senatore and P. Zhang, "The BOSS bispectrum analysis at one loop from the Effective Field Theory of Large-Scale Structure", [2206.08327](https://arxiv.org/abs/2206.08327). 
+When using the likelihoods, here are some relevant references for the data:  
+> BOSS DR12 data: [1607.03155](https://arxiv.org/abs/1607.03155).  
 
-* When using the likelihood of BOSS DR12 LRG correlation function, to acknowledge the correlation function measurements: 
-> P. Zhang, G. D’Amico, L. Senatore, C. Zhao and Y. Cai, "BOSS Correlation Function analysis from the Effective Field Theory of Large-Scale Structure", JCAP 02 (2022) 036, [2110.07539](https://arxiv.org/abs/2110.07539). 
+> BOSS DR12 LRG power spectrum measurements: [2206.08327](https://arxiv.org/abs/2206.08327).  
 
-* When using the likelihood of BOSS DR12 LRG rec. bao, to acknowledge the post-reconstructed measurements: 
-> H. Gil-Marín et al., "The clustering of galaxies in the SDSS-III Baryon Oscillation Spectroscopic Survey: BAO measurement from the LOS-dependent power spectrum of DR12 BOSS galaxies", Mon. Not. Roy. Astron. Soc. 460 (2016) 4210–4219, [1509.06373](https://arxiv.org/abs/1509.06373). 
+> BOSS DR12 LRG correlation function measurements: [2110.07539](https://arxiv.org/abs/2110.07539).  
+
+> BOSS DR12 LRG post-reconstructed (rec. bao) measurements: [1509.06373](https://arxiv.org/abs/1509.06373).  
