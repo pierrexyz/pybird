@@ -4,33 +4,6 @@ from copy import deepcopy
 from scipy.interpolate import interp1d
 from scipy.fftpack import dst
 
-# from . common import Common, co
-# from . bird import Bird
-# from . nonlinear import NonLinear
-# from . resum import Resum
-# from . projection import Projection
-# from . greenfunction import GreenFunction
-# from . fourier import FourierTransform
-
-from common import Common, co
-from bird import Bird
-from nonlinear import NonLinear
-from nnlo import NNLO_higher_derivative, NNLO_counterterm
-from resum import Resum
-from projection import Projection
-from greenfunction import GreenFunction
-from fourier import FourierTransform
-
-import importlib, sys
-importlib.reload(sys.modules['common'])
-importlib.reload(sys.modules['bird'])
-importlib.reload(sys.modules['nonlinear'])
-importlib.reload(sys.modules['nnlo'])
-importlib.reload(sys.modules['resum'])
-importlib.reload(sys.modules['projection'])
-importlib.reload(sys.modules['greenfunction'])
-importlib.reload(sys.modules['fourier'])
-
 from common import Common, co
 from bird import Bird
 from nonlinear import NonLinear

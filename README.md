@@ -7,19 +7,19 @@
 * License: MIT
 
 ## General info
-PyBird is a code written in Python 3, designed for evaluating the multipoles of the power spectrum of biased tracers in redshift space.
-In general, PyBird can evaluate the power spectrum of matter or biased tracers in real or redshift space.
-The equations on which PyBird is based can be found in [arXiv:1610.09321](https://arxiv.org/abs/1610.09321) or [arXiv:1909.05271](https://arxiv.org/abs/1909.05271). 
-The main technology used by the code is the [FFTLog](https://jila.colorado.edu/~ajsh/FFTLog/index.html), used to evaluate the one-loop power spectrum and the IR resummation, see Sec.~4.1 in [arXiv:2003.07956](https://arxiv.org/abs/2003.07956) for details. 
+PyBird is a fast code written in Python 3 computing EFT predictions for correlators of biased tracers in redshift space. 
 
-PyBird is designed for a fast evaluation of the power spectra, and can be easily inserted in a data analysis pipeline.
-In fact, it is a standalone tool whose input is the linear matter power spectrum which can be obtained from any Boltzmann code, such as [CAMB](https://camb.info/) or [CLASS](http://class-code.net/).
-The Pybird output can be used in a likelihood code which can be part of the routine of a standard MCMC sampler.
-The design is modular and concise, such that parts of the code can be easily adapted to other case uses (e.g., power spectrum at two loops or bispectrum).
+Currently available: 
+* one-loop predictions for two-point (2pt) functions: dark matter or biased tracers, real or redshift space, Fourier (power spectrum) or configuration space (correlation function). 
+* includes additional modelling: geometrical (AP) distortion, survey mask, binning, exact-time dependence, and more. 
 
-PyBird can be used in different ways.
-The code can evaluate the power spectrum either given one set of EFT parameters, or independently of the EFT parameters.
-If the former option is faster, the latter is useful for subsampling or partial marginalization over the EFT parameters, or to Taylor expand around a fiducial cosmology for efficient parameter exploration, see e.g. [arXiv:1909.07951](https://arxiv.org/abs/1909.07951). PyBird runs in less than a second on a laptop. 
+PyBird also provides likelihood interfacing the EFT predictions with galaxy-clustering data. 
+
+Currently available: 
+* BOSS DR12 LRG 2pt full-shape + rec. bao
+
+Soon available: 
+* eBOSS DR16 QSO 2pt full-shape
 
 ## Dependencies
 PyBird depends on the numerical libraries [NumPy](https://numpy.org/) and [SciPy](http://scipy.org/).
@@ -33,49 +33,56 @@ pip install --editable pybird --upgrade
 ```
 That's it, now you can simply `import pybird` from wherever in your projects.
 
-## Getting Started
-If you are a [MontePython 3] user, the code can be installed 'with less than a cup of coffee'.
+## Getting Started -- likelihood
+If you are a **[MontePython 3](https://github.com/brinckmann/montepython_public)** user, likelihoods can be installed 'with less than a cup of coffee'.
 * Download and install pybird as above
-* Link the files from the folder pybird/montepython_tree/ to your_montepython/
-* Try to run the likelihood of BOSS DR12 CMASS NGC with the param file provided in pybird/montepython_tree/input/eft_highzNGC.param
+* Copy the likelihood folder [pybird/montepython/likelihoods/eftboss](https://github.com/pierrexyz/pybird/montepython/likelihoods/eftboss) to your working MontePython repository: montepython_public/montepython/likelihoods/ 
+* Copy the data folder [pybird/data/eftboss](https://github.com/pierrexyz/pybird/data/eftboss) to your working MontePython data folder: montepython_public/data/
+* Try to run the likelihood of BOSS DR12 with the input param file [pybird/montepython/eftboss.param](https://github.com/pierrexyz/pybird/montepython/eftboss.param)
+*** Note (23/03/08): the last MontePython version 3.5 seems to have some incompatibilities with the PyBird likelihood related to function `data.need_cosmo_arguments()`. See this [issue]https://github.com/brinckmann/montepython_public/pull/276 and how to resolve it. 
 
 That's it, you are all set!
 
-Alternatively, if you'd like to have a glimpse at the code, [here](https://github.com/pierrexyz/pybird/blob/master/run_pybird.ipynb) you can find a simple Jupyter notebook to start with.
+## Cookbooks
+Alternatively, if you are curious, here are three cookbooks that should answer the following questions: 
+* [Correlator](https://github.com/pierrexyz/pybird/notebooks/correlator_cookbook.ipynb): How to ask PyBird to compute EFT predictions? 
+* [Likelihood](https://github.com/pierrexyz/pybird/notebooks/likelihood_cookbook.ipynb): How does the PyBird likelihood work? 
+* [Data](https://github.com/pierrexyz/pybird/notebooks/data_cookbook.ipynb): What are the data read by PyBird likelihood?
+* [cbird](https://github.com/pierrexyz/pybird/notebooks/cbird.nb): What is the algebra of the EFT predictions PyBird is based on?
 
 ## Documentation
 Read the docs at [https://pybird.readthedocs.io](https://pybird.readthedocs.io).
 
-## Architecture
-PyBird consists of the following classes:
-* Bird: Main class which contains the power spectrum and correlation function, given a cosmology and a set of EFT parameters.
-* Nonlinear: given a Bird() object, computes the one-loop power spectrum and one-loop correlation function.
-* Resum: given a Bird() object, performs the IR-resummation of the power spectrum.
-* Projection: given a Bird() object, applies geometrical effects on the power spectrum: Alcock-Paczynski effect, window functions, fiber collisions, binning.
-* Common: containing shared objects among the other classes, such as k-array, multipole decomposition, etc.
-
-## Extras
-You can also find in this repositery:
-* run_pybird.ipynb: a Jupyter notebook containing examples to start with
-* montepython_tree : an explicit integration in the MCMC sampler [MontePython 3](https://github.com/brinckmann/montepython_public)
-* cbird.nb : a Mathematica notebook on which PyBird algebra is based
-* tbird : Taylor approximation around a fiducial cosmology of the bird power spectrum. See [arXiv:1909.07951](https://arxiv.org/abs/1909.07951). Some documentation can be found in [cbird](https://github.com/pierrexyz/cbird/) (not supported anymore)
-
 ## Citation
 When using PyBird in a publication, please acknowledge the code by citing the following paper: 
-* [arXiv:2003.07956](https://arxiv.org/abs/2003.07956): "Limits on wCDM from the EFTofLSS with the PyBird code" by Guido D’Amico, Leonardo Senatore, Pierre Zhang
+* G. D’Amico, L. Senatore and P. Zhang, "Limits on wCDM from the EFTofLSS with the PyBird code", JCAP 01 (2021) 006, [2003.07956](https://arxiv.org/abs/2003.07956)
 
 The BibTeX entry for it is:
-
 ```
 @article{DAmico:2020kxu,
-      author         = "D'Amico, Guido and Senatore, Leonardo and Zhang, Pierre",
-      title          = "{Limits on $w$CDM from the EFTofLSS with the PyBird
-                        code}",
-      year           = "2020",
-      eprint         = "2003.07956",
-      archivePrefix  = "arXiv",
-      primaryClass   = "astro-ph.CO",
-      SLACcitation   = "%%CITATION = ARXIV:2003.07956;%%"
+    author = "D'Amico, Guido and Senatore, Leonardo and Zhang, Pierre",
+    title = "{Limits on $w$CDM from the EFTofLSS with the PyBird code}",
+    eprint = "2003.07956",
+    archivePrefix = "arXiv",
+    primaryClass = "astro-ph.CO",
+    doi = "10.1088/1475-7516/2021/01/006",
+    journal = "JCAP",
+    volume = "01",
+    pages = "006",
+    year = "2021"
 }
 ```
+
+Similarly, when using likelihoods, we would be grateful if you can cite the following papers. 
+
+When using the likelihood based on BOSS DR12 data, to acknowledge the data: 
+* BOSS collaboration, S. Alam et al., "The clustering of galaxies in the completed SDSS-III Baryon Oscillation Spectroscopic Survey: cosmological analysis of the DR12 galaxy sample", Mon. Not. Roy. Astron. Soc. 470 (2017) 2617–2652, [1607.03155](https://arxiv.org/abs/1607.03155).
+
+When using the likelihood of BOSS DR12 LRG power spectrum, to acknowledge the power spectrum measurements: 
+* G. D’Amico, Y. Donath, M. Lewandowski, L. Senatore and P. Zhang, "The BOSS bispectrum analysis at one loop from the Effective Field Theory of Large-Scale Structure", [2206.08327](https://arxiv.org/abs/2206.08327). 
+
+When using the likelihood of BOSS DR12 LRG correlation function, to acknowledge the correlation function measurements: 
+* P. Zhang, G. D’Amico, L. Senatore, C. Zhao and Y. Cai, "BOSS Correlation Function analysis from the Effective Field Theory of Large-Scale Structure", JCAP 02 (2022) 036, [2110.07539](https://arxiv.org/abs/2110.07539). 
+
+When using the likelihood of BOSS DR12 LRG rec. bao, to acknowledge the post-reconstructed measurements: 
+* H. Gil-Marín et al., "The clustering of galaxies in the SDSS-III Baryon Oscillation Spectroscopic Survey: BAO measurement from the LOS-dependent power spectrum of DR12 BOSS galaxies", Mon. Not. Roy. Astron. Soc. 460 (2016) 4210–4219, [1509.06373](https://arxiv.org/abs/1509.06373). 

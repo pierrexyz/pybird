@@ -3,13 +3,8 @@ import numpy as np
 from scipy.constants import c as c_light
 from scipy.linalg import block_diag
 
-sys.path.append('/Users/Pierre/Documents/github/pybird/pybird/')
 import pybird as pb
 from io_pb import ReadWrite
-
-# from importlib import reload
-# reload (pb)
-# import pybird as pb
 
 class Likelihood(object):
     """EFT Likelihood"""
