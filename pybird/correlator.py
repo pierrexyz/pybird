@@ -18,14 +18,11 @@ class Correlator(object):
     def __init__(self, config_dict=None, load_engines=True):
 
         self.cosmo_catalog = {
-            "P11": Option("P11", (list, np.ndarray),
+            "pk_lin": Option("pk_lin", (list, np.ndarray),
                 description="Linear matter power spectrum in [Mpc/h]^3",
                 default=None) ,
-            "k11": Option("k11", (list, np.ndarray),
-                description="k-array in [h/Mpc] on which P11 is evaluated",
-                default=None) ,
-            "D": Option("D", float,
-                description="Scale independent growth function. To specify if \'with_nonequal_time\' / \'with_redshift_bin\' is True.", 
+            "kk": Option("kk", (list, np.ndarray),
+                description="k-array in [h/Mpc] on which pk_lin is evaluated",
                 default=None) ,
             "f": Option("f", float,
                 description="Scale independent growth rate (for RSD). Automatically set to 0 for \'output\': \'m__\'.", 
@@ -37,6 +34,12 @@ class Correlator(object):
                     (\'eft_basis\': \'eastcoast\') \{ \'b1\'(a), \'b2\'(a), \'bG2\'(a), \'bgamma3\'(a), \'c0\', \'c2\'(b), \'c4\'(c), \'ce0\'(d), \'ce1\'(d), \'ce2\'(d)] \} \
                     if (a): \'b\' in \'output\'; (b): \'multipole\'>=2; (d): \'with_stoch\' is True ",
                 default=None) ,
+            "H": Option("H", float,
+                description="Hubble parameter by H_0. To specify if \'with_ap\' is True.", 
+                default=None) ,
+            "DA": Option("DA", float,
+                description="Angular distance times H_0. To specify if \'with_ap\' is True.", 
+                default=None) ,
             "Omega0_m": Option("Omega0_m", float,
                 description="Fractional matter abundance at present time. To specify for exact time dependence.", 
                 default=None) ,
@@ -46,11 +49,8 @@ class Correlator(object):
             "z": Option("z", float,
                 description="Effective redshift(s). To specify for exact time dependence.",
                 default=None) ,
-            "H": Option("H", float,
-                description="Hubble parameter by H_0. To specify if \'with_ap\' is True.", 
-                default=None) ,
-            "DA": Option("DA", float,
-                description="Angular distance times H_0. To specify if \'with_ap\' is True.", 
+            "D": Option("D", float,
+                description="Scale independent growth function. To specify if \'with_nonequal_time\' / \'with_redshift_bin\' is True.", 
                 default=None) ,
             "Dz": Option("Dz", (list, np.ndarray),
                 description="Scale independent growth function over redshift bin. To specify if \'with_redshift_bin\' is True.", 
@@ -110,7 +110,7 @@ class Correlator(object):
                 description="With stochastic terms.",
                    default=False) ,
             "with_nnlo_counterterm": Option("with_nnlo_counterterm", bool,
-                description="With next-to-next-to-leading counterterm k^4 P11.",
+                description="With next-to-next-to-leading counterterm k^4 pk_lin.",
                 default=False) ,
             "with_tidal_alignments": Option("with_tidal_alignments", bool,
                 description="With tidal alignements: bq * (\mu^2 - 1/3) \delta_m ",
@@ -188,7 +188,7 @@ class Correlator(object):
                 description="Sampling accuracy boost.",
                 default=1) ,
             "fftbias": Option("fftbias", float,
-                description="real power bias for fftlog decomposition of P11 (usually to keep to default value)",
+                description="real power bias for fftlog decomposition of pk_lin (usually to keep to default value)",
                 default=-1.6) ,
             "keep_loop_pieces_independent": Option("keep_loop_pieces_independent", bool,
                 description="keep the loop pieces 13 and 22 independent (mainly for debugging)",
@@ -308,12 +308,12 @@ class Correlator(object):
                     elif self.co.Nloop == 35: pg[i] = f * loop[18] + b1 * loop[29]                  # config["with_time"] = False, config["with_exact_time"] = True
                     if p == 'bGamma3': pg[i] *= 6. # b3 = b1 + 15. * bG2 + 6. * bGamma3 : config["eft_basis"] = 'eastcoast'
                 # counterterm : config["eft_basis"] = 'eftoflss' or 'westcoast'
-                elif p == 'cct': pg[i] = 2 * (f * ct[0+3] + b1 * ct[0]) / self.c["km"]**2 # ~ 2 (b1 + f * mu^2) k^2/km^2 P11 
-                elif p == 'cr1': pg[i] = 2 * (f * ct[1+3] + b1 * ct[1]) / self.c["kr"]**2 # ~ 2 (b1 mu^2 + f * mu^4) k^2/kr^2 P11 
-                elif p == 'cr2': pg[i] = 2 * (f * ct[2+3] + b1 * ct[2]) / self.c["kr"]**2 # ~ 2 (b1 mu^4 + f * mu^6) k^2/kr^2 P11 
+                elif p == 'cct': pg[i] = 2 * (f * ct[0+3] + b1 * ct[0]) / self.c["km"]**2 # ~ 2 (b1 + f * mu^2) k^2/km^2 pk_lin 
+                elif p == 'cr1': pg[i] = 2 * (f * ct[1+3] + b1 * ct[1]) / self.c["kr"]**2 # ~ 2 (b1 mu^2 + f * mu^4) k^2/kr^2 pk_lin 
+                elif p == 'cr2': pg[i] = 2 * (f * ct[2+3] + b1 * ct[2]) / self.c["kr"]**2 # ~ 2 (b1 mu^4 + f * mu^6) k^2/kr^2 pk_lin 
                 # counterterm : config["eft_basis"] = 'eastcoast'                       # (2.15) and (2.23) of 2004.10607
                 elif p in ['c0', 'c2', 'c4']:
-                    ct0, ct2, ct4 = - 2 * ct[0], - 2 * f * ct[1], - 2 * f**2 * ct[2]    # - 2 ct0 k^2 P11 , - 2 ct2 f mu^2 k^2 P11 , - 2 ct4 f^2 mu^4 k^2 P11 
+                    ct0, ct2, ct4 = - 2 * ct[0], - 2 * f * ct[1], - 2 * f**2 * ct[2]    # - 2 ct0 k^2 pk_lin , - 2 ct2 f mu^2 k^2 pk_lin , - 2 ct4 f^2 mu^4 k^2 pk_lin 
                     if p == 'c0':   pg[i] = ct0                                           
                     elif p == 'c2': pg[i] = - f/3. * ct0 + ct2                        
                     elif p == 'c4': pg[i] = 3/35. * f**2 * ct0 - 6/7. * f * ct2 + ct4                                      
@@ -322,10 +322,10 @@ class Correlator(object):
                 elif p == 'ce1': pg[i] = st[1] # k^2 / km^2 / nd mono
                 elif p == 'ce2': pg[i] = st[2] # k^2 / km^2 / nd quad
                 # nnlo term: config["eft_basis"] = 'eftoflss' or 'westcoast'
-                elif p == 'cr4': pg[i] = 0.25 * b1**2 * nnlo[0] / self.c["kr"]**4 # ~ 1/4 b1^2 k^4/kr^4 mu^4 P11
-                elif p == 'cr6': pg[i] = 0.25 * b1 * nnlo[1] / self.c["kr"]**4    # ~ 1/4 b1 k^4/kr^4 mu^6 P11
+                elif p == 'cr4': pg[i] = 0.25 * b1**2 * nnlo[0] / self.c["kr"]**4 # ~ 1/4 b1^2 k^4/kr^4 mu^4 pk_lin
+                elif p == 'cr6': pg[i] = 0.25 * b1 * nnlo[1] / self.c["kr"]**4    # ~ 1/4 b1 k^4/kr^4 mu^6 pk_lin
                 # nnlo term: config["eft_basis"] = 'eastcoast'
-                elif p == 'ct': pg[i] = - f**4 * (b1**2 * nnlo[0] + 2. * b1 * f * nnlo[1] + f**2 * nnlo[2]) # ~ k^4 mu^4 P11
+                elif p == 'ct': pg[i] = - f**4 * (b1**2 * nnlo[0] + 2. * b1 * f * nnlo[1] + f**2 * nnlo[2]) # ~ k^4 mu^4 pk_lin
 
             return pg
 
@@ -377,14 +377,14 @@ class Correlator(object):
 
         if self.c["with_bias"]: self.__is_bias_conflict()
 
-        if self.cosmo["k11"] is None or self.cosmo["P11"] is None:
-            raise Exception("Please provide a linear matter power spectrum \'P11\' and the corresponding \'k11\'. ")
+        if self.cosmo["kk"] is None or self.cosmo["pk_lin"] is None:
+            raise Exception("Please provide a linear matter power spectrum \'pk_lin\' and the corresponding \'kk\'. ")
         
-        if len(self.cosmo["k11"]) != len(self.cosmo["P11"]):
-            raise Exception("Please provide a linear matter power spectrum \'P11\' and the corresponding \'k11\' of same length.")
+        if len(self.cosmo["kk"]) != len(self.cosmo["pk_lin"]):
+            raise Exception("Please provide a linear matter power spectrum \'pk_lin\' and the corresponding \'kk\' of same length.")
 
-        if self.cosmo["k11"][0] > 1e-4 or self.cosmo["k11"][-1] < 1.:
-            raise Exception("Please provide a linear matter spectrum \'P11\' and the corresponding \'k11\' with min(k11) < 1e-4 and max(k11) > 1.")
+        if self.cosmo["kk"][0] > 1e-4 or self.cosmo["kk"][-1] < 1.:
+            raise Exception("Please provide a linear matter spectrum \'pk_lin\' and the corresponding \'kk\' with min(kk) < 1e-4 and max(kk) > 1.")
 
         if self.c["multipole"] == 0: 
             self.cosmo["f"] = 0.
@@ -522,8 +522,8 @@ class Correlator(object):
 
             cosmo = {}
 
-            cosmo["k11"] = np.logspace(-5, log10kmax, 200)  # k in h/Mpc
-            cosmo["P11"] = np.array([M.pk_lin(k*M.h(), self.c["z"])*M.h()**3 for k in cosmo["k11"]]) # P(k) in (Mpc/h)**3
+            cosmo["kk"] = np.logspace(-5, log10kmax, 200)  # k in h/Mpc
+            cosmo["pk_lin"] = np.array([M.pk_lin(k*M.h(), self.c["z"])*M.h()**3 for k in cosmo["kk"]]) # P(k) in (Mpc/h)**3
 
             if self.c["multipole"] > 0: cosmo["f"] = M.scale_independent_growth_factor_f(self.c["z"])
             if self.c["with_nonequal_time"]:
@@ -557,7 +557,7 @@ class Correlator(object):
                 GF = GreenFunction(Omega0_m, w=w, quintessence=True)
                 Dq = GF.D(scale_factor(zfid)) / GF.D(scale_factor(zm))
                 Dm = M.scale_independent_growth_factor(self.c["z"]) / M.scale_independent_growth_factor(zm)
-                cosmo["P11"] *= Dq**2 / Dm**2 * ( 1 + (1+w)/(1.-3*w) * (1-Omega0_m)/Omega0_m * (1+zm)**(3*w) )**2 # 1611.07966 eq. (4.15)
+                cosmo["pk_lin"] *= Dq**2 / Dm**2 * ( 1 + (1+w)/(1.-3*w) * (1-Omega0_m)/Omega0_m * (1+zm)**(3*w) )**2 # 1611.07966 eq. (4.15)
                 cosmo["f"] = GF.fplus(1/(1.+self.c["z"]))
 
             # wiggle-no-wiggle split # algo: 1003.3999; details: 2004.10607
@@ -582,7 +582,7 @@ class Correlator(object):
                 kmask = np.where(kk < 1.02)[0]
                 return kk[kmask], spk[kmask], pk[kmask] #spk[kmask]+wpk_resc[kmask]
 
-            if self.c["with_nnlo_counterterm"]: cosmo["k11"], cosmo["Psmooth"], cosmo["P11"] = get_smooth_wiggle_resc(cosmo["k11"], cosmo["P11"])
+            if self.c["with_nnlo_counterterm"]: cosmo["kk"], cosmo["Psmooth"], cosmo["pk_lin"] = get_smooth_wiggle_resc(cosmo["kk"], cosmo["pk_lin"])
 
             return cosmo
 

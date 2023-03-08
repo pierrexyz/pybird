@@ -166,8 +166,8 @@ class Bird(object):
 
     def setcosmo(self, cosmo):
 
-        self.kin = cosmo["k11"]
-        self.Pin = cosmo["P11"]
+        self.kin = cosmo["kk"]
+        self.Pin = cosmo["pk_lin"]
         try: 
             self.Plin = interp1d(self.kin, self.Pin, kind='cubic')
             self.P11 = self.Plin(self.co.k)

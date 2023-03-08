@@ -12,7 +12,7 @@
 
 
 ## General info
-#### Correlator evaluation
+#### Fast correlator computation
 - One-loop EFT predictions for two-point (2pt) functions:  
       - dark matter or biased tracers  
       - real or redshift space  
@@ -22,7 +22,7 @@
       - survey mask  
       - binning  
       - exact-time dependence  
-      - and more  
+      - and more.  
 
 #### Likelihoods of galaxy-clustering data
 Currently available: 

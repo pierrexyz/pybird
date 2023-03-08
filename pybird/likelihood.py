@@ -73,13 +73,6 @@ class Likelihood(object):
 
         if self.marg_lkl:
             if self.c['with_boss_correlated_skies_prior']: # BOSS skies i,j = {1, 2, 3, 4} = {CMASS NGC, CMASS SGC, LOWZ NGC, LOWZ SGC}
-                def get_corr(N=1, eps_12=0.1, eps_13=0.2): # correlation rho_ij = 1 - eps_ij^2 / 2, eps_12 = 10% diff between NGC / SGC | eps_13 = 20% diff between CMASS / LOWZ
-                    rho_12, rho_13 = np.diag(N * [1 - 0.5 * eps_12**2]), np.diag(N * [1 - 0.5 * eps_13**2])
-                    corr = np.block([   [np.eye(N), rho_12, rho_13, rho_12 * rho_13], 
-                                        [rho_12, np.eye(N), rho_12 * rho_13, rho_13],
-                                        [rho_13, rho_12 * rho_13, np.eye(N), rho_12], 
-                                        [rho_12 * rho_13, rho_13, rho_12, np.eye(N)]    ])
-                    return corr
                 self.F2_bg_prior_matrix = np.linalg.inv(get_corr(N=self.Ng)) # prior inverse covariance matrix for marginalization
                 self.prior_inv_corr_matrix = np.linalg.inv(get_corr(N=1)) # inverse correlation matrix for non-marg EFT parameters : b1, c2, c4
             else: 
@@ -212,5 +205,15 @@ class Likelihood(object):
     
     def write(self): 
         self.io.write(self.c, self.d_sky, self.out)
-        
-    
+
+
+# correlation matrix for BOSS four skies
+def get_corr(N=1, eps_12=0.1, eps_13=0.2): # correlation rho_ij = 1 - eps_ij^2 / 2, eps_12 = 10% diff between NGC / SGC | eps_13 = 20% diff between CMASS / LOWZ
+    rho_12, rho_13 = np.diag(N * [1 - 0.5 * eps_12**2]), np.diag(N * [1 - 0.5 * eps_13**2])
+    corr = np.block([   [np.eye(N), rho_12, rho_13, rho_12 * rho_13], 
+                        [rho_12, np.eye(N), rho_12 * rho_13, rho_13],
+                        [rho_13, rho_12 * rho_13, np.eye(N), rho_12], 
+                        [rho_12 * rho_13, rho_13, rho_12, np.eye(N)]    ])
+    return corr
+
+
