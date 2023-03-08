@@ -538,7 +538,7 @@ class Correlator(object):
             if not engine:
                 from classy import Class
                 cosmo_dict_local = cosmo_dict.copy()
-                del cosmo_dict_local["bias"] # remove to not pass it to classy that otherwise complains
+                if self.c["with_bias"]: del cosmo_dict_local["bias"] # remove to not pass it to classy that otherwise complains
                 if self.c["with_redshift_bin"]: zmax = max(self.c["redshift_bin_zz"])
                 else: zmax = self.c["z"]
                 M = Class()
