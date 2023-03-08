@@ -55,9 +55,7 @@ Read the docs at [https://pybird.readthedocs.io](https://pybird.readthedocs.io).
 
 ## Citation
 When using PyBird in a publication, please acknowledge the code by citing the following paper: 
-```
-G. D’Amico, L. Senatore and P. Zhang, "Limits on wCDM from the EFTofLSS with the PyBird code", JCAP 01 (2021) 006, [2003.07956](https://arxiv.org/abs/2003.07956)
-```
+> G. D’Amico, L. Senatore and P. Zhang, "Limits on wCDM from the EFTofLSS with the PyBird code", JCAP 01 (2021) 006, [2003.07956](https://arxiv.org/abs/2003.07956)
 
 The BibTeX entry for it is:
 ```
@@ -78,21 +76,14 @@ The BibTeX entry for it is:
 Similarly, when using likelihoods, we would be grateful if you can cite the following papers. 
 
 * When using the likelihood based on BOSS DR12 data, to acknowledge the data: 
-```
-BOSS collaboration, S. Alam et al., "The clustering of galaxies in the completed SDSS-III Baryon Oscillation Spectroscopic Survey: cosmological analysis of the DR12 galaxy sample", Mon. Not. Roy. Astron. Soc. 470 (2017) 2617–2652, [1607.03155](https://arxiv.org/abs/1607.03155).
-```
+> BOSS collaboration, S. Alam et al., "The clustering of galaxies in the completed SDSS-III Baryon Oscillation Spectroscopic Survey: cosmological analysis of the DR12 galaxy sample", Mon. Not. Roy. Astron. Soc. 470 (2017) 2617–2652, [1607.03155](https://arxiv.org/abs/1607.03155).
+
 
 * When using the likelihood of BOSS DR12 LRG power spectrum, to acknowledge the power spectrum measurements: 
-```
-G. D’Amico, Y. Donath, M. Lewandowski, L. Senatore and P. Zhang, "The BOSS bispectrum analysis at one loop from the Effective Field Theory of Large-Scale Structure", [2206.08327](https://arxiv.org/abs/2206.08327). 
-```
+> G. D’Amico, Y. Donath, M. Lewandowski, L. Senatore and P. Zhang, "The BOSS bispectrum analysis at one loop from the Effective Field Theory of Large-Scale Structure", [2206.08327](https://arxiv.org/abs/2206.08327). 
 
 * When using the likelihood of BOSS DR12 LRG correlation function, to acknowledge the correlation function measurements: 
-```
-P. Zhang, G. D’Amico, L. Senatore, C. Zhao and Y. Cai, "BOSS Correlation Function analysis from the Effective Field Theory of Large-Scale Structure", JCAP 02 (2022) 036, [2110.07539](https://arxiv.org/abs/2110.07539). 
-```
+> P. Zhang, G. D’Amico, L. Senatore, C. Zhao and Y. Cai, "BOSS Correlation Function analysis from the Effective Field Theory of Large-Scale Structure", JCAP 02 (2022) 036, [2110.07539](https://arxiv.org/abs/2110.07539). 
 
 * When using the likelihood of BOSS DR12 LRG rec. bao, to acknowledge the post-reconstructed measurements: 
-```
-H. Gil-Marín et al., "The clustering of galaxies in the SDSS-III Baryon Oscillation Spectroscopic Survey: BAO measurement from the LOS-dependent power spectrum of DR12 BOSS galaxies", Mon. Not. Roy. Astron. Soc. 460 (2016) 4210–4219, [1509.06373](https://arxiv.org/abs/1509.06373). 
-```
+> H. Gil-Marín et al., "The clustering of galaxies in the SDSS-III Baryon Oscillation Spectroscopic Survey: BAO measurement from the LOS-dependent power spectrum of DR12 BOSS galaxies", Mon. Not. Roy. Astron. Soc. 460 (2016) 4210–4219, [1509.06373](https://arxiv.org/abs/1509.06373). 
