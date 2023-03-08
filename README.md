@@ -10,16 +10,16 @@
 PyBird is a fast code written in Python 3 computing EFT predictions for correlators of biased tracers in redshift space. 
 
 Currently available: 
-* one-loop predictions for two-point (2pt) functions: dark matter or biased tracers, real or redshift space, Fourier (power spectrum) or configuration space (correlation function). 
-* includes additional modelling: geometrical (AP) distortion, survey mask, binning, exact-time dependence, and more. 
+> one-loop predictions for two-point (2pt) functions: dark matter or biased tracers, real or redshift space, Fourier (power spectrum) or configuration space (correlation function). 
+> includes additional modelling: geometrical (AP) distortion, survey mask, binning, exact-time dependence, and more. 
 
-PyBird also provides likelihood interfacing the EFT predictions with galaxy-clustering data. 
+PyBird also provides likelihoods interfacing the EFT predictions with galaxy-clustering data. 
 
 Currently available: 
-* BOSS DR12 LRG 2pt full-shape + rec. bao
+> [BOSS DR12 LRG 2pt full-shape + rec. bao](https://github.com/pierrexyz/pybird/montepython/likelihoods/eftboss)
 
 Soon available: 
-* eBOSS DR16 QSO 2pt full-shape
+> [eBOSS DR16 QSO 2pt full-shape]
 
 ## Dependencies
 PyBird depends on the numerical libraries [NumPy](https://numpy.org/) and [SciPy](http://scipy.org/).  
