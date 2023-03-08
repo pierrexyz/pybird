@@ -1,11 +1,10 @@
 
 
-# PyBird: Python code for Biased tracers in redshift space
+# PyBird
+**The Python code for Biased tracers in redshift space**  
 
-**EFT predictions for correlators of biased tracers in redshift space**
-
-**Likelihoods of galaxy-clustering data**
-
+- EFT predictions for correlators of biased tracers in redshift space  
+- Likelihoods of galaxy-clustering data  
 
 [![](https://img.shields.io/badge/arXiv-2003.07956%20-red.svg)](https://arxiv.org/abs/2003.07956)
 [![](http://img.shields.io/badge/license-MIT-blue.svg?style=flat)](https://github.com/pierrexyz/pybird/blob/master/LICENSE)
@@ -14,16 +13,16 @@
 
 ## General info
 #### Correlator evaluation
-- One-loop EFT predictions for two-point (2pt) functions:
-      - dark matter or biased tracers
-      - real or redshift space
-      - Fourier (power spectrum) or configuration space (correlation function)
-- Additional modeling: 
-      - geometrical (AP) distortion
-      - survey mask
-      - binning
-      - exact-time dependence
-      - and more. 
+- One-loop EFT predictions for two-point (2pt) functions:  
+      - dark matter or biased tracers  
+      - real or redshift space  
+      - Fourier (power spectrum) or configuration space (correlation function)  
+- Additional modeling:  
+      - geometrical (AP) distortion  
+      - survey mask  
+      - binning  
+      - exact-time dependence  
+      - and more  
 
 #### Likelihoods of galaxy-clustering data
 Currently available: 
