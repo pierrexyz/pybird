@@ -53,8 +53,8 @@ That's it, you are all set!
 ## Cookbooks
 Alternatively, if you are curious, here are three cookbooks that should answer the following questions: 
 * [Correlator](notebooks/correlator_cookbook.ipynb): How to ask PyBird to compute EFT predictions? 
-* [Likelihood](likelihood_cookbook.ipynb): How does the PyBird likelihood work? 
-* [Data](ata_cookbook.ipynb): What are the data read by PyBird likelihood?
+* [Likelihood](notebooks/likelihood_cookbook.ipynb): How does the PyBird likelihood work? 
+* [Data](notebooks/datastruct_cookbook.ipynb): What are the data read by PyBird likelihood?
 * [cbird](notebooks/cbird.nb): What is the algebra of the EFT predictions PyBird is based on?
 
 ## Documentation
