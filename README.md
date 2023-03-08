@@ -32,10 +32,11 @@ The following packages are not strictly neccessary but recommended to run the co
 
 ## Installation
 PyBird is pip-installable.
-Just clone the repo, and install it as a Python package in development mode so your changes will be immediately available:
+Just clone the repo, and install it as a Python package using `pip`:
 ```
 git clone https://github.com/pierrexyz/pybird.git
-pip install --editable pybird --upgrade
+cd pybird
+pip install .
 ```
 That's it, now you can simply `import pybird` from wherever in your projects.
 

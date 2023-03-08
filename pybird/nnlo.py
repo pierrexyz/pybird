@@ -3,8 +3,8 @@ import numpy as np
 from numpy import pi, cos, sin, log, exp, sqrt, trapz
 from scipy.interpolate import interp1d
 from scipy.special import gamma
-from fftlog import FFTLog, MPC, CoefWindow
-from common import co
+from pybird.fftlog import FFTLog, MPC, CoefWindow
+from pybird.common import co
 
 class NNLO_counterterm(object): # k^4 P11
 

@@ -3,8 +3,8 @@ import numpy as np
 from scipy.constants import c as c_light
 from scipy.linalg import block_diag
 
-import pybird as pb
-from io_pb import ReadWrite
+from pybird.correlator import Correlator
+from pybird.io_pb import ReadWrite
 
 class Likelihood(object):
     """EFT Likelihood"""
@@ -17,7 +17,7 @@ class Likelihood(object):
         self.set_data()
         self.set_config(verbose=verbose)
         self.set_class_settings()
-        self.correlator_sky = [pb.Correlator(self.c_sky[i]) for i in range(self.nsky)] # skylist of PyBird correlator engine
+        self.correlator_sky = [Correlator(self.c_sky[i]) for i in range(self.nsky)] # skylist of PyBird correlator engine
         self.set_eft_parameters()
         self.set_boost()
         if self.c["with_bao_rec"]: self.alpha_sky = [None] * self.nsky # skylist of bao recon alpha 
