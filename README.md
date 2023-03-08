@@ -45,7 +45,8 @@ If you are a **[MontePython 3](https://github.com/brinckmann/montepython_public)
 * Copy the likelihood folder [pybird/montepython/likelihoods/eftboss](https://github.com/pierrexyz/pybird/montepython/likelihoods/eftboss) to your working MontePython repository: montepython_public/montepython/likelihoods/ 
 * Copy the data folder [pybird/data/eftboss](https://github.com/pierrexyz/pybird/data/eftboss) to your working MontePython data folder: montepython_public/data/
 * Try to run the likelihood of BOSS DR12 with the input param file [pybird/montepython/eftboss.param](https://github.com/pierrexyz/pybird/montepython/eftboss.param)
-*** Note (23/03/08): the last MontePython version 3.5 seems to have some incompatibilities with the PyBird likelihood related to function `data.need_cosmo_arguments()`. See this [issue]https://github.com/brinckmann/montepython_public/pull/276 and how to resolve it. 
+
+*** Note (23/03/08): the last MontePython version 3.5 seems to have some incompatibilities with the PyBird likelihood related to function `data.need_cosmo_arguments()`. To resolve it, see this [pull-request](https://github.com/brinckmann/montepython_public/pull/276). 
 
 That's it, you are all set!
 
