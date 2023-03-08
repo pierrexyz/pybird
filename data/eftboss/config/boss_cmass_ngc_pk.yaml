@@ -17,7 +17,7 @@ write:
     plot: True
     show: True
     out_path: 'data/eftboss/out/'
-    out_name: 'boss_cmass_ngc_pk'
+    out_name: 'boss_onesky_pk'
 
 km: 0.7
 kr: 0.35

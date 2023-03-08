@@ -62,6 +62,14 @@ class Likelihood(object):
         self.bnlog_prior_mean = np.array([self.c["eft_prior"][param]["mean"] for param in self.bnlog_name])
         self.bnlog_prior_sigma = np.array([self.c["eft_prior"][param]["range"] for param in self.bnlog_name])
 
+        # if self.c["read_gauss_prior_mean_from_file"]: 
+        #     self.bg_centers = []
+        #     for i in range(self.nsky):
+        #         with open(filename) as f: data_file = f.read()
+        #         eft_params_str = data_file.split(', \n')[1].replace("# ", "")
+        #         eft_truth = {key: float(value) for key, value in (pair.split(': ') for pair in eft_params_str.split(', '))}
+        #     self.bg_prior_mean = np.array(self.bg_centers).T
+
         # if self.c["fix_to_truth"]: self.bg_prior_sigma *= 1.e-6
 
         self.Ng = len(self.bg_name)
@@ -84,15 +92,6 @@ class Likelihood(object):
                 self.prior_inv_corr_matrix = np.eye(self.nsky)
             
             self.F2_bg_prior_matrix /= np.concatenate(self.bg_prior_sigma.T)**2
-            
-                # if self.c["read_bg_prior_mean_from_file"]: # PZ: to move to IO
-                #     self.bg_centers = []
-                #     for i in range(self.nsky):
-                #         with open(os.path.join(self.data_directory, self.c["spectrum_file"][i])) as f: data_file = f.read()
-                #         bg_centers = '{' + data_file.split('\n')[2].replace("# ", "")  + '}'
-                #         import ast; bg_centers = ast.literal_eval(bg_centers) # transform to python dict
-                #         self.bg_centers.append([bg_centers[b] for b in self.bg_name]) 
-                #     self.bg_prior_mean = np.array(self.bg_centers).T
             
             bg_prior_mean = np.concatenate(self.bg_prior_mean.T)
             self.F1_bg_prior_mean = np.einsum('a,ab->b', bg_prior_mean, self.F2_bg_prior_matrix) 
@@ -195,20 +194,26 @@ class Likelihood(object):
             for i in range(self.nsky):
                 Tng_k = self.correlator_sky[i].get(b_sky[i]).reshape(-1)[self.m_sky[i]]
                 if self.c["with_bao_rec"]: Tng_k, _ = self.set_bao_rec(self.alpha_sky[i], Tng_k, None)
-                if self.c["write"]["fake"] or self.c["write"]["save"]: self.set_out(self.correlator_sky[i].get(b_sky[i]), i_sky=i)
-                chi2 += self.get_chi2_non_marg(Tng_k-self.y_sky[i], self.p_sky[i]) 
+                chi2_i = self.get_chi2_non_marg(Tng_k-self.y_sky[i], self.p_sky[i]) 
+                if self.c["write"]["fake"] or self.c["write"]["save"]: self.set_out(self.correlator_sky[i].get(b_sky[i]), chi2_i, b_sky[i], M=class_engine, i_sky=i)
+                chi2 += chi2_i
 
         prior = self.get_prior(b_sky)
         lkl = - 0.5 * chi2 + prior
         return lkl
     
-    def set_out(self, y_arr, i_sky=0): 
+    def set_out(self, y_arr, chi2, eft_parameters, M=None, i_sky=0): 
         xmask = self.d_sky[i_sky]['mask_arr']
         self.out[i_sky]['y_arr'] = [y_arr[i, xmask_i] for i, xmask_i in enumerate(xmask)]
         self.out[i_sky]['y'] = y_arr.reshape(-1)[self.m_sky[i_sky]]
         self.out[i_sky]['x_unmasked'] = self.d_sky[i_sky]['x']
         self.out[i_sky]['y_arr_unmasked'] = y_arr
         if self.c["with_bao_rec"]: self.out[i_sky]['alpha'] = self.alpha_sky[i_sky]
+        self.out[i_sky]['chi2'] = chi2
+        self.out[i_sky]['eft_parameters'] = eft_parameters
+        if M is not None: # class engine
+            self.out[i_sky]['cosmo'] = {'omega_b': M.Omega_b(), 'omega_cdm': M.Omega0_cdm() * M.h()**2, 'Omega_k': M.Omega0_k(), 'Omega_nu': M.Omega_nu} 
+            self.out[i_sky]['cosmo'].update(M.get_current_derived_parameters(["Omega_m", "h", "A_s", "n_s", "sigma8"]))
     
     def write(self): 
         self.io.write(self.c, self.d_sky, self.out)

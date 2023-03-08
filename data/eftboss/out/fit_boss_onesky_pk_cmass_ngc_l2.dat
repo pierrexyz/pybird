@@ -1,4 +1,6 @@
-# k [h/Mpc], P_data_l2 [Mpc/h]^3, sigma_data_l2 [Mpc/h]^3, P_theo_l2 [Mpc/h]^3
+# fit | chi2 = 30.00 | parameters: omega_b: 4.9053e-02, omega_cdm: 1.2000e-01, Omega_k: 0.0000e+00, Omega_nu: 0.0000e+00, Omega_m: 3.1243e-01, h: 6.7500e-01, A_s: 2.0989e-09, n_s: 9.6500e-01, sigma8: 8.2315e-01, 
+# b1: 2.0272, b2: 0.6067, b4: 0.2212, b3: -0.2682, cct: 0.1366, cr1: -0.7050, cr2: -0.6703, ce0: 2.8355, ce1: 0.1209, ce2: -1.9407, 
+# k [h/Mpc], P_data_l0 [Mpc/h]^3, sigma_data_l0 [Mpc/h]^3, P_theo_l0 [Mpc/h]^3k [h/Mpc], P_data_l2 [Mpc/h]^3, sigma_data_l2 [Mpc/h]^3, P_theo_l2 [Mpc/h]^3
 0.0162 1.613400e+04 1.061174e+04 2.211573e+04
 0.0269 2.322141e+04 5.891911e+03 2.107567e+04
 0.0377 1.386654e+04 3.356295e+03 1.659868e+04

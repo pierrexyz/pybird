@@ -159,9 +159,11 @@ class ReadWrite(object):
                 if c['output'] == 'bPk': 
                     if c['with_survey_mask']: survey_mask_arr_p, survey_mask_mat_kp = d[sky]['bPk']['survey_mask']['arr_p'], d[sky]['bPk']['survey_mask']['mat_kp']
                     else: survey_mask_arr_p, survey_mask_mat_kp = None, None
-                    self.write_pk(fake_d[sky], c['multipole'], o['x_unmasked'], o['y_arr_unmasked'], d[sky]['bPk']['cov'], d[sky]['bPk']['nsims'], survey_mask_arr_p=survey_mask_arr_p, survey_mask_mat_kp=survey_mask_mat_kp)
+                    if c['with_binning']: binsize = d[sky]['bPk']['binsize']
+                    else: binsize = None
+                    self.write_pk(fake_d[sky], c['multipole'], o['x_unmasked'], o['y_arr_unmasked'], d[sky]['bPk']['cov'], d[sky]['bPk']['nsims'], survey_mask_arr_p=survey_mask_arr_p, survey_mask_mat_kp=survey_mask_mat_kp, binsize=binsize)
                 if c['output'] == 'bCf':
-                    if c['with_binning']: binsize = c[sky]['bCf']['binsize']
+                    if c['with_binning']: binsize = d[sky]['bCf']['binsize']
                     else: binsize = None
                     self.write_cf(fake_d[sky], c['multipole'], o['x_unmasked'], o['y_arr_unmasked'], d[sky]['bCf']['cov'], d[sky]['bCf']['nsims'], binsize=binsize)
                 if c['with_bao_rec']:
@@ -171,13 +173,14 @@ class ReadWrite(object):
                     else: cov_cross_cf = None
                     self.write_bao_rec(fake_d[sky], d[sky]['bao_rec']['fid']['rd'], d[sky]['bao_rec']['fid']['H'], d[sky]['bao_rec']['fid']['D'], o['alpha'][0], o['alpha'][1], d[sky]['bao_rec']['cov']['alpha'], cov_cross_pk=cov_cross_pk, cov_cross_cf=cov_cross_cf)
             np.save(os.path.join(c['data_path'], 'fake_%s.npy') % c['write']['out_name'], fake_d) 
-        
+            print ('fake data from best fit saved to %s.' % c['data_path'])
         for fdata, o, sky in zip(fd_sky, out, c['sky']):
             if c['write']['save']:
+                header = self.set_header(o)
                 for i, l in enumerate(range(0,2*c['multipole'],2)):
                     to_save = np.vstack([ fdata['x_arr'][i], fdata['y_arr'][i], fdata['y_err'][i] ])
-                    if c['output'] == 'bPk': header = "k [h/Mpc], P_data_l%s [Mpc/h]^3, sigma_data_l%s [Mpc/h]^3" % (l, l)
-                    elif c['output'] == 'bCf': header = 's [Mpc/h], C_data_l%s, sigma_data_l%s' % (l, l)
+                    if c['output'] == 'bPk': header += "k [h/Mpc], P_data_l%s [Mpc/h]^3, sigma_data_l%s [Mpc/h]^3" % (l, l)
+                    elif c['output'] == 'bCf': header += 's [Mpc/h], C_data_l%s, sigma_data_l%s' % (l, l)
                     fmt = "%.4f %.6e %.6e"
                     if fit: 
                         to_save =  np.vstack([ to_save, o['y_arr'][i] ]) 
@@ -219,10 +222,11 @@ class ReadWrite(object):
         })
         return 
     
-    def write_pk(self, d_sky, mult_pk, kk, pk, cov_pk, nsims_cov_pk=0, survey_mask_arr_p=None, survey_mask_mat_kp=None):
+    def write_pk(self, d_sky, mult_pk, kk, pk, cov_pk, nsims_cov_pk=0, survey_mask_arr_p=None, survey_mask_mat_kp=None, binsize=None):
         d_sky['bPk'] = {'multipole': mult_pk, 'x': kk, 
                    'cov': cov_pk, 'nsims': nsims_cov_pk, 
-                   'survey_mask': {'arr_p': survey_mask_arr_p, 'mat_kp': survey_mask_mat_kp}} 
+                   'survey_mask': {'arr_p': survey_mask_arr_p, 'mat_kp': survey_mask_mat_kp},
+                   'binsize': binsize}
         for i, l in enumerate(range(0,2*mult_pk,2)): d_sky['bPk']['l%s' % l] = pk[i]
         return 
     
@@ -239,4 +243,11 @@ class ReadWrite(object):
                     'cov': {'alpha': cov_alpha, 'cross-bPk': cov_cross_pk, 'cross-bCf': cov_cross_cf}}
         return 
 
+    def set_header(self, out): 
+        header = "fit | chi2 = %.2f | parameters: " % out['chi2']
+        for key, value in out['cosmo'].items(): header += "%s: %.4e, " % (key, value)
+        header += "\n"
+        for key, value in out['eft_parameters'].items(): header += "%s: %.4f, " % (key, value)
+        header += "\n"
+        return header
 

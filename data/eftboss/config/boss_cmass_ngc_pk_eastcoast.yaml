@@ -17,7 +17,7 @@ write:
     plot: False
     show: False
     out_path: 'data/eftboss/out/'
-    out_name: 'boss_cmass_ngc_pk_eastcoast'
+    out_name: 'boss_onesky_pk_eastcoast'
 
 km: 0.45
 kr: 1. # unread
