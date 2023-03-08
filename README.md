@@ -10,7 +10,7 @@
 PyBird is a fast code written in Python 3 computing EFT predictions for correlators of biased tracers in redshift space. 
 
 Currently available: 
-> one-loop predictions for two-point (2pt) functions: dark matter or biased tracers, real or redshift space, Fourier (power spectrum) or configuration space (correlation function). 
+> one-loop predictions for two-point (2pt) functions: dark matter or biased tracers, real or redshift space, Fourier (power spectrum) or configuration space (correlation function).  
 > includes additional modelling: geometrical (AP) distortion, survey mask, binning, exact-time dependence, and more. 
 
 PyBird also provides likelihoods interfacing the EFT predictions with galaxy-clustering data. 
