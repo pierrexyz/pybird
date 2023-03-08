@@ -42,7 +42,7 @@ That's it, now you can simply `import pybird` from wherever in your projects.
 ## Getting Started -- likelihood
 If you are a **[MontePython 3](https://github.com/brinckmann/montepython_public)** user, likelihoods can be installed 'with less than a cup of coffee'.
 * Download and install pybird as above
-* Copy the likelihood folder [pybird/montepython/likelihoods/eftboss](https://github.com/pierrexyz/pybird/montepython/likelihoods/eftboss) to your working MontePython repository: montepython_public/montepython/likelihoods/ 
+* Copy the likelihood folder [eftboss](montepython/likelihoods/eftboss) to your working MontePython repository: montepython_public/montepython/likelihoods/ 
 * Copy the data folder [pybird/data/eftboss](https://github.com/pierrexyz/pybird/data/eftboss) to your working MontePython data folder: montepython_public/data/
 * Try to run the likelihood of BOSS DR12 with the input param file [pybird/montepython/eftboss.param](https://github.com/pierrexyz/pybird/montepython/eftboss.param)
 
