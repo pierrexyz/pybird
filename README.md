@@ -22,10 +22,10 @@
       - survey mask  
       - binning  
       - exact-time dependence  
-      - wedges / ~~P~~-statistics
+      - wedges / ~~P~~-statistics  
       - and more...  
 
-#### Likelihoods of galaxy-clustering data with EFT predictions
+#### Likelihoods with EFT predictions
 Currently available: 
 > [BOSS DR12 LRG 2pt full-shape + rec. bao](montepython/likelihoods/eftboss)
 
