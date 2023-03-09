@@ -104,13 +104,13 @@ We would be grateful if you also cite the theory papers when relevant:
 > Wedges / ~~P~~-statistics: [2110.00016](https://arxiv.org/abs/2110.00016)
 
 When using the likelihoods, here are some relevant references:  
-> BOSS DR12 data: [1607.03155](https://arxiv.org/abs/1607.03155)
+> BOSS DR12 data: [1607.03155](https://arxiv.org/abs/1607.03155), catalogs: [1509.06529](https://arxiv.org/abs/1509.06529), patchy mocks (for covariance estimation): [1509.06400](https://arxiv.org/abs/1509.06400)
 
 > BOSS DR12 LRG power spectrum measurements: from [2206.08327](https://arxiv.org/abs/2206.08327), using **[Rustico](https://github.com/hectorgil/Rustico)**
 
 > BOSS DR12 LRG correlation function measurements: from [2110.07539](https://arxiv.org/abs/2110.07539), using **[FCFC](https://github.com/cheng-zhao/FCFC)**
 
-> BOSS DR12 LRG post-reconstructed (rec. bao) measurements: from [1509.06373](https://arxiv.org/abs/1509.06373)
+> BOSS DR12 LRG rec. bao parameters: from [2003.07956](https://arxiv.org/abs/2003.07956), based on post-reconstructed measurements from [1509.06373](https://arxiv.org/abs/1509.06373)
 
 > BOSS DR12 survey mask measurements: following [1810.05051](https://arxiv.org/abs/1810.05051) with integral constraints and consistent normalization following [1904.08851](https://arxiv.org/abs/1904.08851), from **[fkpwin](https://github.com/pierrexyz/fkpwin)**, using **[nbodykit](https://nbodykit.readthedocs.io/)**
 
