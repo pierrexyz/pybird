@@ -22,7 +22,7 @@
       - survey mask  
       - binning  
       - exact-time dependence  
-      - wedges / $P\!\!\!/$-statistics
+      - wedges / ~~$P$~~-statistics
       - and more...  
 
 #### Likelihoods of galaxy-clustering data with EFT predictions
@@ -101,7 +101,7 @@ We would be grateful if you also cite the theory papers when relevant:
 
 > Exact-time dependence: [2005.04805](https://arxiv.org/abs/2005.04805), [2111.05739](https://arxiv.org/abs/2111.05739)
 
-> Wedges / $P\!\!\!/$-statistics: [2110.00016](https://arxiv.org/abs/2110.00016)
+> Wedges / ~~$P$~~-statistics: [2110.00016](https://arxiv.org/abs/2110.00016)
 
 When using the likelihoods, here are some relevant references:  
 > BOSS DR12 data: [1607.03155](https://arxiv.org/abs/1607.03155)
