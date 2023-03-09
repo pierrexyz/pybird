@@ -1,41 +1,40 @@
 data_path: 'data/eftboss/'
 data_file: 'boss_dr12_2pt.npy'
 
-output: 'bCf'
+output: 'bPk'
 multipole: 2
 with_ap: True
-with_binning: True
+with_survey_mask: True
 
 sky:
-     cmass_ngc: #l0,   l2,   l4
-          min: [20, 20] 
-          max: [200, 200] 
+    cmass_ngc: #l0,   l2,   l4
+        min: [0.01, 0.01]
+        max: [0.23, 0.23] 
 
 write:
-    save: False
+    save: True
     fake: False
-    plot: False
-    show: False
+    plot: True
+    show: True
     out_path: 'data/eftboss/out/'
-    out_name: 'boss_onesky_cf'
+    out_name: 'boss_onesky_pk_wc' 
 
 km: 0.7
 kr: 0.35
-nd: 3.e-4
+nd: 4.e-4
 
-eft_basis: 'eftoflss' # b1, b2, b4, b3 (biased parameters) & cct, cr1, cr2 (counterterms)
+eft_basis: 'westcoast' # b1, c2, c4, b3 (biased parameters) & cct, cr1, cr2 (counterterms)
+with_stoch: True # ce0, ce1, ce2 
 eft_prior:
      b1:
           type: flat
           range: null
-     b2:
+     c2:
           type: gauss
           mean: [0.] 
           range: [2.] 
-     b4:
-          type: gauss
-          mean: [0.] 
-          range: [2.] 
+     c4:
+          type: unvaried
      b3:
           type: marg_gauss
           mean: [0.] 
@@ -49,6 +48,16 @@ eft_prior:
           mean: [0.] 
           range: [2.] 
      cr2: # mu^4 k^2 P11
+          type: marg_gauss
+          mean: [0.] 
+          range: [2.] 
+     ce0: # k^0 monopole
+          type: marg_gauss
+          mean: [2.] 
+          range: [2.] 
+     ce1: # k^2 monopole
+          type: unvaried
+     ce2: # k^2 quadrupole
           type: marg_gauss
           mean: [0.] 
           range: [2.] 
