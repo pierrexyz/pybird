@@ -22,8 +22,8 @@
       - survey mask  
       - binning  
       - exact-time dependence  
-      - wedges
-      - and more.  
+      - wedges / $P\!\!\!/$-statistics
+      - and more...  
 
 #### Likelihoods of galaxy-clustering data with EFT predictions
 Currently available: 
@@ -95,15 +95,23 @@ The BibTeX entry for it is:
 ```
 
 We would be grateful if you also cite the theory papers when relevant:  
-> The Effective-Field Theory of Large-Scale Structure: [1004.2488](https://arxiv.org/abs/1004.2488), [https://arxiv.org/abs/1310.0464](https://arxiv.org/abs/1004.2488)  
+> The Effective-Field Theory of Large-Scale Structure: [1004.2488](https://arxiv.org/abs/1004.2488), [1206.2926](https://arxiv.org/abs/1206.2926)  
 
 > One-loop power spectrum of biased tracers in redshift space: [1610.09321](https://arxiv.org/abs/1610.09321)  
 
-When using the likelihoods, here are some relevant references for the data:  
-> BOSS DR12 data: [1607.03155](https://arxiv.org/abs/1607.03155).  
+> Exact-time dependence: [2005.04805](https://arxiv.org/abs/2005.04805), [2111.05739](https://arxiv.org/abs/2111.05739)
 
-> BOSS DR12 LRG power spectrum measurements: [2206.08327](https://arxiv.org/abs/2206.08327).  
+> Wedges / $P\!\!\!/$-statistics: [2110.00016](https://arxiv.org/abs/2110.00016)
 
-> BOSS DR12 LRG correlation function measurements: [2110.07539](https://arxiv.org/abs/2110.07539).  
+When using the likelihoods, here are some relevant references:  
+> BOSS DR12 data: [1607.03155](https://arxiv.org/abs/1607.03155)
 
-> BOSS DR12 LRG post-reconstructed (rec. bao) measurements: [1509.06373](https://arxiv.org/abs/1509.06373).  
+> BOSS DR12 LRG power spectrum measurements: from [2206.08327](https://arxiv.org/abs/2206.08327), using **[Rustico](https://github.com/hectorgil/Rustico)**
+
+> BOSS DR12 LRG correlation function measurements: from [2110.07539](https://arxiv.org/abs/2110.07539), using **[FCFC](https://github.com/cheng-zhao/FCFC)**
+
+> BOSS DR12 LRG post-reconstructed (rec. bao) measurements: from [1509.06373](https://arxiv.org/abs/1509.06373)
+
+> BOSS DR12 survey mask measurements: following [1810.05051](https://arxiv.org/abs/1810.05051) with integral constraints and consistent normalization following [1904.08851](https://arxiv.org/abs/1904.08851), from **[fkpwin](https://github.com/pierrexyz/fkpwin)**, using **[nbodykit](https://nbodykit.readthedocs.io/)**
+
+
