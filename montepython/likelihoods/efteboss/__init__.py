@@ -4,7 +4,7 @@ import yaml
 import os, sys
 from pybird.likelihood import Likelihood as Likelihood_bird
 
-class eftboss(Likelihood):
+class efteboss(Likelihood):
 
     def __init__(self, path, data, command_line):
 

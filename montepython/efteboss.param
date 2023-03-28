@@ -2,7 +2,7 @@
 # To see all the available ones, please look in the
 # montepython/likelihoods folder. Every folder there is a valid likelihood to
 # test.
-data.experiments=['bbn_prior', 'eftboss']
+data.experiments=['efteboss']
 data.over_sampling=[1, 4]
 
 #------ Parameter list -------
@@ -13,11 +13,11 @@ data.over_sampling=[1, 4]
 # - role is either 'cosmo', 'nuisance' or 'derived'
 
 # Cosmological parameters list
-data.parameters['omega_b']      = [ 2.268,   None, None, 0.05, 0.01, 'cosmo']
+data.parameters['omega_b']      = [ 2.233,   None, None,   0., 0.01, 'cosmo']
 data.parameters['omega_cdm']    = [ 0.120,   None, None, 0.01,    1, 'cosmo']
 data.parameters['h']            = [ 0.675,   None, None, 0.01,    1, 'cosmo']
 data.parameters['ln10^{10}A_s'] = [ 3.044,   None, None, 0.10,    1, 'cosmo']
-data.parameters['n_s']          = [ 0.965,   None, None, 0.05,    1, 'cosmo']
+data.parameters['n_s']          = [ 0.965,   None, None,   0.,    1, 'cosmo']
 
 data.cosmo_arguments['N_ur'] = 2.0328
 data.cosmo_arguments['N_ncdm'] = 1
@@ -29,10 +29,6 @@ data.parameters['b1_hN']  = [2.,   0.,   4., 0.5, 1,  'nuisance']
 data.parameters['c2_hN']  = [0., -10.,  10., 0.5, 1,  'nuisance']
 data.parameters['b1_hS']  = [2.,   0.,   4., 0.5, 1,  'nuisance']
 data.parameters['c2_hS']  = [0., -10.,  10., 0.5, 1,  'nuisance']
-data.parameters['b1_lN']  = [2.,   0.,   4., 0.5, 1,  'nuisance']
-data.parameters['c2_lN']  = [0., -10.,  10., 0.5, 1,  'nuisance']
-data.parameters['b1_lS']  = [2.,   0.,   4., 0.5, 1,  'nuisance']
-data.parameters['c2_lS']  = [0., -10.,  10., 0.5, 1,  'nuisance']
 
 # Derived parameter list
 data.parameters['Omega_m']         = [0, None, None, 0,     1,   'derived']
@@ -42,9 +38,6 @@ data.parameters['sigma8']          = [0, None, None, 0,     1,   'derived']
 # Other cosmo parameters (fixed parameters, precision parameters, etc.)
 data.cosmo_arguments['sBBN file'] = data.path['cosmo']+'/bbn/sBBN.dat'
 data.cosmo_arguments['k_pivot'] = 0.05
-
-data.cosmo_arguments['output'] = 'mPk'
-data.cosmo_arguments['P_k_max_h/Mpc'] = 1.
 
 #------ Mcmc parameters ----
 # Number of steps taken, by default (overwritten by the -N command)
