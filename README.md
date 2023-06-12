@@ -27,7 +27,7 @@
 
 #### Likelihoods with EFT predictions
 Currently available: 
-> [BOSS DR12 LRG 2pt full-shape + rec. bao](montepython/likelihoods/eftboss)
+> [BOSS DR12 LRG 2pt full-shape + rec. bao](montepython/likelihoods/eftboss)  
 > [eBOSS DR16 QSO 2pt full-shape](montepython/likelihoods/efteboss)
 
 Soon available: 
