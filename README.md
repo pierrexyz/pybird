@@ -115,4 +115,8 @@ When using the likelihoods, here are some relevant references:
 
 > BOSS DR12 survey mask measurements: following [1810.05051](https://arxiv.org/abs/1810.05051) with integral constraints and consistent normalization following [1904.08851](https://arxiv.org/abs/1904.08851), from **[fkpwin](https://github.com/pierrexyz/fkpwin)**, using **[nbodykit](https://nbodykit.readthedocs.io/)**
 
+> eBOSS DR16 data: [2007.08991](https://arxiv.org/abs/2007.08991), catalogs: [2007.09000](https://arxiv.org/abs/2007.09000), EZmocks (for covariance estimation): [1409.1124](https://arxiv.org/abs/1409.1124)
+
+> eBOSS DR16 QSO power spectrum + survey mask measurements: from [2106.06324](https://arxiv.org/abs/2106.06324)
+ 
 *** Disclaimer: due to updates in the data and the prior definition, it is possible that results obtained with up-to-date likelihoods differ slightly with the ones presented in the articles. 
