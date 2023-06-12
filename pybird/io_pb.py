@@ -78,7 +78,7 @@ class ReadWrite(object):
             if c['with_survey_mask']: 
                 fc.update({'survey_mask_arr_p': fd['survey_mask_arr_p'], 'survey_mask_mat_kp': fd['survey_mask_mat_kp']})
                 fc['kmax'] = max([k[-1] for k in fd['x_arr']]) + 0.2 # we give margin since mask mat_kp has a p-support of +/- 0.2 around k at ~ 0.1% precision
-            if c['with_binning']: fc['binsize'] = np.float(fd['binsize'])
+            if c['with_binning']: fc['binsize'] = float(fd['binsize'])
             if c['with_wedge']: fc['wedge_mat_wl'] = fd['wedge_mat_wl']
             if c['with_redshift_bin']: fc.update({'redshift_bin_zz': fd['redshift_bin_zz'], 'redshift_bin_nz': fd['redshift_bin_nz']})
             fc_sky.append(fc) 
@@ -127,7 +127,7 @@ class ReadWrite(object):
                 cov_alpha = d['bao_rec']['cov']['alpha']
                 cov = np.block([[cov, cross_fs_alpha], [cross_fs_alpha.T, cov_alpha]])
 
-            fdata['p'] = np.linalg.inv(cov[cmask.reshape(-1,1), cmask])                 # precision matrix      for analysis
+            fdata['p'] = np.linalg.inv(cov[np.ix_(cmask, cmask)])                 # precision matrix for analysis
             if dd['nsims'] > 0: 
                 fdata['p'] *= (dd['nsims'] - len(cmask) - 2) / (dd['nsims'] - 1.) # Hartlap factor correction
                 if verbose: print('%s: Hartlap factor correction on precision matrix estimated from %s mocks for %s bins' % (sky, dd['nsims'], len(cmask)))

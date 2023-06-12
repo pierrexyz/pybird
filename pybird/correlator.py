@@ -13,7 +13,19 @@ from pybird.projection import Projection
 from pybird.greenfunction import GreenFunction
 from pybird.fourier import FourierTransform
 
-class Correlator(object):
+# ### dev mode ###
+# import importlib, pybird
+# importlib.reload(pybird.common)
+# from pybird.common import Common, co
+# importlib.reload(pybird.bird)
+# from pybird.bird import Bird
+# importlib.reload(pybird.nonlinear)
+# from pybird.nonlinear import NonLinear
+# importlib.reload(pybird.resum)
+# from pybird.resum import Resum
+# ################
+
+class Correlator(object): 
 
     def __init__(self, config_dict=None, load_engines=True):
 
@@ -40,17 +52,20 @@ class Correlator(object):
             "DA": Option("DA", float,
                 description="Angular distance times H_0. To specify if \'with_ap\' is True.", 
                 default=None) ,
-            "Omega0_m": Option("Omega0_m", float,
-                description="Fractional matter abundance at present time. To specify for exact time dependence.", 
-                default=None) ,
-            "w0_fld": Option("w0_fld", float,
-                description="Dark energy equation of state parameter. To specify for exact time dependence if varied (otherwise w0 = -1).", 
-                default=None) ,
             "z": Option("z", float,
-                description="Effective redshift(s). To specify for exact time dependence.",
+                description="Effective redshift(s). To specify if \'with_time\' is False or \'with_exact_time\' is True.",
                 default=None) ,
             "D": Option("D", float,
-                description="Scale independent growth function. To specify if \'with_nonequal_time\' / \'with_redshift_bin\' is True.", 
+                description="Scale independent growth function. To specify if \'with_time\' is False, e.g., \'with_nonequal_time\' or \'with_redshift_bin\' is True.", 
+                default=None) ,
+            "A": Option("A", float,
+                description="Amplitude rescaling, i.e, A = A_s / A_s^\{fid\}. Default: A=1. If \'with_time\' is False, can in some ways be used as a fast parameter.", 
+                default=None) ,
+            "Omega0_m": Option("Omega0_m", float,
+                description="Fractional matter abundance at present time. To specify if \'with_exact_time\' is True.", 
+                default=None) ,
+            "w0_fld": Option("w0_fld", float,
+                description="Dark energy equation of state parameter. To specify in presence of dark energy if \'with_exact_time\' is True (otherwise w0 = -1).", 
                 default=None) ,
             "Dz": Option("Dz", (list, np.ndarray),
                 description="Scale independent growth function over redshift bin. To specify if \'with_redshift_bin\' is True.", 
@@ -137,10 +152,16 @@ class Correlator(object):
                 description="Apply IR-resummation.",
                 default=True) ,
             "optiresum": Option("optiresum", bool,
-                description="True: Resumming only with the BAO peak. False: Resummation on the full correlation function.",
+                description="[depreciated: keep on default False] True: Resumming only with the BAO peak. False: Resummation on the full correlation function.",
                 default=False) ,
             "xdata": Option("xdata", (list, np.ndarray),
-                description="Array of data points.",
+                description="Array of k [h/Mpc] (or s [Mpc/h]) on which to output the correlator. If \'with_binning\' is True, please provide the central k (or s). If not, it can be bin-weighted k (or s). If no \'xdata\' provided, output is on internal default array. ",
+                default=None) ,
+            "with_binning": Option("with_binning", bool,
+                description="Apply binning for linear-spaced bins.",
+                default=False) ,
+            "binsize": Option("binsize", float,
+                description="size of the bin.",
                 default=None) ,
             "with_ap": Option("wity_AP", bool,
                 description="Apply Alcock Paczynski effect. ",
@@ -152,19 +173,13 @@ class Correlator(object):
                 description="Angular distance times H_0. To specify if \'with_ap\' is True.", 
                 default=None) ,
             "with_survey_mask": Option("with_survey_mask", bool,
-                description="Apply mask. Automatically set to False for \'output\': \'_Cf\'.",
+                description="Apply survey mask. Automatically set to False for \'output\': \'_Cf\'.",
                 default=False) ,
             "survey_mask_arr_p": Option("survey_mask_arr_p", (list, np.ndarray),
                 description="Mask convolution array for \'output\': \'_Pk\'.",
                 default=None) ,
             "survey_mask_mat_kp": Option("survey_mask_mat_kp", (list, np.ndarray),
                 description="Mask convolution matrix for \'output\': \'_Pk\'.",
-                default=None) ,
-            "with_binning": Option("with_binning", bool,
-                description="Apply binning for linear-spaced data bins.",
-                default=False) ,
-            "binsize": Option("binsize", float,
-                description="size of the bin.",
                 default=None) ,
             "with_fibercol": Option("with_fibercol", bool,
                 description="Apply fiber collision effective window corrections.",
@@ -203,11 +218,11 @@ class Correlator(object):
         for on in ['config', 'cosmo']:
 
             print ("\n")
-            if on is 'config':
+            if on == 'config':
                 print ("Configuration commands [.set(config_dict)]")
                 print ("----------------------")
                 catalog = self.c_catalog
-            elif on is 'cosmo':
+            elif on == 'cosmo':
                 print ("Cosmology commands [.compute(cosmo_dict)]")
                 print ("------------------")
                 catalog = self.cosmo_catalog
@@ -219,7 +234,6 @@ class Correlator(object):
                     print ('    - %s' % config.description)
                     print ('    * default: %s' % config.default)
     
-
     def set(self, config_dict, load_engines=True):
         
         # Reading config provided by user
@@ -239,44 +253,45 @@ class Correlator(object):
         # Loading PyBird engines
         self.__load_engines(load_engines=load_engines)
 
-
-    def compute(self, cosmo_dict=None, module=None, engine=None): 
+    def compute(self, cosmo_dict=None, cosmo_module=None, cosmo_engine=None, correlator_engine=None, do_core=True, do_survey_specific=True): 
 
         if cosmo_dict: cosmo_dict_local = cosmo_dict.copy()
-        elif module and engine: cosmo_dict_local = {}
-        else: raise Exception('provide cosmo dict or class engine with module=\'class\' ') 
+        elif cosmo_module and cosmo_engine: cosmo_dict_local = {}
+        else: raise Exception('provide cosmo_dict or CLASSy engine with cosmo_module=\'class\' ') 
         
-        if module: # works only with classy now
-            cosmo_dict_class = self.setcosmo(cosmo_dict, module=module, engine=engine)
+        if cosmo_module: # works only with classy now
+            cosmo_dict_class = self.set_cosmo(cosmo_dict, module=cosmo_module, engine=cosmo_engine)
             cosmo_dict_local.update(cosmo_dict_class)
         
         self.__read_cosmo(cosmo_dict_local)
         self.__is_cosmo_conflict()
 
-        self.bird = Bird(self.cosmo, with_bias=self.c["with_bias"], eft_basis=self.c["eft_basis"], with_stoch=self.c["with_stoch"], with_nnlo_counterterm=self.c["with_nnlo_counterterm"], co=self.co)
-        if self.c["with_nnlo_counterterm"]: # we use smooth power spectrum since we don't want spurious BAO signals
-            ilogPsmooth = interp1d(np.log(self.bird.kin), np.log(self.cosmo["Psmooth"]), fill_value='extrapolate')
-            if self.c["with_cf"]: self.nnlo_counterterm.Cf(self.bird, ilogPsmooth)
-            else: self.nnlo_counterterm.Ps(self.bird, ilogPsmooth)
-        self.nonlinear.PsCf(self.bird)
-        if self.c["with_bias"]: self.bird.setPsCf(self.bias)
-        else: self.bird.setPsCfl()
-        if self.c["with_nonequal_time"]: self.bird.settime(self.cosmo) # set D1*D2 / D1**2*D2**2 / 0.5 (D1**2*D2 + D2**2*D1) on 11 / 22 / 13
-        if self.c["with_resum"]:
-            if self.c["with_cf"]: self.resum.PsCf(self.bird)
-            else: self.resum.Ps(self.bird)
-        if self.c["with_redshift_bin"]: self.projection.redshift(self.bird, self.cosmo["rz"], self.cosmo["Dz"], self.cosmo["fz"], pk=self.c["output"])
-        if self.c["with_ap"]: self.projection.AP(self.bird)
-        if self.c["with_fibercol"]: self.projection.fibcolWindow(self.bird)
-        if self.c["with_survey_mask"]: self.projection.Window(self.bird)
-        elif self.c["with_binning"]: self.projection.xbinning(self.bird)
-        else: self.projection.xdata(self.bird)
-        if self.c["with_wedge"]: self.projection.Wedges(self.bird)
+        if do_core: 
+            self.bird = Bird(self.cosmo, with_bias=self.c["with_bias"], eft_basis=self.c["eft_basis"], with_stoch=self.c["with_stoch"], with_nnlo_counterterm=self.c["with_nnlo_counterterm"], co=self.co)
+            if self.c["with_nnlo_counterterm"]: # we use smooth power spectrum since we don't want spurious BAO signals
+                ilogPsmooth = interp1d(np.log(self.bird.kin), np.log(self.cosmo["Psmooth"]), fill_value='extrapolate')
+                if self.c["with_cf"]: self.nnlo_counterterm.Cf(self.bird, ilogPsmooth)
+                else: self.nnlo_counterterm.Ps(self.bird, ilogPsmooth)
+            if not correlator_engine: self.nonlinear.PsCf(self.bird)
+            elif correlator_engine: correlator_engine.nonlinear.PsCf(self.bird, c_alpha) # PZemu
+            if self.c["with_bias"]: self.bird.setPsCf(self.bias)
+            else: self.bird.setPsCfl()
+            if self.c["with_resum"]: 
+                if not correlator_engine: self.resum.PsCf(self.bird, makeIR=True, makeQ=False, setIR=False, setPs=False, setCf=False) # compute IR-correction pieces
+                elif correlator_engine: correlator_engine.resum.PsCf(self.bird, c_alpha) # PZemu
+
+        if do_survey_specific: 
+            if not self.c["with_time"]: self.bird.settime(self.cosmo, co=self.co) 
+            if self.c["with_resum"]: self.resum.PsCf(self.bird, makeIR=False, makeQ=True, setIR=True, setPs=True, setCf=self.c["with_cf"]) 
+            if self.c["with_redshift_bin"]: self.projection.redshift(self.bird, self.cosmo["rz"], self.cosmo["Dz"], self.cosmo["fz"], pk=self.c["output"])
+            if self.c["with_ap"]: self.projection.AP(self.bird)
+            if self.c["with_fibercol"]: self.projection.fibcolWindow(self.bird)
+            if self.c["with_survey_mask"]: self.projection.Window(self.bird)
+            elif self.c["with_binning"]: self.projection.xbinning(self.bird) # no binning if 'with_survey_mask' since the mask should account for it. 
+            elif self.c["xdata"] is not None: self.projection.xdata(self.bird)
+            if self.c["with_wedge"]: self.projection.Wedges(self.bird)
 
     def get(self, bias=None, what="full"):
-
-        if "full" not in what and not self.c["keep_loop_pieces_independent"]:
-            raise Exception("If you want to get something else than the full correlator, please set keep_loop_pieces_independent: True")
 
         if not self.c["with_bias"]: 
             self.__is_bias_conflict(bias)
@@ -318,9 +333,9 @@ class Correlator(object):
                     elif p == 'c2': pg[i] = - f/3. * ct0 + ct2                        
                     elif p == 'c4': pg[i] = 3/35. * f**2 * ct0 - 6/7. * f * ct2 + ct4                                      
                 # stochastic term
-                elif p == 'ce0': pg[i] = st[0] # k^0 / nd mono
-                elif p == 'ce1': pg[i] = st[1] # k^2 / km^2 / nd mono
-                elif p == 'ce2': pg[i] = st[2] # k^2 / km^2 / nd quad
+                elif p == 'ce0': pg[i] = st[0] / self.c["nd"] # k^0 / nd mono
+                elif p == 'ce1': pg[i] = st[1] / self.c["km"]**2 / self.c["nd"] # k^2 / km^2 / nd mono
+                elif p == 'ce2': pg[i] = st[2] / self.c["km"]**2 / self.c["nd"] # k^2 / km^2 / nd quad
                 # nnlo term: config["eft_basis"] = 'eftoflss' or 'westcoast'
                 elif p == 'cr4': pg[i] = 0.25 * b1**2 * nnlo[0] / self.c["kr"]**4 # ~ 1/4 b1^2 k^4/kr^4 mu^4 pk_lin
                 elif p == 'cr6': pg[i] = 0.25 * b1 * nnlo[1] / self.c["kr"]**4    # ~ 1/4 b1 k^4/kr^4 mu^6 pk_lin
@@ -386,12 +401,14 @@ class Correlator(object):
         if self.cosmo["kk"][0] > 1e-4 or self.cosmo["kk"][-1] < 1.:
             raise Exception("Please provide a linear matter spectrum \'pk_lin\' and the corresponding \'kk\' with min(kk) < 1e-4 and max(kk) > 1.")
 
-        if self.c["multipole"] == 0: 
-            self.cosmo["f"] = 0.
+        if self.c["multipole"] == 0: self.cosmo["f"] = 0.
         elif not self.c["with_redshift_bin"] and self.cosmo["f"] is None: 
             raise Exception("Please specify the growth rate \'f\'.")
         elif self.c["with_redshift_bin"] and (self.cosmo["Dz"] is None or self.cosmo["fz"] is None): 
             raise Exception("You asked to account the galaxy counts distribution. Please specify \'Dz\' and \'fz\'. ")
+
+        if not self.c["with_time"] and self.cosmo["D"] is None:
+            raise Exception("Please specify the growth factor \'D\'.")
 
         if self.c["with_nonequal_time"] and (self.cosmo["D1"] is None or self.cosmo["D2"] is None or self.cosmo["f1"] is None or self.cosmo["f2"] is None):
             raise Exception("You asked nonequal time correlator. Pleas specify: \'D1\', \'D2\', \'f1\', \'f2\'.  ")
@@ -399,7 +416,7 @@ class Correlator(object):
         if self.c["with_ap"] and (self.cosmo["H"] is None or self.cosmo["DA"] is None):
             raise Exception("You asked to apply the AP effect. Please specify \'H\' and \'DA\'. ")
 
-        
+        if not self.c["with_time"] and self.cosmo["A"]: self.cosmo["D"] *= self.cosmo["A"]**.5
 
     def __is_bias_conflict(self, bias=None): 
         if bias is not None: self.cosmo["bias"] = bias 
@@ -477,14 +494,12 @@ class Correlator(object):
         if "bm" in self.c["output"]: self.c["halohalo"] = False
         else: self.c["halohalo"] = True
         
-        if self.c["xdata"] is None: raise Exception("Please specify a data point array \'xdata\'.")
-        
         if self.c["with_quintessence"]: self.c["with_exact_time"] = True
 
         self.c["with_common_nonequal_time"] = False # this is to pass for the common Class to setup the numbers of loops (22 and 13 gathered by default)
         if self.c["with_nonequal_time"]:
             self.c.update({"with_bias": False, "with_time": False, "with_common_nonequal_time": True}) # with_common_nonequal_time is to pass for the common Class to setup the numbers of loops (22 and 13 seperated since they have different time dependence)
-            if self.c["z1"] is None or not self.c["z2"] is None: print("Please specify \'z1\' and \'z2\' for nonequaltime correlator. ")
+            if self.c["z1"] is None or self.c["z2"] is None: print("Please specify \'z1\' and \'z2\' for nonequaltime correlator. ")
 
         if self.c["with_ap"] and (self.c["H_fid"] is None or self.c["D_fid"] is None):
                 raise Exception("You asked to apply the AP effect. Please specify \'H_fid\' and \'D_fid\'. ")
@@ -496,22 +511,20 @@ class Correlator(object):
             if self.c["redshift_bin_zz"] is None or self.c["redshift_bin_nz"] is None: raise Exception("You asked to account for the galaxy counts distribution over a redshift bins. Please provide a distribution \'redshift_bin_nz\' and corresponding \'redshift_bin_zz\'. ")
         if self.c["with_wedge"] and self.c["wedge_mat_wl"] is None: raise Exception("Please specify \'wedge_mat_wl\'.")
 
-    def setcosmo(self, cosmo_dict, module='class', engine=None):
+    def set_cosmo(self, cosmo_dict, module='class', engine=None):
 
-        if self.c["with_bias"]:
-            if "bias" not in cosmo_dict: raise Exception("Please specify \'bias\'.") 
-            else: cosmo["bias"] = cosmo_dict["bias"]
-            
-
-        log10kmax = 0 
-        if self.c["with_nnlo_counterterm"]: log10kmax = 1 # slower, but useful for the wiggle-no-wiggle split
+        cosmo = {}
         
         if module == 'class':
+
+            log10kmax = 0 
+            if self.c["with_nnlo_counterterm"]: log10kmax = 1 # slower, but required for the wiggle-no-wiggle split scheme
             
             if not engine:
                 from classy import Class
                 cosmo_dict_local = cosmo_dict.copy()
-                if self.c["with_bias"]: del cosmo_dict_local["bias"] # remove to not pass it to classy that otherwise complains
+                if self.c["with_bias"] and "bias" in cosmo_dict: del cosmo_dict_local["bias"] # remove to not pass it to classy that otherwise complains
+                if not self.c["with_time"] and "A" in cosmo_dict: del cosmo_dict_local["A"] # same as above
                 if self.c["with_redshift_bin"]: zmax = max(self.c["redshift_bin_zz"])
                 else: zmax = self.c["z"]
                 M = Class()
@@ -520,14 +533,12 @@ class Correlator(object):
                 M.compute()
             else: M = engine
 
-            cosmo = {}
-
             cosmo["kk"] = np.logspace(-5, log10kmax, 200)  # k in h/Mpc
             cosmo["pk_lin"] = np.array([M.pk_lin(k*M.h(), self.c["z"])*M.h()**3 for k in cosmo["kk"]]) # P(k) in (Mpc/h)**3
 
             if self.c["multipole"] > 0: cosmo["f"] = M.scale_independent_growth_factor_f(self.c["z"])
+            if not self.c["with_time"]: cosmo["D"] = M.scale_independent_growth_factor(self.c["z"]) 
             if self.c["with_nonequal_time"]:
-                cosmo["D"] = M.scale_independent_growth_factor(self.c["z"]) 
                 cosmo["D1"] = M.scale_independent_growth_factor(self.c["z1"]) 
                 cosmo["D2"] = M.scale_independent_growth_factor(self.c["z2"]) 
                 cosmo["f1"] = M.scale_independent_growth_factor_f(self.c["z1"]) 
@@ -541,7 +552,6 @@ class Correlator(object):
 
             if self.c["with_redshift_bin"]:
                 def comoving_distance(z): return M.angular_distance(z) * (1+z) * M.h()
-                cosmo["D"] = M.scale_independent_growth_factor(self.c["z"])
                 cosmo["Dz"] = np.array([M.scale_independent_growth_factor(z) for z in self.c["redshift_bin_zz"]])
                 cosmo["fz"] = np.array([M.scale_independent_growth_factor_f(z) for z in self.c["redshift_bin_zz"]])
                 cosmo["rz"] = np.array([comoving_distance(z) for z in self.c["redshift_bin_zz"]])

@@ -139,14 +139,14 @@ class Bird(object):
             # else:
             self.bst = np.zeros(shape=(self.co.Nst))
             self.Pstl = np.zeros(shape=(self.co.Nl, self.co.Nst, self.co.Nk))
-            self.Pstl[0,0] = self.co.k**0 / self.co.nd
+            self.Pstl[0,0] = self.co.k**0 # / self.co.nd
             if self.eft_basis in ["eftoflss", "westcoast"]: 
-                self.Pstl[0,1] = self.co.k**2 / self.co.km**2 / self.co.nd
-                self.Pstl[1,2] = self.co.k**2 / self.co.km**2 / self.co.nd
+                self.Pstl[0,1] = self.co.k**2 # / self.co.km**2 / self.co.nd
+                self.Pstl[1,2] = self.co.k**2 # / self.co.km**2 / self.co.nd
             elif self.eft_basis == 'eastcoast': 
                 for i in range(self.co.Nl):
-                    self.Pstl[i,1] = mu[0][2*i] * self.co.k**2 / self.co.km**2 / self.co.nd
-                    self.Pstl[i,2] = mu[2][2*i] * self.co.k**2 / self.co.km**2 / self.co.nd
+                    self.Pstl[i,1] = mu[0][2*i] * self.co.k**2 # / self.co.km**2 / self.co.nd
+                    self.Pstl[i,2] = mu[2][2*i] * self.co.k**2 # / self.co.km**2 / self.co.nd
 
         else:
             if self.co.with_cf: self.Cstl = None
@@ -244,9 +244,9 @@ class Bird(object):
             ct4 = bias["c4"]
 
         if self.with_stoch:
-            self.bst[0] = bias["ce0"] 
-            self.bst[1] = bias["ce1"] 
-            self.bst[2] = bias["ce2"]
+            self.bst[0] = bias["ce0"] / self.co.nd
+            self.bst[1] = bias["ce1"] / self.co.km**2 / self.co.nd
+            self.bst[2] = bias["ce2"] / self.co.km**2 / self.co.nd
 
         if self.co.halohalo:
             
@@ -282,16 +282,16 @@ class Bird(object):
                 else: self.b11 = np.array([b1**2, 2. * b1 * f, f**2])
                 if self.eft_basis in ["eftoflss", "westcoast"]: self.bct = np.array([2. * b1 * b5, 2. * b1 * b6, 2. * b1 * b7, 2. * f * b5, 2. * f * b6, 2. * f * b7])
                 elif self.eft_basis == "eastcoast": self.bct = - 2. * np.array([ct0, f * ct2, f**2 * ct4]) # these are not divided by km^2 or kr^2 according to eastcoast definition; the prior is adjusted accordingly
-                if self.co.Nloop is 12: self.bloop = np.array([1., b1, b2, b3, b4, b1 * b1, b1 * b2, b1 * b3, b1 * b4, b2 * b2, b2 * b4, b4 * b4])
-                elif self.co.Nloop is 22: self.bloop = np.array([f**2, f**3, f**4, b1*f, b1*f**2, b1*f**3, b2*f, b2*f**2, b3*f, b4*f, b4*f**2, b1**2, b1**2*f, b1**2*f**2, b1*b2, b1*b2*f, b1*b3, b1*b4, b1*b4*f, b2**2, b2*b4, b4**2])
-                elif self.co.Nloop is 35: self.bloop = np.array([f**2, f**2*G1t, f**2*G1t**2, f**2*Y1, f**2*V12t, f**3, f**3*G1t, f**4, b1*f, b1*f*G1t, b1*f*Y1, b1*f*V12t, b1*f**2, b1*f**2*G1t, b1*f**3, b2*f, b2*f*G1t, b2*f**2, b3*f, b4*f, b4*f*G1t, b4*f**2, b1**2, b1**2*Y1, b1**2*f, b1**2*f*G1t, b1**2*f**2, b1*b2, b1*b2*f, b1*b3, b1*b4, b1*b4*f, b2**2, b2*b4, b4**2])
-                elif self.co.Nloop is self.co.N22+self.co.N13: self.bloop = np.array([
+                if self.co.Nloop == 12: self.bloop = np.array([1., b1, b2, b3, b4, b1 * b1, b1 * b2, b1 * b3, b1 * b4, b2 * b2, b2 * b4, b4 * b4])
+                elif self.co.Nloop == 22: self.bloop = np.array([f**2, f**3, f**4, b1*f, b1*f**2, b1*f**3, b2*f, b2*f**2, b3*f, b4*f, b4*f**2, b1**2, b1**2*f, b1**2*f**2, b1*b2, b1*b2*f, b1*b3, b1*b4, b1*b4*f, b2**2, b2*b4, b4**2])
+                elif self.co.Nloop == 35: self.bloop = np.array([f**2, f**2*G1t, f**2*G1t**2, f**2*Y1, f**2*V12t, f**3, f**3*G1t, f**4, b1*f, b1*f*G1t, b1*f*Y1, b1*f*V12t, b1*f**2, b1*f**2*G1t, b1*f**3, b2*f, b2*f*G1t, b2*f**2, b3*f, b4*f, b4*f*G1t, b4*f**2, b1**2, b1**2*Y1, b1**2*f, b1**2*f*G1t, b1**2*f**2, b1*b2, b1*b2*f, b1*b3, b1*b4, b1*b4*f, b2**2, b2*b4, b4**2])
+                elif self.co.Nloop == self.co.N22+self.co.N13: self.bloop = np.array([
                     b1**2, b1 * b2, b1 * b4, b2**2, b2 * b4, b4**2, 
                     b1**2 * f, b1 * b2 * f, b1 * b4 * f, b1 * f, b2 * f, b4 * f, 
                     b1**2 * f**2, b1**2 *f**2, b1 * f**2, b1 * f**2, b2 * f**2, b2 * f**2, b4 * f**2, b4 * f**2, f**2, 
                     b1 * f**3, b1 * f**3, f**3, f**3, f**4, f**4, f**4,
                     b1**2, b1 * b3, b1**2 * f, b1 * f, b3 * f, b1 * f**2, b1 * f**2, f**2, f**3, f**3])
-                elif self.co.Nloop is 18: self.bloop = np.array([1., b1, b2, b3, b4, b1 * b1, b1 * b2, b1 * b3, b1 * b4, b2 * b2, b2 * b4, b4 * b4, bq, bq * bq, bq * b1, bq * b2, bq * b3, bq * b4]) # with_tidal_alignements
+                elif self.co.Nloop == 18: self.bloop = np.array([1., b1, b2, b3, b4, b1 * b1, b1 * b2, b1 * b3, b1 * b4, b2 * b2, b2 * b4, b4 * b4, bq, bq * bq, bq * b1, bq * b2, bq * b3, bq * b4]) # with_tidal_alignements
 
         else: # halo-matter
 
@@ -309,7 +309,7 @@ class Bird(object):
             else:
                 self.b11 = np.array([b1, b1 * f, f, f**2])
                 self.bct = np.array([b1 * dct, b1 * dr1, b1 * dr2, f * dct, f * dr1, f * dr2, cct, cr1, cr2, f * cct, f * cr1, f * cr2])
-                if self.co.Nloop is 5: self.bloop = np.array([1., b1, b2, b3, b4])
+                if self.co.Nloop == 5: self.bloop = np.array([1., b1, b2, b3, b4])
 
 
     def setPs(self, bs=None, setfull=True):
@@ -388,7 +388,7 @@ class Bird(object):
         if self.co.halohalo:
 
             if self.co.exact_time:      # config["with_exact_time"] == True
-                if self.co.Nloop is 12: # config["with_time"] == True
+                if self.co.Nloop == 12: # config["with_time"] == True
                     f1 = self.f
 
                     ## EdS: Y1 = 0., G1t = 3/7., V12t = 1/7.
@@ -429,7 +429,7 @@ class Bird(object):
                     self.Cloopl[:, 10] = self.C22l[:, 4]  # *b2*b4
                     self.Cloopl[:, 11] = self.C22l[:, 5]  # *b4*b4
 
-                elif self.co.Nloop is 35: # config["with_time"] == False
+                elif self.co.Nloop == 35: # config["with_time"] == False
                     self.Ploopl[:, 0] = self.P22l[:, 20] + self.P13l[:, 4]   # *f^2
                     self.Ploopl[:, 1] = self.P22l[:, 32]    # *f^2*G1t
                     self.Ploopl[:, 2] = self.P22l[:, 35]    # *f^2*G1t**2
@@ -503,7 +503,7 @@ class Bird(object):
                     self.Cloopl[:, 34] = self.C22l[:, 5]     # *b4^2
 
             else:                       # config["with_exact_time"] == False
-                if self.co.Nloop is 12: # config["with_time"] == True
+                if self.co.Nloop == 12: # config["with_time"] == True
                     f1 = self.f
 
                     self.Ploopl[:, 0] = f1**2 * self.P22l[:, 20] + f1**3 * self.P22l[:, 23] + f1**3 * self.P22l[:, 24] + f1**4 * self.P22l[:, 25] + f1**4 * self.P22l[:, 26] + f1**4 * self.P22l[:, 27] + f1**2 * self.P13l[:, 7] + f1**3 * self.P13l[:, 8] + f1**3 * self.P13l[:, 9]  # *1
@@ -549,7 +549,7 @@ class Bird(object):
                     #     self.Aloopl[:, 10] = self.A22l[:, 4]  # *b2*b4
                     #     self.Aloopl[:, 11] = self.A22l[:, 5]  # *b4*b_4
 
-                elif self.co.Nloop is 22: # config["with_time"] == False
+                elif self.co.Nloop == 22: # config["with_time"] == False
                     self.Ploopl[:, 0] = self.P22l[:, 20] + self.P13l[:, 7]   # *f^2
                     self.Ploopl[:, 1] = self.P22l[:, 23] + self.P22l[:, 24] + self.P13l[:, 8] + self.P13l[:, 9]   # *f^3
                     self.Ploopl[:, 2] = self.P22l[:, 25] + self.P22l[:, 26] + self.P22l[:, 27]   # *f^4
@@ -596,7 +596,7 @@ class Bird(object):
                     self.Cloopl[:, 20] = self.C22l[:, 4]  # *b2*b4
                     self.Cloopl[:, 21] = self.C22l[:, 5]  # *b4*b4
 
-                elif self.co.Nloop is 18: # config["with_tidal_alignements"] = True
+                elif self.co.Nloop == 18: # config["with_tidal_alignements"] = True
                     f1 = self.f
 
                     self.Ploopl[:, 0] = f1**2 * self.P22l[:, 36] + f1**3 * self.P22l[:, 39] + f1**3 * self.P22l[:, 40] + f1**4 * self.P22l[:, 41] + f1**4 * self.P22l[:, 42] + f1**4 * self.P22l[:, 43] + f1**2 * self.P13l[:, 21] + f1**3 * self.P13l[:, 22] + f1**3 * self.P13l[:, 23]  # *1
@@ -639,14 +639,14 @@ class Bird(object):
                     self.Cloopl[:, 16] = self.C13l[:, 1] + self.C13l[:, 7] # *bq*b3
                     self.Cloopl[:, 17] = self.C22l[:, 2] + self.C22l[:, 13] # *bq*b4
 
-                if self.co.Nloop is self.co.N22 + self.co.N13: 
+                if self.co.Nloop == self.co.N22 + self.co.N13: 
                     self.Ploopl[:, :self.co.N22] = self.P22l
                     self.Ploopl[:, self.co.N22:] = self.P13l
                     self.Cloopl[:, :self.co.N22] = self.C22l
                     self.Cloopl[:, self.co.N22:] = self.C13l
 
         else: # halo-matter
-            if self.co.Nloop is 5:
+            if self.co.Nloop == 5:
                 f1 = self.f
 
                 self.Ploopl[:, 0] = f1**2 * self.P22l[:, 6] + f1**2 * self.P22l[:, 13] + f1**2 * self.P22l[:, 14] + f1**3 * self.P22l[:, 17] + f1**3 * self.P22l[:, 18] + f1**4 * self.P22l[:, 19] + f1**4 * self.P22l[:, 20] + f1**4 * self.P22l[:, 21] + \
@@ -663,7 +663,7 @@ class Bird(object):
                 self.Cloopl[:, 3] = self.C13l[:, 1] + f1 * self.C13l[:, 3] # *b3
                 self.Cloopl[:, 4] = self.C22l[:, 2] + f1 * self.C22l[:, 5] + f1**2 * self.C22l[:, 11] + f1**2 * self.C22l[:, 12] # *b4
             
-            elif self.co.Nloop is 25:
+            elif self.co.Nloop == 25:
                 pass
 
 
@@ -702,13 +702,16 @@ class Bird(object):
             if self.with_nnlo_counterterm: self.Ps[2] = np.einsum('b,lbx->lx', self.cnnlo, self.Pnnlol)
         else:
             if "linear" in what: self.Ps[0] = np.einsum('b,lbx->lx', self.b11, self.P11l)
-            if "loop" in what:
+            if "sptloop" in what:
                 if "sptloop22" in what and self.co.keep_loop_pieces_independent: self.Ps[1] = np.einsum('b,lbx->lx', self.bloop[:self.co.N22], self.Ploopl[:, :self.co.N22]) 
                 elif "sptloop13" in what and self.co.keep_loop_pieces_independent: self.Ps[1] = np.einsum('b,lbx->lx', self.bloop[self.co.N22:], self.Ploopl[:, self.co.N22:]) 
                 else: self.Ps[1] = np.einsum('b,lbx->lx', self.bloop, self.Ploopl) 
             if "spt" not in what or "counterterm" in what: self.Ps[1] += np.einsum('b,lbx->lx', self.bct, self.Pctl)
             if "stochastic" in what and self.with_stoch: self.Ps[1] += np.einsum('b,lbx->lx', self.bst, self.Pstl)
             if "nnlo_counterterm" in what and self.with_nnlo_counterterm: self.Ps[2] = np.einsum('b,lbx->lx', self.cnnlo, self.Pnnlol)
+            if "ir_correction" in what: 
+                self.Ps[0] = np.einsum('b,lbx->lx', self.b11, self.fullIRPs11)
+                self.Ps[1] = np.einsum('b,lbx->lx', self.bloop, self.fullIRPsloop) + np.einsum('b,lbx->lx', self.bct, self.fullIRPsct)
         self.setfullPs()
 
     def setreduceCflb(self, bs, what="full"):
@@ -764,7 +767,7 @@ class Bird(object):
 
         if self.with_bias:
             self.Ps[:2] += self.fullIRPs
-            if setfull is True: self.setfullPs()
+            if setfull: self.setfullPs()
 
         else:
             self.P11l += self.fullIRPs11
@@ -775,14 +778,14 @@ class Bird(object):
 
         if self.with_bias:
             self.Cf[:2] += self.fullIRCf
-            if setfull is True: self.setfullCf()
+            if setfull: self.setfullCf()
 
         else:
             self.C11l += self.fullIRCf11
             self.Cctl += self.fullIRCfct
             self.Cloopl += self.fullIRCfloop
 
-    def settime(self, cosmo):
+    def settime(self, cosmo, co=None):
 
         if self.co.nonequaltime:
             Dfid = self.D
@@ -804,6 +807,8 @@ class Bird(object):
                 self.Ploopl = np.einsum('n,lnk->lnk', tloop, self.Ploopl)
 
         else:
+            if co: self.co = co # to pass km, kr, nd
+
             Dfid = self.D
             self.setcosmo(cosmo)
             Dp1 = self.D/Dfid

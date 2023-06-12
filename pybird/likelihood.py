@@ -163,7 +163,7 @@ class Likelihood(object):
 
         if need_cosmo_update:
             for i in range(self.nsky): 
-                self.correlator_sky[i].compute(cosmo_dict=None, module='class', engine=class_engine) # PZ: add alpha_rs here
+                self.correlator_sky[i].compute(cosmo_dict=None, cosmo_module='class', cosmo_engine=class_engine) # PZ: add alpha_rs here
                 if self.c["with_bao_rec"]: self.alpha_sky[i] = self.get_alpha_bao_rec(class_engine, i_sky=i)
         
         if self.marg_lkl:
@@ -200,7 +200,7 @@ class Likelihood(object):
         self.out[i_sky]['chi2'] = chi2
         self.out[i_sky]['eft_parameters'] = eft_parameters
         if M is not None: # class engine
-            self.out[i_sky]['cosmo'] = {'omega_b': M.Omega_b(), 'omega_cdm': M.Omega0_cdm() * M.h()**2, 'Omega_k': M.Omega0_k(), 'Omega_nu': M.Omega_nu} 
+            self.out[i_sky]['cosmo'] = {'omega_b': M.omega_b(), 'omega_cdm': M.Omega0_cdm() * M.h()**2, 'Omega_k': M.Omega0_k(), 'Omega_nu': M.Omega_nu} 
             self.out[i_sky]['cosmo'].update(M.get_current_derived_parameters(["Omega_m", "h", "A_s", "n_s", "sigma8"]))
     
     def write(self): 

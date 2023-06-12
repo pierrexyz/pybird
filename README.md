@@ -28,9 +28,10 @@
 #### Likelihoods with EFT predictions
 Currently available: 
 > [BOSS DR12 LRG 2pt full-shape + rec. bao](montepython/likelihoods/eftboss)
+> [eBOSS DR16 QSO 2pt full-shape](montepython/likelihoods/efteboss)
 
 Soon available: 
-> [eBOSS DR16 QSO 2pt full-shape]
+> [BOSS DR12 LRG 3pt full-shape]
 
 ## Dependencies
 PyBird depends on the numerical libraries [NumPy](https://numpy.org/) and [SciPy](http://scipy.org/).  
@@ -114,4 +115,4 @@ When using the likelihoods, here are some relevant references:
 
 > BOSS DR12 survey mask measurements: following [1810.05051](https://arxiv.org/abs/1810.05051) with integral constraints and consistent normalization following [1904.08851](https://arxiv.org/abs/1904.08851), from **[fkpwin](https://github.com/pierrexyz/fkpwin)**, using **[nbodykit](https://nbodykit.readthedocs.io/)**
 
-
+*** Disclaimer: due to updates in the data and the prior definition, it is possible that results obtained with up-to-date likelihoods differ slightly with the ones presented in the articles. 

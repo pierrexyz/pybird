@@ -56,7 +56,7 @@ eft_prior:
           range: [30.] 
      ce0: # k^0 monopole
           type: marg_gauss
-          mean: [1.] 
+          mean: [0.] 
           range: [2.] 
      ce1: # k^2 monopole
           type: marg_gauss

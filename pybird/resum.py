@@ -68,7 +68,7 @@ class Resum(object):
         self.co = co
         self.LambdaIR = LambdaIR
 
-        if self.co.optiresum is True:
+        if self.co.optiresum:
             self.sLow = 70.
             self.sHigh = 190.
             self.idlow = np.where(self.co.s > self.sLow)[0][0]
@@ -164,7 +164,7 @@ class Resum(object):
         """ Given a correlation function cf, 
             - if fullresum, return cf 
             - if optiresum, extract the BAO peak """
-        if self.co.optiresum is True:
+        if self.co.optiresum:
             cfnobao = np.concatenate([cf[..., :self.idlow], cf[..., self.idhigh:]], axis=-1)
             nobao = interp1d(self.snobao, self.snobao**2 * cfnobao, kind='linear', axis=-1)(self.sbao) * self.sbao**-2
             bao = cf[..., self.idlow:self.idhigh] - nobao
@@ -187,9 +187,9 @@ class Resum(object):
             for l in range(self.co.Nl):
                 for lpr in range(self.co.Nl):
                     for u in range(self.co.Nn):
-                        if self.co.NIR is 8: Q[a][l][lpr][u] = Qa[1 - a][2 * l][2 * lpr][u](f)
-                        elif self.co.NIR is 16: Q[a][l][lpr][u] = Qawithhex[1 - a][2 * l][2 * lpr][u](f)
-                        elif self.co.NIR is 20: Q[a][l][lpr][u] = Qawithhex20[1 - a][2 * l][2 * lpr][u](f)
+                        if self.co.NIR == 8: Q[a][l][lpr][u] = Qa[1 - a][2 * l][2 * lpr][u](f)
+                        elif self.co.NIR == 16: Q[a][l][lpr][u] = Qawithhex[1 - a][2 * l][2 * lpr][u](f)
+                        elif self.co.NIR == 20: Q[a][l][lpr][u] = Qawithhex20[1 - a][2 * l][2 * lpr][u](f)
         return Q
 
     def setMl(self):
@@ -225,17 +225,18 @@ class Resum(object):
                 for j, IRlj in enumerate(IRl):
                     bird.fullIRCfloop[l,j] = self.Ps2Cf(IRlj, l=l)
 
-    def PsCf(self, bird, makeIR=True, makeQ=True, setPs=True, setCf=True, window=None):
+    def PsCf(self, bird, makeIR=True, makeQ=True, setIR=True, setPs=True, setCf=True, window=None):
 
-        self.Ps(bird, makeIR=makeIR, makeQ=makeQ, setPs=setPs, window=window)
-        self.IRCf(bird, window=window)
-        if setCf: bird.setresumCf()
+        self.Ps(bird, makeIR=makeIR, makeQ=makeQ, setIR=setIR, setPs=setPs, window=window)
+        if setCf: 
+            self.IRCf(bird, window=window) 
+            bird.setresumCf() 
 
-    def Ps(self, bird, makeIR=True, makeQ=True, setPs=True, window=None):
+    def Ps(self, bird, makeIR=True, makeQ=True, setIR=True, setPs=True, window=None):
 
-        if makeQ: bird.Q = self.makeQ(bird.f)
         if makeIR: self.IRPs(bird, window=window)
-        bird.setIRPs()
+        if makeQ: bird.Q = self.makeQ(bird.f)
+        if setIR: bird.setIRPs()
         if setPs: bird.setresumPs()
 
     def IRPs(self, bird, window=None):
@@ -264,3 +265,4 @@ class Resum(object):
                     for j, xy in enumerate(XpYp):
                         IRcorrUnsorted = np.real((-1j)**(2*l)) * self.k2p[j] * self.IRn(xy * cli, window=window)
                         for v in range(self.co.Na): bird.IRPsloop[l, i, j*self.co.Na + v, self.Nlow:] = IRcorrUnsorted[v]
+
