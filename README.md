@@ -61,11 +61,14 @@ If you are a **[MontePython 3](https://github.com/brinckmann/montepython_public)
 
 That's it, you are all set!
 
+* If any doubt, benchmark $\Lambda$CDM posteriors are shown [here](notebooks/potatoes.ipynb)
+* Posterior covariances for Metropolis-Hasting Gaussian proposal (in MontePython format) can be found [here](montepython/chains). 
+
 ## Cookbooks
 Alternatively, if you are curious, here are three cookbooks that should answer the following questions: 
-* [Correlator](notebooks/correlator_cookbook.ipynb): How to ask PyBird to compute EFT predictions? 
-* [Likelihood](notebooks/likelihood_cookbook.ipynb): How does the PyBird likelihood work? 
-* [Data](notebooks/datastruct_cookbook.ipynb): What are the data read by PyBird likelihood?
+* [Correlator](notebooks/correlator.ipynb): How to ask PyBird to compute EFT predictions? 
+* [Likelihood](notebooks/likelihood.ipynb): How does the PyBird likelihood work? 
+* [Data](notebooks/datastruct.ipynb): What are the data read by PyBird likelihood?
 * [cbird](notebooks/cbird.nb): What is the algebra of the EFT predictions PyBird is based on?
 
 ## Documentation
