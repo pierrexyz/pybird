@@ -61,7 +61,7 @@ If you are a **[MontePython 3](https://github.com/brinckmann/montepython_public)
 
 That's it, you are all set!
 
-* If any doubt, benchmark $\Lambda$CDM posteriors are shown [here](notebooks/potatoes.ipynb)
+* If any doubt, benchmark $\Lambda$CDM posteriors are shown [here](notebooks/potatoes.ipynb).
 * Posterior covariances for Metropolis-Hasting Gaussian proposal (in MontePython format) can be found [here](montepython/chains). 
 
 ## Cookbooks
