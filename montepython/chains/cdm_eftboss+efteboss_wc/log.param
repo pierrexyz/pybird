@@ -1,0 +1,89 @@
+#-----CLASS v3.2.0 (branch: , hash: )-----
+
+#------Experiments to test (separated with commas)-----
+# To see all the available ones, please look in the
+# montepython/likelihoods folder. Every folder there is a valid likelihood to
+# test.
+data.experiments=['bbn_prior', 'eftboss', 'efteboss']
+data.over_sampling=[1, 4, 4]
+
+#------ Parameter list -------
+# data.parameters[class name] = [mean, min, max, 1-sigma, scale, role]
+# - if min max irrelevant, put to -1 or None (if you want a boundary of -1, use -1.0)
+# - if fixed, put 1-sigma to 0
+# - if scale irrelevant, put to 1, otherwise to the appropriate factor
+# - role is either 'cosmo', 'nuisance' or 'derived'
+
+# Cosmological parameters list
+data.parameters['omega_b']      = [ 2.268,   None, None, 0.05, 0.01, 'cosmo']
+data.parameters['omega_cdm']    = [ 0.120,   None, None, 0.01,    1, 'cosmo']
+data.parameters['h']            = [ 0.675,   None, None, 0.01,    1, 'cosmo']
+data.parameters['ln10^{10}A_s'] = [ 3.044,   None, None, 0.10,    1, 'cosmo']
+data.parameters['n_s']          = [ 0.965,   None, None, 0.05,    1, 'cosmo']
+
+data.cosmo_arguments['N_ur'] = 2.0328
+data.cosmo_arguments['N_ncdm'] = 1
+data.cosmo_arguments['m_ncdm'] = 0.06
+data.cosmo_arguments['T_ncdm'] = 0.71611
+
+# EFT nuisance parameters
+data.parameters['b1_hN']  = [2.,   0.,   4., 0.5, 1,  'nuisance']
+data.parameters['c2_hN']  = [0., -10.,  10., 0.5, 1,  'nuisance']
+data.parameters['b1_hS']  = [2.,   0.,   4., 0.5, 1,  'nuisance']
+data.parameters['c2_hS']  = [0., -10.,  10., 0.5, 1,  'nuisance']
+data.parameters['b1_lN']  = [2.,   0.,   4., 0.5, 1,  'nuisance']
+data.parameters['c2_lN']  = [0., -10.,  10., 0.5, 1,  'nuisance']
+data.parameters['b1_lS']  = [2.,   0.,   4., 0.5, 1,  'nuisance']
+data.parameters['c2_lS']  = [0., -10.,  10., 0.5, 1,  'nuisance']
+
+data.parameters['b1_eN']  = [2.,   0.,   4., 0.5, 1,  'nuisance']
+data.parameters['c2_eN']  = [0., -10.,  10., 0.5, 1,  'nuisance']
+data.parameters['b1_eS']  = [2.,   0.,   4., 0.5, 1,  'nuisance']
+data.parameters['c2_eS']  = [0., -10.,  10., 0.5, 1,  'nuisance']
+
+# Derived parameter list
+data.parameters['Omega_m']         = [0, None, None, 0,     1,   'derived']
+data.parameters['A_s']             = [0, None, None, 0,  1e-9,   'derived']
+data.parameters['sigma8']          = [0, None, None, 0,     1,   'derived']
+
+# Other cosmo parameters (fixed parameters, precision parameters, etc.)
+data.cosmo_arguments['sBBN file'] = data.path['cosmo']+'/bbn/sBBN.dat'
+data.cosmo_arguments['k_pivot'] = 0.05
+
+data.cosmo_arguments['output'] = 'mPk'
+data.cosmo_arguments['P_k_max_h/Mpc'] = 1.
+
+#------ Mcmc parameters ----
+# Number of steps taken, by default (overwritten by the -N command)
+data.N = 10
+# Number of accepted steps before writing to file the chain. Larger means less
+# access to disc, but this is not so much time consuming.
+data.write_step = 10
+
+
+#-----Likelihood-bbn_prior-----
+bbn_prior.mean = 0.02268
+bbn_prior.sigma = 0.00038
+
+
+#-----Likelihood-eftboss-----
+eftboss.data_directory = '/cluster/work/senatore/montepython_public/data'
+eftboss.config_file = 'eftboss/config/boss_pk_wc.yaml'
+eftboss.use_nuisance = ['b1_hN', 'c2_hN', 'b1_hS', 'c2_hS', 'b1_lN', 'c2_lN', 'b1_lS', 'c2_lS']
+
+
+#-----Likelihood-efteboss-----
+efteboss.data_directory = '/cluster/work/senatore/montepython_public/data'
+efteboss.config_file = 'efteboss/config/eboss_pk_wc.yaml'
+efteboss.use_nuisance = ['b1_eN', 'c2_eN', 'b1_eS', 'c2_eS']
+
+
+#-----------Cosmological-arguments---------
+data.cosmo_arguments.update({'N_ur': 2.0328, 'N_ncdm': 1, 'm_ncdm': 0.06, 'T_ncdm': 0.71611, 'sBBN file': '/cluster/work/senatore/class_public-3.2.0/bbn/sBBN.dat', 'k_pivot': 0.05, 'output': 'mPk', 'P_k_max_h/Mpc': 1.0, 'z_max_pk': 1.52})
+
+
+#--------Default-Configuration------
+data.path['root']	= '/cluster/work/senatore/montepython_public'
+data.path['MontePython']	= '/cluster/work/senatore/montepython_public/montepython'
+data.path['data']	= '/cluster/work/senatore/montepython_public/data'
+data.path['cosmo']	= '/cluster/work/senatore/class_public-3.2.0'

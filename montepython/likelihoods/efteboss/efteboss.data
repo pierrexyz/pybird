@@ -1,3 +1,3 @@
 efteboss.data_directory = data.path['data'] 
 efteboss.config_file = 'efteboss/config/eboss_pk_wc.yaml'
-efteboss.use_nuisance = ['b1_hN', 'c2_hN', 'b1_hS', 'c2_hS']
+efteboss.use_nuisance = ['b1_eN', 'c2_eN', 'b1_eS', 'c2_eS']
