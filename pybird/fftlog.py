@@ -89,15 +89,19 @@ class FFTLog(object):
         tmp = np.empty(int(self.Nmax / 2 + 1), dtype=complex)
         Coef = np.empty(self.Nmax + 1, dtype=complex)
 
-        if extrap is 'extrap':
+        if extrap == 'extrap':
+            nslow, Aslow = 0, 0
             if xin[0] > self.x[0]:
                 #print ('low extrapolation')
-                nslow = (log(f[1]) - log(f[0])) / (log(xin[1]) - log(xin[0]))
-                Aslow = f[0] / xin[0]**nslow
+                if f[0] * f[1] != 0.:
+                    nslow = (log(f[1]) - log(f[0])) / (log(xin[1]) - log(xin[0]))
+                    Aslow = f[0] / xin[0]**nslow
+            nshigh, Ashigh = 0, 0
             if xin[-1] < self.x[-1]:
                 #print ('high extrapolation')
-                nshigh = (log(f[-1]) - log(f[-2])) / (log(xin[-1]) - log(xin[-2]))
-                Ashigh = f[-1] / xin[-1]**nshigh
+                if f[-1] * f[-2] != 0.:
+                    nshigh = (log(f[-1]) - log(f[-2])) / (log(xin[-1]) - log(xin[-2]))
+                    Ashigh = f[-1] / xin[-1]**nshigh
 
             for i in range(self.Nmax):
                 if xin[0] > self.x[i]:
@@ -107,7 +111,7 @@ class FFTLog(object):
                 else:
                     fx[i] = interpfunc(self.x[i]) * exp(-self.bias * i * self.dx)
 
-        elif extrap is'padding':
+        elif extrap == 'padding':
             for i in range(self.Nmax):
                 if xin[0] > self.x[i]:
                     fx[i] = 0.
