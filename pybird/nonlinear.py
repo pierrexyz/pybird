@@ -208,7 +208,7 @@ class NonLinear(object):
         bird : class
             an object of type Bird()
         """
-        return self.fft.Coef(bird.kin, bird.Pin, window=window)
+        return self.fft.Coef(bird.kin, bird.Pin_2, window=window)
 
     def Ps(self, bird, window=None):
         """ Compute the loop power spectrum given a Bird(). Perform the FFTLog and the matrix multiplications.

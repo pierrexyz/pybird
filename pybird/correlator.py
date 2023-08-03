@@ -13,17 +13,17 @@ from pybird.projection import Projection
 from pybird.greenfunction import GreenFunction
 from pybird.fourier import FourierTransform
 
-# ### dev mode ###
-# import importlib, pybird
-# importlib.reload(pybird.common)
-# from pybird.common import Common, co
-# importlib.reload(pybird.bird)
-# from pybird.bird import Bird
-# importlib.reload(pybird.nonlinear)
-# from pybird.nonlinear import NonLinear
-# importlib.reload(pybird.resum)
-# from pybird.resum import Resum
-# ################
+### dev mode ###
+import importlib, pybird
+importlib.reload(pybird.common)
+from pybird.common import Common, co
+importlib.reload(pybird.bird)
+from pybird.bird import Bird
+importlib.reload(pybird.nonlinear)
+from pybird.nonlinear import NonLinear
+importlib.reload(pybird.resum)
+from pybird.resum import Resum
+################
 
 class Correlator(object): 
 
@@ -90,6 +90,9 @@ class Correlator(object):
                 default=None) ,
             "Psmooth": Option("Psmooth", (list, np.ndarray),
                 description="Smooth power spectrum. To specify if \'with_nnlo_counterterm\' is True.", 
+                default=None) ,
+            "pk_lin_2": Option("pk_lin_2", (list, np.ndarray),
+                description="Alternative linear matter power spectrum in [Mpc/h]^3 replacing \'pk_lin\' in the internal loop integrals (and resummation)",
                 default=None) ,
         }
 
@@ -200,7 +203,10 @@ class Correlator(object):
                 description="Galaxy counts distribution over a redshift bin.",
                 default=None) ,
             "accboost": Option("accboost", int, [1, 2, 3],
-                description="Sampling accuracy boost.",
+                description="Sampling accuracy boost factor. Default k sampling: dk ~ 0.005 (k<0.3), dk ~ 0.01 (k>0.3). ",
+                default=1) ,
+            "fftaccboost": Option("fftaccboost", int, [1, 2, 3],
+                description="FFTLog accuracy boost factor. Default FFTLog sampling : NFFT ~ 256. ",
                 default=1) ,
             "fftbias": Option("fftbias", float,
                 description="real power bias for fftlog decomposition of pk_lin (usually to keep to default value)",
@@ -257,7 +263,7 @@ class Correlator(object):
 
         if cosmo_dict: cosmo_dict_local = cosmo_dict.copy()
         elif cosmo_module and cosmo_engine: cosmo_dict_local = {}
-        else: raise Exception('provide cosmo_dict or CLASSy engine with cosmo_module=\'class\' ') 
+        else: raise Exception('provide cosmo_dict or CLASSy engine with cosmo_module=\'class\' ')       
         
         if cosmo_module: # works only with classy now
             cosmo_dict_class = self.set_cosmo(cosmo_dict, module=cosmo_module, engine=cosmo_engine)
@@ -273,12 +279,12 @@ class Correlator(object):
                 if self.c["with_cf"]: self.nnlo_counterterm.Cf(self.bird, ilogPsmooth)
                 else: self.nnlo_counterterm.Ps(self.bird, ilogPsmooth)
             if not correlator_engine: self.nonlinear.PsCf(self.bird)
-            elif correlator_engine: correlator_engine.nonlinear.PsCf(self.bird, c_alpha) # PZemu
+            elif correlator_engine: correlator_engine.nonlinear.PsCf(self.bird, c_alpha) # emu
             if self.c["with_bias"]: self.bird.setPsCf(self.bias)
             else: self.bird.setPsCfl()
             if self.c["with_resum"]: 
                 if not correlator_engine: self.resum.PsCf(self.bird, makeIR=True, makeQ=False, setIR=False, setPs=False, setCf=False) # compute IR-correction pieces
-                elif correlator_engine: correlator_engine.resum.PsCf(self.bird, c_alpha) # PZemu
+                elif correlator_engine: correlator_engine.resum.PsCf(self.bird, c_alpha) # emu
 
         if do_survey_specific: 
             if not self.c["with_time"]: self.bird.settime(self.cosmo, co=self.co) 
@@ -356,12 +362,12 @@ class Correlator(object):
     def __load_engines(self, load_engines=True):
 
         self.co = Common(Nl=self.c["multipole"], kmax=self.c["kmax"], km=self.c["km"], kr=self.c["kr"], nd=self.c["nd"], eft_basis=self.c["eft_basis"],
-            halohalo=self.c["halohalo"], with_cf=self.c["with_cf"], with_time=self.c["with_time"], optiresum=self.c["optiresum"], 
+            halohalo=self.c["halohalo"], with_cf=self.c["with_cf"], with_time=self.c["with_time"], accboost=self.c["accboost"], optiresum=self.c["optiresum"], 
             exact_time=self.c["with_exact_time"], quintessence=self.c["with_quintessence"], 
             with_tidal_alignments=self.c["with_tidal_alignments"], nonequaltime=self.c["with_common_nonequal_time"], keep_loop_pieces_independent=self.c["keep_loop_pieces_independent"])
         
         if load_engines:
-            self.nonlinear = NonLinear(load=True, save=True, fftbias=self.c["fftbias"], co=self.co)
+            self.nonlinear = NonLinear(load=True, save=True, NFFT=256*self.c["fftaccboost"], fftbias=self.c["fftbias"], co=self.co)
             self.resum = Resum(co=self.co)
             self.projection = Projection(self.c["xdata"], 
                 with_ap=self.c["with_ap"], H_fid=self.c["H_fid"], D_fid=self.c["D_fid"],

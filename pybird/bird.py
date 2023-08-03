@@ -168,12 +168,15 @@ class Bird(object):
 
         self.kin = cosmo["kk"]
         self.Pin = cosmo["pk_lin"]
-        try: 
+        if self.Pin is not None: 
             self.Plin = interp1d(self.kin, self.Pin, kind='cubic')
             self.P11 = self.Plin(self.co.k)
-        except: 
+        else:
             self.Plin = None
             self.P11 = None
+
+        if cosmo["pk_lin_2"] is not None: self.Pin_2 = cosmo["pk_lin_2"]
+        else: self.Pin_2 = self.Pin
 
         if not self.co.with_time: self.D = cosmo["D"]
         self.f = cosmo["f"]
@@ -181,9 +184,8 @@ class Bird(object):
         self.H = cosmo["H"]
 
         if self.co.exact_time:
-            #try:
-            try: self.w0 = cosmo["w0_fld"]
-            except: self.w0 = None
+            if "w0_fld" in cosmo: self.w0 = cosmo["w0_fld"]
+            else: self.w0 = None
             self.Omega0_m = cosmo["Omega0_m"]
             self.z = cosmo["z"]
             #print (self.z, self.Omega0_m)
