@@ -25,7 +25,7 @@ from pybird.fourier import FourierTransform
 # from pybird.resum import Resum
 # ################
 
-class Correlator(object): 
+class Correlator(object):
 
     def __init__(self, config_dict=None, load_engines=True):
 
@@ -37,7 +37,7 @@ class Correlator(object):
                 description="k-array in [h/Mpc] on which pk_lin is evaluated",
                 default=None) ,
             "f": Option("f", float,
-                description="Scale independent growth rate (for RSD). Automatically set to 0 for \'output\': \'m__\'.", 
+                description="Scale independent growth rate (for RSD). Automatically set to 0 for \'output\': \'m__\'.",
                 default=None) ,
             "bias": Option("bias", dict,
                 description="EFT parameters in dictionary to specify as \
@@ -47,49 +47,49 @@ class Correlator(object):
                     if (a): \'b\' in \'output\'; (b): \'multipole\'>=2; (d): \'with_stoch\' is True ",
                 default=None) ,
             "H": Option("H", float,
-                description="Hubble parameter by H_0. To specify if \'with_ap\' is True.", 
+                description="Hubble parameter by H_0. To specify if \'with_ap\' is True.",
                 default=None) ,
             "DA": Option("DA", float,
-                description="Angular distance times H_0. To specify if \'with_ap\' is True.", 
+                description="Angular distance times H_0. To specify if \'with_ap\' is True.",
                 default=None) ,
             "z": Option("z", float,
                 description="Effective redshift(s). To specify if \'with_time\' is False or \'with_exact_time\' is True.",
                 default=None) ,
             "D": Option("D", float,
-                description="Scale independent growth function. To specify if \'with_time\' is False, e.g., \'with_nonequal_time\' or \'with_redshift_bin\' is True.", 
+                description="Scale independent growth function. To specify if \'with_time\' is False, e.g., \'with_nonequal_time\' or \'with_redshift_bin\' is True.",
                 default=None) ,
             "A": Option("A", float,
-                description="Amplitude rescaling, i.e, A = A_s / A_s^\{fid\}. Default: A=1. If \'with_time\' is False, can in some ways be used as a fast parameter.", 
+                description="Amplitude rescaling, i.e, A = A_s / A_s^\{fid\}. Default: A=1. If \'with_time\' is False, can in some ways be used as a fast parameter.",
                 default=None) ,
             "Omega0_m": Option("Omega0_m", float,
-                description="Fractional matter abundance at present time. To specify if \'with_exact_time\' is True.", 
+                description="Fractional matter abundance at present time. To specify if \'with_exact_time\' is True.",
                 default=None) ,
             "w0_fld": Option("w0_fld", float,
-                description="Dark energy equation of state parameter. To specify in presence of dark energy if \'with_exact_time\' is True (otherwise w0 = -1).", 
+                description="Dark energy equation of state parameter. To specify in presence of dark energy if \'with_exact_time\' is True (otherwise w0 = -1).",
                 default=None) ,
             "Dz": Option("Dz", (list, np.ndarray),
-                description="Scale independent growth function over redshift bin. To specify if \'with_redshift_bin\' is True.", 
+                description="Scale independent growth function over redshift bin. To specify if \'with_redshift_bin\' is True.",
                 default=None) ,
             "fz": Option("fz", (list, np.ndarray),
-                description="Scale independent growth rate over redshift bin. To specify if \'with_redshift_bin\' is True.", 
+                description="Scale independent growth rate over redshift bin. To specify if \'with_redshift_bin\' is True.",
                 default=None) ,
             "rz": Option("rz", (list, np.ndarray),
-                description="Comoving distance in [Mpc/h] over redshift bin. To specify if \'with_redshift_bin\' or if \'output\':\'w\'.", 
+                description="Comoving distance in [Mpc/h] over redshift bin. To specify if \'with_redshift_bin\' or if \'output\':\'w\'.",
                 default=None) ,
             "D1": Option("D1", float,
-                description="Scale independent growth function at redshift z1. To specify if \'with_nonequal_time\' is True.", 
+                description="Scale independent growth function at redshift z1. To specify if \'with_nonequal_time\' is True.",
                 default=None) ,
             "D2": Option("D2", float,
-                description="Scale independent growth function at redshift z2. To specify if \'with_nonequal_time\' is True.", 
+                description="Scale independent growth function at redshift z2. To specify if \'with_nonequal_time\' is True.",
                 default=None) ,
             "f1": Option("f1", float,
-                description="Scale independent growth rate at redshift z1. To specify if \'with_nonequal_time\' is True.", 
+                description="Scale independent growth rate at redshift z1. To specify if \'with_nonequal_time\' is True.",
                 default=None) ,
             "f2": Option("f2", float,
-                description="Scale independent growth rate at redshift z2. To specify if \'with_nonequal_time\' is True.", 
+                description="Scale independent growth rate at redshift z2. To specify if \'with_nonequal_time\' is True.",
                 default=None) ,
             "Psmooth": Option("Psmooth", (list, np.ndarray),
-                description="Smooth power spectrum. To specify if \'with_nnlo_counterterm\' is True.", 
+                description="Smooth power spectrum. To specify if \'with_nnlo_counterterm\' is True.",
                 default=None) ,
             "pk_lin_2": Option("pk_lin_2", (list, np.ndarray),
                 description="Alternative linear matter power spectrum in [Mpc/h]^3 replacing \'pk_lin\' in the internal loop integrals (and resummation)",
@@ -97,10 +97,10 @@ class Correlator(object):
         }
 
         self.c_catalog = {
-            "output": Option("output", str, ["bPk", "bCf", "mPk", "mCf", "bmPk", "bmCf"], 
-                description="Correlator: biased tracers / matter / biased tracers-matter -- power spectrum / correlation function.", 
+            "output": Option("output", str, ["bPk", "bCf", "mPk", "mCf", "bmPk", "bmCf"],
+                description="Correlator: biased tracers / matter / biased tracers-matter -- power spectrum / correlation function.",
                 default="bPk") ,
-            "multipole": Option("multipole", int, [0, 2, 3], 
+            "multipole": Option("multipole", int, [0, 2, 3],
                 description="Number of multipoles. 0: real space. 2: monopole + quadrupole. 3: monopole + quadrupole + hexadecapole.",
                 default=2) ,
             "z": Option("z", float,
@@ -118,13 +118,13 @@ class Correlator(object):
             "kmax": Option("kmax", float,
                 description="kmax in [h/Mpc] for \'output\': \'_Pk\'",
                 default=0.25) ,
-            "with_bias": Option("with_bias", bool, 
+            "with_bias": Option("with_bias", bool,
                 description="Bias (in)dependent evalution. Automatically set to False for \'with_time\': False.",
                    default=False) ,
             "eft_basis": Option("eft_basis", str,
                 description="Basis of EFT parameters: \'eftoflss\' (default), \'westcoast\', or \'eastcoast\'. See cosmology command \'bias\' for more details.",
                 default="eftoflss") ,
-            "with_stoch": Option("with_stoch", bool, 
+            "with_stoch": Option("with_stoch", bool,
                 description="With stochastic terms.",
                    default=False) ,
             "with_nnlo_counterterm": Option("with_nnlo_counterterm", bool,
@@ -170,10 +170,10 @@ class Correlator(object):
                 description="Apply Alcock Paczynski effect. ",
                 default=False) ,
             "H_fid": Option("H_fid", float,
-                description="Hubble parameter by H_0. To specify if \'with_ap\' is True.", 
+                description="Hubble parameter by H_0. To specify if \'with_ap\' is True.",
                 default=None) ,
             "D_fid": Option("D_fid", float,
-                description="Angular distance times H_0. To specify if \'with_ap\' is True.", 
+                description="Angular distance times H_0. To specify if \'with_ap\' is True.",
                 default=None) ,
             "with_survey_mask": Option("with_survey_mask", bool,
                 description="Apply survey mask. Automatically set to False for \'output\': \'_Cf\'.",
@@ -187,7 +187,7 @@ class Correlator(object):
             "with_fibercol": Option("with_fibercol", bool,
                 description="Apply fiber collision effective window corrections.",
                 default=False) ,
-            "with_wedge": Option("with_wedge", bool, 
+            "with_wedge": Option("with_wedge", bool,
                 description="Rotate multipoles to wedges",
                 default=False) ,
             "wedge_mat_wl": Option("wedge_mat_wl", (list, np.ndarray),
@@ -215,9 +215,9 @@ class Correlator(object):
                 description="keep the loop pieces 13 and 22 independent (mainly for debugging)",
                 default=False) ,
         }
-        
+
         if config_dict is not None: self.set(config_dict, load_engines=load_engines)
-    
+
 
     def info(self, description=True):
 
@@ -239,40 +239,39 @@ class Correlator(object):
                 if description:
                     print ('    - %s' % config.description)
                     print ('    * default: %s' % config.default)
-    
+
     def set(self, config_dict, load_engines=True):
-        
+
         # Reading config provided by user
         self.__read_config(config_dict)
-        
+
         # Setting no-optional config
         self.c["smin"] = 1.
         self.c["smax"] = 1000.
         self.c["kmin"] = 0.001
-        
+
         # Checking for config conflict
         self.__is_config_conflict()
 
         # Setting list of EFT parameters required by the user to provide later
         self.__set_eft_parameters_list()
-        
+
         # Loading PyBird engines
         self.__load_engines(load_engines=load_engines)
 
-    def compute(self, cosmo_dict=None, cosmo_module=None, cosmo_engine=None, correlator_engine=None, do_core=True, do_survey_specific=True): 
+    def compute(self, cosmo_dict=None, cosmo_module=None, cosmo_engine=None, correlator_engine=None, do_core=True, do_survey_specific=True):
 
         if cosmo_dict: cosmo_dict_local = cosmo_dict.copy()
         elif cosmo_module and cosmo_engine: cosmo_dict_local = {}
-        else: raise Exception('provide cosmo_dict or CLASSy engine with cosmo_module=\'class\' ')       
-        
+        else: raise Exception('provide cosmo_dict or CLASSy engine with cosmo_module=\'class\' ')
         if cosmo_module: # works only with classy now
             cosmo_dict_class = self.set_cosmo(cosmo_dict, module=cosmo_module, engine=cosmo_engine)
             cosmo_dict_local.update(cosmo_dict_class)
-        
+
         self.__read_cosmo(cosmo_dict_local)
         self.__is_cosmo_conflict()
 
-        if do_core: 
+        if do_core:
             self.bird = Bird(self.cosmo, with_bias=self.c["with_bias"], eft_basis=self.c["eft_basis"], with_stoch=self.c["with_stoch"], with_nnlo_counterterm=self.c["with_nnlo_counterterm"], co=self.co)
             if self.c["with_nnlo_counterterm"]: # we use smooth power spectrum since we don't want spurious BAO signals
                 ilogPsmooth = interp1d(np.log(self.bird.kin), np.log(self.cosmo["Psmooth"]), fill_value='extrapolate')
@@ -282,34 +281,34 @@ class Correlator(object):
             elif correlator_engine: correlator_engine.nonlinear.PsCf(self.bird, c_alpha) # emu
             if self.c["with_bias"]: self.bird.setPsCf(self.bias)
             else: self.bird.setPsCfl()
-            if self.c["with_resum"]: 
+            if self.c["with_resum"]:
                 if not correlator_engine: self.resum.PsCf(self.bird, makeIR=True, makeQ=False, setIR=False, setPs=False, setCf=False) # compute IR-correction pieces
                 elif correlator_engine: correlator_engine.resum.PsCf(self.bird, c_alpha) # emu
 
-        if do_survey_specific: 
-            if not self.c["with_time"]: self.bird.settime(self.cosmo, co=self.co) 
-            if self.c["with_resum"]: self.resum.PsCf(self.bird, makeIR=False, makeQ=True, setIR=True, setPs=True, setCf=self.c["with_cf"]) 
+        if do_survey_specific:
+            if not self.c["with_time"]: self.bird.settime(self.cosmo, co=self.co)
+            if self.c["with_resum"]: self.resum.PsCf(self.bird, makeIR=False, makeQ=True, setIR=True, setPs=True, setCf=self.c["with_cf"])
             if self.c["with_redshift_bin"]: self.projection.redshift(self.bird, self.cosmo["rz"], self.cosmo["Dz"], self.cosmo["fz"], pk=self.c["output"])
             if self.c["with_ap"]: self.projection.AP(self.bird)
             if self.c["with_fibercol"]: self.projection.fibcolWindow(self.bird)
             if self.c["with_survey_mask"]: self.projection.Window(self.bird)
-            elif self.c["with_binning"]: self.projection.xbinning(self.bird) # no binning if 'with_survey_mask' since the mask should account for it. 
+            elif self.c["with_binning"]: self.projection.xbinning(self.bird) # no binning if 'with_survey_mask' since the mask should account for it.
             elif self.c["xdata"] is not None: self.projection.xdata(self.bird)
             if self.c["with_wedge"]: self.projection.Wedges(self.bird)
 
     def get(self, bias=None, what="full"):
 
-        if not self.c["with_bias"]: 
+        if not self.c["with_bias"]:
             self.__is_bias_conflict(bias)
             if "Pk" in self.c["output"]: self.bird.setreducePslb(self.bias, what=what)
             elif "Cf" in self.c["output"]: self.bird.setreduceCflb(self.bias, what=what)
         if "Pk" in self.c["output"]: return self.bird.fullPs
-        elif "Cf" in self.c["output"]: return self.bird.fullCf  
+        elif "Cf" in self.c["output"]: return self.bird.fullCf
 
     def getmarg(self, bias, marg_gauss_eft_parameters_list):
 
         for p in marg_gauss_eft_parameters_list:
-            if p not in self.gauss_eft_parameters_list: 
+            if p not in self.gauss_eft_parameters_list:
                 raise Exception("The parameter %s specified in getmarg() is not an available Gaussian EFT parameter to marginalize. Check your options. " % p)
 
         def marg(loopl, ctl, b1, f, stl=None, nnlol=None, bq=0):
@@ -318,26 +317,26 @@ class Correlator(object):
             loop = np.swapaxes(loopl, axis1=0, axis2=1).reshape(loopl.shape[1],-1)
             ct = np.swapaxes(ctl, axis1=0, axis2=1).reshape(ctl.shape[1],-1)
             if stl is not None: st = np.swapaxes(stl, axis1=0, axis2=1).reshape(stl.shape[1],-1)
-            if nnlol is not None: nnlo = np.swapaxes(nnlol, axis1=0, axis2=1).reshape(nnlol.shape[1],-1) 
+            if nnlol is not None: nnlo = np.swapaxes(nnlol, axis1=0, axis2=1).reshape(nnlol.shape[1],-1)
 
             pg = np.empty(shape=(len(marg_gauss_eft_parameters_list), loop.shape[1]))
             for i, p in enumerate(marg_gauss_eft_parameters_list):
-                if p in ['b3', 'bGamma3']: 
+                if p in ['b3', 'bGamma3']:
                     if self.co.Nloop == 12: pg[i] = loop[3] + b1 * loop[7]                          # config["with_time"] = True
                     elif self.co.Nloop == 18: pg[i] = loop[3] + b1 * loop[7] + bq * loop[16]        # config["with_time"] = True, config["with_tidal_alignments"] = True
                     elif self.co.Nloop == 22: pg[i] = f * loop[8] + b1 * loop[16]                   # config["with_time"] = False, config["with_exact_time"] = False
                     elif self.co.Nloop == 35: pg[i] = f * loop[18] + b1 * loop[29]                  # config["with_time"] = False, config["with_exact_time"] = True
                     if p == 'bGamma3': pg[i] *= 6. # b3 = b1 + 15. * bG2 + 6. * bGamma3 : config["eft_basis"] = 'eastcoast'
                 # counterterm : config["eft_basis"] = 'eftoflss' or 'westcoast'
-                elif p == 'cct': pg[i] = 2 * (f * ct[0+3] + b1 * ct[0]) / self.c["km"]**2 # ~ 2 (b1 + f * mu^2) k^2/km^2 pk_lin 
-                elif p == 'cr1': pg[i] = 2 * (f * ct[1+3] + b1 * ct[1]) / self.c["kr"]**2 # ~ 2 (b1 mu^2 + f * mu^4) k^2/kr^2 pk_lin 
-                elif p == 'cr2': pg[i] = 2 * (f * ct[2+3] + b1 * ct[2]) / self.c["kr"]**2 # ~ 2 (b1 mu^4 + f * mu^6) k^2/kr^2 pk_lin 
+                elif p == 'cct': pg[i] = 2 * (f * ct[0+3] + b1 * ct[0]) / self.c["km"]**2 # ~ 2 (b1 + f * mu^2) k^2/km^2 pk_lin
+                elif p == 'cr1': pg[i] = 2 * (f * ct[1+3] + b1 * ct[1]) / self.c["kr"]**2 # ~ 2 (b1 mu^2 + f * mu^4) k^2/kr^2 pk_lin
+                elif p == 'cr2': pg[i] = 2 * (f * ct[2+3] + b1 * ct[2]) / self.c["kr"]**2 # ~ 2 (b1 mu^4 + f * mu^6) k^2/kr^2 pk_lin
                 # counterterm : config["eft_basis"] = 'eastcoast'                       # (2.15) and (2.23) of 2004.10607
                 elif p in ['c0', 'c2', 'c4']:
-                    ct0, ct2, ct4 = - 2 * ct[0], - 2 * f * ct[1], - 2 * f**2 * ct[2]    # - 2 ct0 k^2 pk_lin , - 2 ct2 f mu^2 k^2 pk_lin , - 2 ct4 f^2 mu^4 k^2 pk_lin 
-                    if p == 'c0':   pg[i] = ct0                                           
-                    elif p == 'c2': pg[i] = - f/3. * ct0 + ct2                        
-                    elif p == 'c4': pg[i] = 3/35. * f**2 * ct0 - 6/7. * f * ct2 + ct4                                      
+                    ct0, ct2, ct4 = - 2 * ct[0], - 2 * f * ct[1], - 2 * f**2 * ct[2]    # - 2 ct0 k^2 pk_lin , - 2 ct2 f mu^2 k^2 pk_lin , - 2 ct4 f^2 mu^4 k^2 pk_lin
+                    if p == 'c0':   pg[i] = ct0
+                    elif p == 'c2': pg[i] = - f/3. * ct0 + ct2
+                    elif p == 'c4': pg[i] = 3/35. * f**2 * ct0 - 6/7. * f * ct2 + ct4
                 # stochastic term
                 elif p == 'ce0': pg[i] = st[0] / self.c["nd"] # k^0 / nd mono
                 elif p == 'ce1': pg[i] = st[1] / self.c["km"]**2 / self.c["nd"] # k^2 / km^2 / nd mono
@@ -362,20 +361,19 @@ class Correlator(object):
     def __load_engines(self, load_engines=True):
 
         self.co = Common(Nl=self.c["multipole"], kmax=self.c["kmax"], km=self.c["km"], kr=self.c["kr"], nd=self.c["nd"], eft_basis=self.c["eft_basis"],
-            halohalo=self.c["halohalo"], with_cf=self.c["with_cf"], with_time=self.c["with_time"], accboost=self.c["accboost"], optiresum=self.c["optiresum"], 
-            exact_time=self.c["with_exact_time"], quintessence=self.c["with_quintessence"], 
+            halohalo=self.c["halohalo"], with_cf=self.c["with_cf"], with_time=self.c["with_time"], accboost=self.c["accboost"], optiresum=self.c["optiresum"],
+            exact_time=self.c["with_exact_time"], quintessence=self.c["with_quintessence"],
             with_tidal_alignments=self.c["with_tidal_alignments"], nonequaltime=self.c["with_common_nonequal_time"], keep_loop_pieces_independent=self.c["keep_loop_pieces_independent"])
-        
         if load_engines:
             self.nonlinear = NonLinear(load=True, save=True, NFFT=256*self.c["fftaccboost"], fftbias=self.c["fftbias"], co=self.co)
             self.resum = Resum(co=self.co)
-            self.projection = Projection(self.c["xdata"], 
+            self.projection = Projection(self.c["xdata"],
                 with_ap=self.c["with_ap"], H_fid=self.c["H_fid"], D_fid=self.c["D_fid"],
-                with_survey_mask=self.c["with_survey_mask"], survey_mask_arr_p=self.c["survey_mask_arr_p"], survey_mask_mat_kp=self.c["survey_mask_mat_kp"], 
-                with_binning=self.c["with_binning"], binsize=self.c["binsize"], 
-                fibcol=self.c["with_fibercol"], 
+                with_survey_mask=self.c["with_survey_mask"], survey_mask_arr_p=self.c["survey_mask_arr_p"], survey_mask_mat_kp=self.c["survey_mask_mat_kp"],
+                with_binning=self.c["with_binning"], binsize=self.c["binsize"],
+                fibcol=self.c["with_fibercol"],
                 with_wedge=self.c["with_wedge"], wedge_mat_wl=self.c["wedge_mat_wl"],
-                with_redshift_bin=self.c["with_redshift_bin"], redshift_bin_zz=self.c["redshift_bin_zz"], redshift_bin_nz=self.c["redshift_bin_nz"], 
+                with_redshift_bin=self.c["with_redshift_bin"], redshift_bin_zz=self.c["redshift_bin_zz"], redshift_bin_nz=self.c["redshift_bin_nz"],
                 co=self.co)
             if self.c["with_nnlo_counterterm"]: self.nnlo_counterterm = NNLO_counterterm(co=self.co)
 
@@ -387,7 +385,7 @@ class Correlator(object):
                     if cosmo_key is name:
                         cosmo.check(cosmo_key, cosmo_dict[cosmo_key])
 
-        # Setting unspecified configs to default value 
+        # Setting unspecified configs to default value
         for (name, cosmo) in zip(self.cosmo_catalog, self.cosmo_catalog.values()):
             if cosmo.value is None: cosmo.value = cosmo.default
 
@@ -400,7 +398,7 @@ class Correlator(object):
 
         if self.cosmo["kk"] is None or self.cosmo["pk_lin"] is None:
             raise Exception("Please provide a linear matter power spectrum \'pk_lin\' and the corresponding \'kk\'. ")
-        
+
         if len(self.cosmo["kk"]) != len(self.cosmo["pk_lin"]):
             raise Exception("Please provide a linear matter power spectrum \'pk_lin\' and the corresponding \'kk\' of same length.")
 
@@ -408,9 +406,9 @@ class Correlator(object):
             raise Exception("Please provide a linear matter spectrum \'pk_lin\' and the corresponding \'kk\' with min(kk) < 1e-4 and max(kk) > 1.")
 
         if self.c["multipole"] == 0: self.cosmo["f"] = 0.
-        elif not self.c["with_redshift_bin"] and self.cosmo["f"] is None: 
+        elif not self.c["with_redshift_bin"] and self.cosmo["f"] is None:
             raise Exception("Please specify the growth rate \'f\'.")
-        elif self.c["with_redshift_bin"] and (self.cosmo["Dz"] is None or self.cosmo["fz"] is None): 
+        elif self.c["with_redshift_bin"] and (self.cosmo["Dz"] is None or self.cosmo["fz"] is None):
             raise Exception("You asked to account the galaxy counts distribution. Please specify \'Dz\' and \'fz\'. ")
 
         if not self.c["with_time"] and self.cosmo["D"] is None:
@@ -424,21 +422,21 @@ class Correlator(object):
 
         if not self.c["with_time"] and self.cosmo["A"]: self.cosmo["D"] *= self.cosmo["A"]**.5
 
-    def __is_bias_conflict(self, bias=None): 
-        if bias is not None: self.cosmo["bias"] = bias 
-        if self.cosmo["bias"] is None: raise Exception("Please specify \'bias\'. ") 
-        if isinstance(self.cosmo["bias"], (list, np.ndarray)): self.cosmo["bias"] = self.cosmo["bias"][0] 
-        if not isinstance(self.cosmo["bias"], dict): raise Exception("Please specify bias in a dict. ") 
-        
+    def __is_bias_conflict(self, bias=None):
+        if bias is not None: self.cosmo["bias"] = bias
+        if self.cosmo["bias"] is None: raise Exception("Please specify \'bias\'. ")
+        if isinstance(self.cosmo["bias"], (list, np.ndarray)): self.cosmo["bias"] = self.cosmo["bias"][0]
+        if not isinstance(self.cosmo["bias"], dict): raise Exception("Please specify bias in a dict. ")
+
         for p in self.eft_parameters_list:
-            if p not in self.cosmo["bias"]: 
+            if p not in self.cosmo["bias"]:
                 raise Exception ("%s not found, please provide (given command \'eft_basis\': \'%s\') %s" % (p, self.c["eft_basis"], self.eft_parameters_list))
 
         # PZ: here I should auto-fill the EFT parameters for all output options!!!
-        
+
         self.bias = self.cosmo["bias"]
 
-        if "b" in self.c["output"]: 
+        if "b" in self.c["output"]:
             if "westcoast" in self.c["eft_basis"]:
                 self.bias["b2"] = 2.**-.5 * (self.bias["c2"] + self.bias["c4"])
                 self.bias["b4"] = 2.**-.5 * (self.bias["c2"] - self.bias["c4"])
@@ -451,18 +449,18 @@ class Correlator(object):
 
     def __set_eft_parameters_list(self):
 
-        if self.c["eft_basis"] in ["eftoflss", "westcoast"]: 
+        if self.c["eft_basis"] in ["eftoflss", "westcoast"]:
             self.gauss_eft_parameters_list = ['cct']
             if self.c["multipole"] >= 2: self.gauss_eft_parameters_list.extend(['cr1', 'cr2'])
-        elif self.c["eft_basis"] == "eastcoast": 
+        elif self.c["eft_basis"] == "eastcoast":
             self.gauss_eft_parameters_list = ['c0']
             if self.c["multipole"] >= 2: self.gauss_eft_parameters_list.extend(['c2', 'c4'])
         if self.c["with_stoch"]: self.gauss_eft_parameters_list.extend(['ce0', 'ce1', 'ce2'])
-        if self.c["with_nnlo_counterterm"]: 
+        if self.c["with_nnlo_counterterm"]:
             if self.c["eft_basis"] in ["eftoflss", "westcoast"]: self.gauss_eft_parameters_list.extend(['cr4', 'cr6'])
             elif self.c["eft_basis"] == "eastcoast": self.gauss_eft_parameters_list.append('ct')
         self.eft_parameters_list = deepcopy(self.gauss_eft_parameters_list)
-        if "b" in self.c["output"]: 
+        if "b" in self.c["output"]:
             if self.c["eft_basis"] in ["eftoflss", "westcoast"]: self.gauss_eft_parameters_list.append('b3')
             elif self.c["eft_basis"] == "eastcoast": self.gauss_eft_parameters_list.append('bGamma3')
             if self.c["eft_basis"] == "eftoflss": self.eft_parameters_list.extend(['b1', 'b2', 'b3', 'b4'])
@@ -480,26 +478,26 @@ class Correlator(object):
                     config.check(config_key, config_dict[config_key])
                     is_config = True
             ### v1.2: we'll activate this later
-            # if not is_config: 
+            # if not is_config:
             #     raise Exception("%s is not an available configuration option. Please check correlator.info() for help. " % config_key)
-            
-        # Setting unspecified configs to default value 
+
+        # Setting unspecified configs to default value
         for (name, config) in zip(self.c_catalog, self.c_catalog.values()):
             if config.value is None: config.value = config.default
 
         # Translating the catalog to a dict
         self.c = translate_catalog_to_dict(self.c_catalog)
-        
+
         self.c["accboost"] = float(self.c["accboost"])
 
     def __is_config_conflict(self):
 
         if "Cf" in self.c["output"]: self.c.update({"with_cf": True, "with_survey_mask": False, "with_stoch": False})
         else: self.c["with_cf"] = False
-        
+
         if "bm" in self.c["output"]: self.c["halohalo"] = False
         else: self.c["halohalo"] = True
-        
+
         if self.c["with_quintessence"]: self.c["with_exact_time"] = True
 
         self.c["with_common_nonequal_time"] = False # this is to pass for the common Class to setup the numbers of loops (22 and 13 gathered by default)
@@ -509,7 +507,7 @@ class Correlator(object):
 
         if self.c["with_ap"] and (self.c["H_fid"] is None or self.c["D_fid"] is None):
                 raise Exception("You asked to apply the AP effect. Please specify \'H_fid\' and \'D_fid\'. ")
-        
+
         if self.c["with_survey_mask"] and (self.c["survey_mask_arr_p"] is None or self.c["survey_mask_mat_kp"] is None): raise Exception("Survey mask: on. Please specify \'survey_mask_arr_p\' and \'survey_mask_mat_kp\'. ")
         if self.c["with_binning"] and self.c["binsize"] is None: raise Exception("Binning: on. Please provide \'binsize\'.")
         if self.c["with_redshift_bin"]:
@@ -520,12 +518,12 @@ class Correlator(object):
     def set_cosmo(self, cosmo_dict, module='class', engine=None):
 
         cosmo = {}
-        
+
         if module == 'class':
 
-            log10kmax = 0 
+            log10kmax = 0
             if self.c["with_nnlo_counterterm"]: log10kmax = 1 # slower, but required for the wiggle-no-wiggle split scheme
-            
+
             if not engine:
                 from classy import Class
                 cosmo_dict_local = cosmo_dict.copy()
@@ -543,13 +541,13 @@ class Correlator(object):
             cosmo["pk_lin"] = np.array([M.pk_lin(k*M.h(), self.c["z"])*M.h()**3 for k in cosmo["kk"]]) # P(k) in (Mpc/h)**3
 
             if self.c["multipole"] > 0: cosmo["f"] = M.scale_independent_growth_factor_f(self.c["z"])
-            if not self.c["with_time"]: cosmo["D"] = M.scale_independent_growth_factor(self.c["z"]) 
+            if not self.c["with_time"]: cosmo["D"] = M.scale_independent_growth_factor(self.c["z"])
             if self.c["with_nonequal_time"]:
-                cosmo["D1"] = M.scale_independent_growth_factor(self.c["z1"]) 
-                cosmo["D2"] = M.scale_independent_growth_factor(self.c["z2"]) 
-                cosmo["f1"] = M.scale_independent_growth_factor_f(self.c["z1"]) 
-                cosmo["f2"] = M.scale_independent_growth_factor_f(self.c["z2"]) 
-            if self.c["with_exact_time"] or self.c["with_quintessence"]: 
+                cosmo["D1"] = M.scale_independent_growth_factor(self.c["z1"])
+                cosmo["D2"] = M.scale_independent_growth_factor(self.c["z2"])
+                cosmo["f1"] = M.scale_independent_growth_factor_f(self.c["z1"])
+                cosmo["f2"] = M.scale_independent_growth_factor_f(self.c["z2"])
+            if self.c["with_exact_time"] or self.c["with_quintessence"]:
                 cosmo["z"] = self.c["z"]
                 cosmo["Omega0_m"] = M.Omega0_m()
                 if "w0_fld" in cosmo_dict: cosmo["w0_fld"] = cosmo_dict["w0_fld"]
@@ -562,8 +560,8 @@ class Correlator(object):
                 cosmo["fz"] = np.array([M.scale_independent_growth_factor_f(z) for z in self.c["redshift_bin_zz"]])
                 cosmo["rz"] = np.array([comoving_distance(z) for z in self.c["redshift_bin_zz"]])
 
-            if self.c["with_quintessence"]: 
-                # starting deep inside matter domination and evolving to the total adiabatic linear power spectrum. 
+            if self.c["with_quintessence"]:
+                # starting deep inside matter domination and evolving to the total adiabatic linear power spectrum.
                 # This does not work in the general case, e.g. with massive neutrinos (okish for minimal mass though)
                 # This does not work for 'with_redshift_bin': True. # eventually to code up
                 zm = 5. # z in matter domination
@@ -602,7 +600,7 @@ class Correlator(object):
 
             return cosmo
 
-class BiasCorrelator(Correlator): 
+class BiasCorrelator(Correlator):
     '''
     Class to load pre-computed correlator
     '''
@@ -638,9 +636,9 @@ class Option(object):
             if self.list is None: is_config = True
             elif isinstance(config_value, str):
                 if any(config_value in o for o in self.list): is_config = True
-            elif isinstance(config_value, (int, float, bool)): 
+            elif isinstance(config_value, (int, float, bool)):
                 if any(config_value == o for o in self.list): is_config = True
-        if is_config: 
+        if is_config:
             self.value = config_value
         else: self.error()
         return is_config
@@ -652,7 +650,3 @@ class Option(object):
         else:
             try: raise Exception("Input error in \'%s\'; input configs: %s. Check Correlator.info() in any doubt." % (self.name, self.list))
             except Exception as e: print(e)
-
-
-
-
