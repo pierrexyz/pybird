@@ -13,17 +13,17 @@ from pybird.projection import Projection
 from pybird.greenfunction import GreenFunction
 from pybird.fourier import FourierTransform
 
-### dev mode ###
-import importlib, pybird
-importlib.reload(pybird.common)
-from pybird.common import Common, co
-importlib.reload(pybird.bird)
-from pybird.bird import Bird
-importlib.reload(pybird.nonlinear)
-from pybird.nonlinear import NonLinear
-importlib.reload(pybird.resum)
-from pybird.resum import Resum
-################
+# ### dev mode ###
+# import importlib, pybird
+# importlib.reload(pybird.common)
+# from pybird.common import Common, co
+# importlib.reload(pybird.bird)
+# from pybird.bird import Bird
+# importlib.reload(pybird.nonlinear)
+# from pybird.nonlinear import NonLinear
+# importlib.reload(pybird.resum)
+# from pybird.resum import Resum
+# ################
 
 class Correlator(object): 
 
