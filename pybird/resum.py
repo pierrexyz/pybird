@@ -9,7 +9,7 @@ from pybird.resumfactor import Qa, Qawithhex, Qawithhex20
 
 class Resum(object):
     """
-    given a Bird() object, performs the IR-resummation of the power spectrum. 
+    given a Bird() object, performs the IR-resummation of the power spectrum.
     There are two options:
     1.  fullresum: the FFTLog's are performed on the full integrands from s = .1 to s = 10000. in (Mpc/h) (default)
     2. 'optiresum: the FFTLog's are performed only on the BAO peak that is extracted by removing the smooth part of the correlation function. What is left is then padded with zeros and the FFTLog's run from s = .1 to s = 1000. in (Mpc/h).
@@ -60,7 +60,7 @@ class Resum(object):
     XM : ndarray
         spherical Bessel transform matrices to evaluate the IR-filters X and Y
     XsPow : ndarray
-        s's to the powers on which to perform the FFTLog to evaluate the IR-filters X and Y    
+        s's to the powers on which to perform the FFTLog to evaluate the IR-filters X and Y
     """
 
     def __init__(self, LambdaIR=.2, NFFT=192, co=co):
@@ -86,7 +86,7 @@ class Resum(object):
         self.Nlow = np.where(self.klow <= self.co.k)[0][0]
         k2pi = np.array([self.kr**(2*(p+1)) for p in range(self.co.NIR)])
         self.k2p = np.concatenate((k2pi, k2pi))
-        
+
         self.fftsettings = dict(Nmax=NFFT, xmin=.1, xmax=10000., bias=-0.6)
         self.fft = FFTLog(**self.fftsettings)
         self.setM()
@@ -147,7 +147,7 @@ class Resum(object):
 
     def setkPow(self):
         """ Multiply the coefficients with the k's to the powers of the FFTLog to evaluate the IR-corrections. """
-        self.kPow = exp(np.einsum('n,s->ns', -self.fft.Pow - 3., log(self.kr))) 
+        self.kPow = exp(np.einsum('n,s->ns', -self.fft.Pow - 3., log(self.kr)))
 
     def setM(self, Nl=3):
         """ Compute the matrices to evaluate the IR-corrections. Called at instantiation. """
@@ -161,8 +161,8 @@ class Resum(object):
         return np.real(np.einsum('nk,ln->lk', CoefkPow, self.M[:self.co.Na]))
 
     def extractBAO(self, cf):
-        """ Given a correlation function cf, 
-            - if fullresum, return cf 
+        """ Given a correlation function cf,
+            - if fullresum, return cf
             - if optiresum, extract the BAO peak """
         if self.co.optiresum:
             cfnobao = np.concatenate([cf[..., :self.idlow], cf[..., self.idhigh:]], axis=-1)
@@ -204,7 +204,7 @@ class Resum(object):
 
     def Ps2Cf(self, P, l=0):
         Coef = self.Cfft.Coef(self.co.k, P * self.dampPs[l], extrap='padding', window=None)
-        CoefsPow = np.einsum('n,ns->ns', Coef, self.sPow) 
+        CoefsPow = np.einsum('n,ns->ns', Coef, self.sPow)
         return np.real(np.einsum('ns,n->s', CoefsPow, self.Ml[l])) * self.dampCf
 
     def IRCf(self, bird, window=None):
@@ -228,9 +228,9 @@ class Resum(object):
     def PsCf(self, bird, makeIR=True, makeQ=True, setIR=True, setPs=True, setCf=True, window=None):
 
         self.Ps(bird, makeIR=makeIR, makeQ=makeQ, setIR=setIR, setPs=setPs, window=window)
-        if setCf: 
-            self.IRCf(bird, window=window) 
-            bird.setresumCf() 
+        if setCf:
+            self.IRCf(bird, window=window)
+            bird.setresumCf()
 
     def Ps(self, bird, makeIR=True, makeQ=True, setIR=True, setPs=True, window=None):
 
@@ -247,7 +247,7 @@ class Resum(object):
         if bird.with_bias:
             for a, cf in enumerate(self.extractBAO(bird.Cf[:2])): # linear, loop (but not NNLO)
                 for l, cl in enumerate(cf):
-                    for j, xy in enumerate(XpYp): 
+                    for j, xy in enumerate(XpYp):
                         IRcorrUnsorted = np.real((-1j)**(2*l)) * self.k2p[j] * self.IRn(xy * cl, window=window)
                         for v in range(self.co.Na): bird.IRPs[a, l, j*self.co.Na + v, self.Nlow:] = IRcorrUnsorted[v]
 
@@ -265,4 +265,3 @@ class Resum(object):
                     for j, xy in enumerate(XpYp):
                         IRcorrUnsorted = np.real((-1j)**(2*l)) * self.k2p[j] * self.IRn(xy * cli, window=window)
                         for v in range(self.co.Na): bird.IRPsloop[l, i, j*self.co.Na + v, self.Nlow:] = IRcorrUnsorted[v]
-
