@@ -23,6 +23,8 @@ from pybird.fourier import FourierTransform
 # from pybird.nonlinear import NonLinear
 # importlib.reload(pybird.resum)
 # from pybird.resum import Resum
+
+# # import pdb; pdb.set_trace()
 # ################
 
 class Correlator(object):

@@ -326,7 +326,7 @@ class Bird(object):
         for l in range(self.co.Nl): self.Ps[1, l] -= self.Ps[1, l, 0]
         self.Ps[1] += np.einsum('lb,bx->lx', self.b13, self.P13) + np.einsum('l,x,x->lx', self.bct, self.co.k**2, self.P11)
         if self.with_stoch: self.Ps[1] += np.einsum('b,lbx->lx', self.bst, self.Pstl)
-        if self.with_nnlo_counterterm: self.Ps[2] = np.einsum('lb,x->lx', self.cnnlo, self.Pnnlo)
+        if self.with_nnlo_counterterm: self.Ps[2] = np.einsum('l,x->lx', self.cnnlo, self.Pnnlo)
         if setfull: self.setfullPs()
 
     def setCf(self, bs=None, setfull=True):
@@ -341,7 +341,7 @@ class Bird(object):
         self.Cf[0] = np.einsum('l,lx->lx', self.b11, self.C11)
         self.Cf[1] = np.einsum('lb,lbx->lx', self.b22, self.C22l) + np.einsum('lb,lbx->lx', self.b13, self.C13l) + np.einsum('l,lx->lx', self.bct, self.Cct)
         # if self.with_stoch: self.Cf[1] += np.einsum('b,lbx->lx', self.bst, self.Cstl) # no stochastic term for Cf
-        if self.with_nnlo_counterterm: self.Cf[2] = np.einsum('lb,lx->lx', self.cnnlo, self.Cnnlo)
+        if self.with_nnlo_counterterm: self.Cf[2] = np.einsum('l,lx->lx', self.cnnlo, self.Cnnlo)
         if setfull: self.setfullCf()
 
     def setPsCf(self, bs, setfull=True):
