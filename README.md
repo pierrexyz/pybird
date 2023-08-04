@@ -77,7 +77,7 @@ Read the docs at [https://pybird.readthedocs.io](https://pybird.readthedocs.io).
 ## Attribution
 * Written by [Pierre Zhang](mailto:pierrexyz@protonmail.com) and [Guido D'Amico](mailto:damico.guido@gmail.com)
 * License: MIT
-* Contributions from: Thomas Colas, Théo Simon
+* Special thanks to: Arnaud de Mattia, Thomas Colas, Théo Simon, Luis Ureña
 
 When using PyBird in a publication, please acknowledge the code by citing the following paper:  
 > G. D’Amico, L. Senatore and P. Zhang, "Limits on wCDM from the EFTofLSS with the PyBird code", JCAP 01 (2021) 006, [2003.07956](https://arxiv.org/abs/2003.07956)
