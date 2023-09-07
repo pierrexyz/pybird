@@ -177,6 +177,9 @@ class Bird(object):
 
         if cosmo["pk_lin_2"] is not None: self.Pin_2 = cosmo["pk_lin_2"]
         else: self.Pin_2 = self.Pin
+        if self.Pin_2 is not None:
+            self.Plin_2 = interp1d(self.kin, self.Pin_2, kind='cubic')
+            self.P11_2 = self.Plin_2(self.co.k)
 
         if not self.co.with_time: self.D = cosmo["D"]
         self.f = cosmo["f"]
@@ -188,7 +191,7 @@ class Bird(object):
             else: self.w0 = None
             self.Omega0_m = cosmo["Omega0_m"]
             self.z = cosmo["z"]
-            #print (self.z, self.Omega0_m)
+            # print (self.z, self.Omega0_m)
             self.a = 1/(1.+self.z)
             GF = GreenFunction(self.Omega0_m, w=self.w0, quintessence=self.co.quintessence)
             self.Y1 = GF.Y(self.a)
@@ -199,12 +202,12 @@ class Bird(object):
                 self.f = GF.fplus(self.a)
             else: self.G1 = 1.
             # print (self.Y1, self.G1t, self.V12t, self.G1, self.f, GF.fplus(self.a))
-            # except:
-            #     print ("setting EdS time approximation")
-            #     self.Y1 = 0.
-            #     self.G1t = 3/7.
-            #     self.V12t = 1/7.
-            #     self.G1 = 1.
+            
+            # print ("setting EdS time approximation")
+            # self.Y1 = 0.
+            # self.G1t = 3/7.
+            # self.V12t = 1/7.
+            # self.G1 = 1.
 
         if self.co.nonequaltime:
             self.D = cosmo["D"]
@@ -264,7 +267,9 @@ class Bird(object):
                     elif self.eft_basis == "eastcoast": self.bct[i] = - 2. * (ct0 * mu[0][l] + ct2 * f * mu[2][l] + ct4 * f**2 * mu[4][l])  # these are not divided by km^2 or kr^2 according to eastcoast definition; the prior is adjusted accordingly
                     if self.co.exact_time:
                         self.b22[i] = np.array([ b1**2*G1**2*mu[0][l], b1*b2*G1*mu[0][l], b1*b4*G1*mu[0][l], b2**2*mu[0][l], b2*b4*mu[0][l], b4**2*mu[0][l], b1**2*f*G1*mu[2][l], b1*b2*f*mu[2][l], b1*b4*f*mu[2][l], b1*f*G1**2*mu[2][l], b2*f*G1*mu[2][l], b4*f*G1*mu[2][l], b1**2*f**2*mu[2][l], b1**2*f**2*mu[4][l], b1*f**2*G1*mu[2][l], b1*f**2*G1*mu[4][l], b2*f**2*mu[2][l], b2*f**2*mu[4][l], b4*f**2*mu[2][l], b4*f**2*mu[4][l], f**2*G1**2*mu[4][l], b1*f**3*mu[4][l], b1*f**3*mu[6][l], f**3*G1*mu[4][l], f**3*G1*mu[6][l], f**4*mu[4][l], f**4*mu[6][l], f**4*mu[8][l], b1*f*G1*G1t*mu[2][l], b2*f*G1t*mu[2][l], b4*f*G1t*mu[2][l], b1*f**2*G1t*mu[4][l], f**2*G1*G1t*mu[4][l], f**3*G1t*mu[4][l], f**3*G1t*mu[6][l], f**2*G1t**2*mu[4][l] ])
-                        self.b13[i] = np.array([ b1**2*G1**2*mu[0][l], b1*b3*mu[0][l], b1*f*G1**2*mu[2][l], b3*f*mu[2][l], f**2*G1**2*mu[4][l], b1**2*Y1*mu[0][l], b1*f*mu[2][l]*Y1, f**2*mu[4][l]*Y1, b1**2*f*G1t*mu[2][l], b1*f**2*G1t*mu[2][l], b1*f**2*G1t*mu[4][l], f**3*G1t*mu[4][l], f**3*G1t*mu[6][l], b1*f*mu[2][l]*V12t, f**2*mu[4][l]*V12t ])
+                        if self.co.with_uvmatch: self.b13[i] = np.array([ b1**2*G1**2*mu[0][l], b1*b3*mu[0][l], b1*f*G1**2*mu[2][l], b3*f*mu[2][l], f**2*G1**2*mu[4][l], b1**2*Y1*mu[0][l], b1*f*mu[2][l]*Y1, f**2*mu[4][l]*Y1, b1**2*f*G1t*mu[2][l], b1*f**2*G1t*mu[2][l], b1*f**2*G1t*mu[4][l], f**3*G1t*mu[4][l], f**3*G1t*mu[6][l], b1*f*mu[2][l]*V12t, f**2*mu[4][l]*V12t,
+                             b1**2 * f * mu[2][l], b1**2 * f**2 * mu[2][l], b1 * f**2 * mu[4][l], b1 * f**3 * mu[4][l], f**3 * mu[6][l], f**4 * mu[6][l] ])
+                        else: self.b13[i] = np.array([ b1**2*G1**2*mu[0][l], b1*b3*mu[0][l], b1*f*G1**2*mu[2][l], b3*f*mu[2][l], f**2*G1**2*mu[4][l], b1**2*Y1*mu[0][l], b1*f*mu[2][l]*Y1, f**2*mu[4][l]*Y1, b1**2*f*G1t*mu[2][l], b1*f**2*G1t*mu[2][l], b1*f**2*G1t*mu[4][l], f**3*G1t*mu[4][l], f**3*G1t*mu[6][l], b1*f*mu[2][l]*V12t, f**2*mu[4][l]*V12t ])
                         # similar to above but with G1 = 1
                         # self.b22[i] = np.array([b1**2*mu[0][l], b1*b2*mu[0][l], b1*b4*mu[0][l], b2**2*mu[0][l], b2*b4*mu[0][l], b4**2*mu[0][l], b1**2*f*mu[2][l], b1*b2*f*mu[2][l], b1*b4*f*mu[2][l], b1*f*mu[2][l], b2*f*mu[2][l], b4*f*mu[2][l], b1**2*f**2*mu[2][l], b1**2*f**2*mu[4][l], b1*f**2*mu[2][l], b1*f**2*mu[4][l], b2*f**2*mu[2][l], b2*f**2*mu[4][l], b4*f**2*mu[2][l], b4*f**2*mu[4][l], f**2*mu[4][l], b1*f**3*mu[4][l], b1*f**3*mu[6][l], f**3*mu[4][l], f**3*mu[6][l], f**4*mu[4][l], f**4*mu[6][l], f**4*mu[8][l], b1*f*G1t*mu[2][l], b2*f*G1t*mu[2][l], b4*f*G1t*mu[2][l], b1*f**2*G1t*mu[4][l], f**2*G1t*mu[4][l], f**3*G1t*mu[4][l], f**3*G1t*mu[6][l], f**2*G1t**2*mu[4][l] ])
                         # self.b13[i] = np.array([b1**2*mu[0][l], b1*b3*mu[0][l], b1*f*mu[2][l], b3*f*mu[2][l], f**2*mu[4][l], b1**2*Y1*mu[0][l], b1*f*mu[2][l]*Y1, f**2*mu[4][l]*Y1, b1**2*f*G1t*mu[2][l], b1*f**2*G1t*mu[2][l], b1*f**2*G1t*mu[4][l], f**3*G1t*mu[4][l], f**3*G1t*mu[6][l], b1*f*mu[2][l]*V12t, f**2*mu[4][l]*V12t])
@@ -273,7 +278,9 @@ class Bird(object):
                         self.b13[i] = np.array([ b1*bq*mu[2][l], b3*bq*mu[2][l], bq**2*mu[2][l], bq**2*mu[4][l], b1**2*mu[0][l], b1*b3*mu[0][l], b1*bq*mu[0][l], b3*bq*mu[0][l], bq**2*mu[0][l], b1**2*f*mu[2][l], b1*bq*f*mu[2][l], b1*bq*f*mu[4][l], b1*f*mu[2][l], b3*f*mu[2][l], bq*f*mu[2][l], bq*f*mu[4][l], b1*f**2*mu[2][l], b1*f**2*mu[4][l], bq*f**2*mu[2][l], bq*f**2*mu[4][l], bq*f**2*mu[6][l], f**2*mu[4][l], f**3*mu[4][l], f**3*mu[6][l] ])
                     else: # EdS time approximation, no tidal alignments
                         self.b22[i] = np.array([b1**2 * mu[0][l], b1 * b2 * mu[0][l], b1 * b4 * mu[0][l], b2**2 * mu[0][l], b2 * b4 * mu[0][l], b4**2 * mu[0][l], b1**2 * f * mu[2][l], b1 * b2 * f * mu[2][l], b1 * b4 * f * mu[2][l], b1 * f * mu[2][l], b2 * f * mu[2][l], b4 * f * mu[2][l], b1**2 * f**2 * mu[2][l], b1**2 * f**2 * mu[4][l], b1 * f**2 * mu[2][l], b1 * f**2 * mu[4][l], b2 * f**2 * mu[2][l], b2 * f**2 * mu[4][l], b4 * f**2 * mu[2][l], b4 * f**2 * mu[4][l], f**2 * mu[4][l], b1 * f**3 * mu[4][l], b1 * f**3 * mu[6][l], f**3 * mu[4][l], f**3 * mu[6][l], f**4 * mu[4][l], f**4 * mu[6][l], f**4 * mu[8][l]])
-                        self.b13[i] = np.array([b1**2 * mu[0][l], b1 * b3 * mu[0][l], b1**2 * f * mu[2][l], b1 * f * mu[2][l], b3 * f * mu[2][l], b1 * f**2 * mu[2][l], b1 * f**2 * mu[4][l], f**2 * mu[4][l], f**3 * mu[4][l], f**3 * mu[6][l]])
+                        if self.co.with_uvmatch: self.b13[i] = np.array([ b1**2 * mu[0][l], b1 * b3 * mu[0][l], b1**2 * f * mu[2][l], b1 * f * mu[2][l], b3 * f * mu[2][l], b1 * f**2 * mu[2][l], b1 * f**2 * mu[4][l], f**2 * mu[4][l], f**3 * mu[4][l], f**3 * mu[6][l],
+                            b1**2 * f**2 * mu[2][l], b1 * f**3 * mu[4][l], f**4 * mu[6][l] ])
+                        else: self.b13[i] = np.array([b1**2 * mu[0][l], b1 * b3 * mu[0][l], b1**2 * f * mu[2][l], b1 * f * mu[2][l], b3 * f * mu[2][l], b1 * f**2 * mu[2][l], b1 * f**2 * mu[4][l], f**2 * mu[4][l], f**3 * mu[4][l], f**3 * mu[6][l]])
             else: # evaluation with biases unspecified
                 if self.with_nnlo_counterterm:
                     if self.eft_basis in ["eftoflss", "westcoast"]: self.cnnlo = 0.25 * np.array([b1**2 * bias["cr4"], b1 * bias["cr6"]]) / self.co.kr**4
@@ -429,6 +436,15 @@ class Bird(object):
                     self.Cloopl[:, 10] = self.C22l[:, 4]  # *b2*b4
                     self.Cloopl[:, 11] = self.C22l[:, 5]  # *b4*b4
 
+                    if self.co.with_uvmatch:
+                        self.Ploopl[:, 0] += f1**4 * self.P13l[:, -1] + f1**3 * self.P13l[:, -2] # *1
+                        self.Ploopl[:, 1] += f1**3 * self.P13l[:, -3] + f1**2 * self.P13l[:, -4] # *b1
+                        self.Ploopl[:, 5] += f1**2 * self.P13l[:, -5] + f1 * self.P13l[:, -6] # *b1*b1
+
+                        self.Cloopl[:, 0] += f1**4 * self.C13l[:, -1] + f1**3 * self.C13l[:, -2] # *1
+                        self.Cloopl[:, 1] += f1**3 * self.C13l[:, -3] + f1**2 * self.C13l[:, -4] # *b1
+                        self.Cloopl[:, 5] += f1**2 * self.C13l[:, -5] + f1 * self.C13l[:, -6] # *b1*b1
+
                 elif self.co.Nloop == 35: # config["with_time"] == False
                     self.Ploopl[:, 0] = self.P22l[:, 20] + self.P13l[:, 4]   # *f^2
                     self.Ploopl[:, 1] = self.P22l[:, 32]    # *f^2*G1t
@@ -502,6 +518,21 @@ class Bird(object):
                     self.Cloopl[:, 33] = self.C22l[:, 4]     # *b2*b4
                     self.Cloopl[:, 34] = self.C22l[:, 5]     # *b4^2
 
+                    if self.co.with_uvmatch:
+                        self.Ploopl[:, 7] += self.P13l[:, -1] # *f^4
+                        self.Ploopl[:, 5] += self.P13l[:, -2] # *f^3
+                        self.Ploopl[:, 14] += self.P13l[:, -3] # *b1*f^3
+                        self.Ploopl[:, 12] += self.P13l[:, -4] # *b1*f^2
+                        self.Ploopl[:, 26] += self.P13l[:, -5] # *b1*b1*f^2
+                        self.Ploopl[:, 24] += self.P13l[:, -6] # *b1*b1*f
+
+                        self.Cloopl[:, 7] += self.C13l[:, -1] # *f^4
+                        self.Cloopl[:, 5] += self.C13l[:, -2] # *f^3
+                        self.Cloopl[:, 14] += self.C13l[:, -3] # *b1*f^3
+                        self.Cloopl[:, 12] += self.C13l[:, -4] # *b1*f^2
+                        self.Cloopl[:, 26] += self.C13l[:, -5] # *b1*b1*f^2
+                        self.Cloopl[:, 24] += self.C13l[:, -6] # *b1*b1*f
+
             else:                       # config["with_exact_time"] == False
                 if self.co.Nloop == 12: # config["with_time"] == True
                     f1 = self.f
@@ -531,6 +562,15 @@ class Bird(object):
                     self.Cloopl[:, 9] = self.C22l[:, 3]  # *b2*b2
                     self.Cloopl[:, 10] = self.C22l[:, 4]  # *b2*b4
                     self.Cloopl[:, 11] = self.C22l[:, 5]  # *b4*b4
+
+                    if self.co.with_uvmatch:
+                        self.Ploopl[:, 0] += f1**4 * self.P13l[:, -1] # *1
+                        self.Ploopl[:, 1] += f1**3 * self.P13l[:, -2] # *b1
+                        self.Ploopl[:, 5] += f1**2 * self.P13l[:, -3] # *b1*b1
+
+                        self.Cloopl[:, 0] += f1**4 * self.C13l[:, -1] # *1
+                        self.Cloopl[:, 1] += f1**3 * self.C13l[:, -2] # *b1
+                        self.Cloopl[:, 5] += f1**2 * self.C13l[:, -3] # *b1*b1
 
                     # if self.co.angular: ### this is depreciated
                     #     self.Aloopl[:, 0] = f1**2 * self.A22l[:, 20] + f1**3 * self.A22l[:, 23] + f1**3 * self.A22l[:, 24] + f1**4 * self.A22l[:, 25] + \
@@ -595,6 +635,15 @@ class Bird(object):
                     self.Cloopl[:, 19] = self.C22l[:, 3]  # *b2*b2
                     self.Cloopl[:, 20] = self.C22l[:, 4]  # *b2*b4
                     self.Cloopl[:, 21] = self.C22l[:, 5]  # *b4*b4
+
+                    if self.co.with_uvmatch:
+                        self.Ploopl[:, 2] += self.P13l[:, -1] # *f^4
+                        self.Ploopl[:, 5] += self.P13l[:, -2] # *b1*f^3
+                        self.Ploopl[:, 13] += self.P13l[:, -3] # *b1*b1*f^2
+
+                        self.Cloopl[:, 2] += self.C13l[:, -1] # *f^4
+                        self.Cloopl[:, 5] += self.C13l[:, -2] # *b1*f^3
+                        self.Cloopl[:, 13] += self.C13l[:, -3] # *b1*b1*f^2
 
                 elif self.co.Nloop == 18: # config["with_tidal_alignements"] = True
                     f1 = self.f

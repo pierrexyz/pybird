@@ -12,17 +12,20 @@ from pybird.resum import Resum
 from pybird.projection import Projection
 from pybird.greenfunction import GreenFunction
 from pybird.fourier import FourierTransform
+from pybird.matching import Matching
 
-# ### dev mode ###
-# import importlib, pybird
-# importlib.reload(pybird.common)
-# from pybird.common import Common, co
-# importlib.reload(pybird.bird)
-# from pybird.bird import Bird
-# importlib.reload(pybird.nonlinear)
-# from pybird.nonlinear import NonLinear
-# importlib.reload(pybird.resum)
-# from pybird.resum import Resum
+### dev mode ###
+import importlib, pybird
+importlib.reload(pybird.common)
+from pybird.common import Common, co
+importlib.reload(pybird.bird)
+from pybird.bird import Bird
+importlib.reload(pybird.nonlinear)
+from pybird.nonlinear import NonLinear
+importlib.reload(pybird.resum)
+from pybird.resum import Resum
+importlib.reload(pybird.matching)
+from pybird.matching import Matching
 
 # # import pdb; pdb.set_trace()
 # ################
@@ -145,7 +148,7 @@ class Correlator(object):
                 description="Clustering quintessence.",
                 default=False) ,
             "with_nonequal_time": Option("with_nonequal_time", bool,
-                description="Non equal time correlator. Automatically set to \'with_time\' to False ",
+                description="Non equal time correlator. Automatically set \'with_time\' to False ",
                 default=False) ,
             "z1": Option("z1", float,
                 description="Redshift z_1 for non equal time correlator.",
@@ -213,6 +216,9 @@ class Correlator(object):
             "fftbias": Option("fftbias", float,
                 description="real power bias for fftlog decomposition of pk_lin (usually to keep to default value)",
                 default=-1.6) ,
+            "with_uvmatch_twopk": Option("with_uvmatch_twopk", bool,
+                description="In case two linear power spectra \`pk_lin\` and \`pk_lin_2\` are provided (see description in cosmo_catalog), match the UV as in the case if only \`pk_lin\` would be provided. Implemented only for output=\`Pk\`. ",
+                default=False) ,
             "keep_loop_pieces_independent": Option("keep_loop_pieces_independent", bool,
                 description="keep the loop pieces 13 and 22 independent (mainly for debugging)",
                 default=False) ,
@@ -281,6 +287,7 @@ class Correlator(object):
                 else: self.nnlo_counterterm.Ps(self.bird, ilogPsmooth)
             if not correlator_engine: self.nonlinear.PsCf(self.bird)
             elif correlator_engine: correlator_engine.nonlinear.PsCf(self.bird, c_alpha) # emu
+            if self.c["with_uvmatch_twopk"]: self.matching.Ps(self.bird) 
             if self.c["with_bias"]: self.bird.setPsCf(self.bias)
             else: self.bird.setPsCfl()
             if self.c["with_resum"]:
@@ -364,10 +371,11 @@ class Correlator(object):
 
         self.co = Common(Nl=self.c["multipole"], kmax=self.c["kmax"], km=self.c["km"], kr=self.c["kr"], nd=self.c["nd"], eft_basis=self.c["eft_basis"],
             halohalo=self.c["halohalo"], with_cf=self.c["with_cf"], with_time=self.c["with_time"], accboost=self.c["accboost"], optiresum=self.c["optiresum"],
-            exact_time=self.c["with_exact_time"], quintessence=self.c["with_quintessence"],
+            exact_time=self.c["with_exact_time"], quintessence=self.c["with_quintessence"], with_uvmatch=self.c["with_uvmatch_twopk"],
             with_tidal_alignments=self.c["with_tidal_alignments"], nonequaltime=self.c["with_common_nonequal_time"], keep_loop_pieces_independent=self.c["keep_loop_pieces_independent"])
         if load_engines:
             self.nonlinear = NonLinear(load=True, save=True, NFFT=256*self.c["fftaccboost"], fftbias=self.c["fftbias"], co=self.co)
+            if self.c["with_uvmatch_twopk"]: self.matching = Matching(self.nonlinear, co=self.co)
             self.resum = Resum(co=self.co)
             self.projection = Projection(self.c["xdata"],
                 with_ap=self.c["with_ap"], H_fid=self.c["H_fid"], D_fid=self.c["D_fid"],

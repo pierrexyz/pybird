@@ -28,7 +28,7 @@ class Common(object):
 
     def __init__(self, Nl=2, kmin=0.001, kmax=0.25, km=1., kr=1., nd=3e-4, eft_basis='eftoflss',
         halohalo=True, with_cf=False, with_time=True, accboost=1., optiresum=False, orderresum=16, 
-        exact_time=False, quintessence=False, with_tidal_alignments=False, nonequaltime=False, keep_loop_pieces_independent=False):
+        with_uvmatch=False, exact_time=False, quintessence=False, with_tidal_alignments=False, nonequaltime=False, keep_loop_pieces_independent=False):
         
         self.eft_basis = eft_basis
         self.halohalo = halohalo
@@ -38,6 +38,7 @@ class Common(object):
         # self.kr4 = self.km**4 / 16.**1           # 3(perm.)/4! * {cr4~1} / kr^4 ~ 1/8 * 8^2 * {cr4~1} / km^4     ~~> 1 / kmr4 ~ 8 / km^4 # there is another factor 2 ~~> 1 / kmr4 ~ 16 / km^4
         self.optiresum = optiresum
         self.with_time = with_time
+        self.with_uvmatch = with_uvmatch
         self.exact_time = exact_time
         self.quintessence = quintessence
         # if self.quintessence: self.exact_time = True
@@ -64,6 +65,9 @@ class Common(object):
             else:
                 self.N22 = 28  # number of 22-loops
                 self.N13 = 10  # number of 13-loops
+            if self.with_uvmatch: 
+                if self.exact_time: self.N13 += 6
+                else: self.N13 += 3 
             
 
             if self.keep_loop_pieces_independent: 
@@ -140,17 +144,19 @@ class Common(object):
                     self.lct[i] = np.array([mu[0][l], mu[2][l], mu[4][l]])
                     self.lnnlo[i] = np.array([mu[4][l], mu[6][l], mu[8][l]])
                 if self.exact_time:
-                    self.l22[i] = np.array([ 6 * [mu[0][l]] + 7 * [mu[2][l]] + [mu[4][l], mu[2][l], mu[4][l], mu[2][l], mu[4][l], mu[2][l]] 
-                        + 3 * [mu[4][l]] + [mu[6][l], mu[4][l], mu[6][l], mu[4][l], mu[6][l], mu[8][l]] 
-                        + 3 * [mu[2][l]] + 3 * [mu[4][l]] + [mu[6][l], mu[4][l]] ])
-                    self.l13[i] = np.array([ 2 * [mu[0][l]] + 2 * [mu[2][l]] + [mu[4][l], mu[0][l], mu[2][l], mu[4][l], mu[2][l], mu[2][l], mu[4][l], mu[4][l], mu[6][l], mu[2][l], mu[4][l]] ])
+                    self.l22[i] = np.array([ 6 * [mu[0][l]] + 7 * [mu[2][l]] + [mu[4][l], mu[2][l], mu[4][l], mu[2][l], mu[4][l], mu[2][l]] + 3 * [mu[4][l]] + [mu[6][l], mu[4][l], mu[6][l], mu[4][l], mu[6][l], mu[8][l]] + 3 * [mu[2][l]] + 3 * [mu[4][l]] + [mu[6][l], mu[4][l]] ])
+                    if self.with_uvmatch: self.l13[i] = np.array([ 2 * [mu[0][l]] + 2 * [mu[2][l]] + [mu[4][l], mu[0][l], mu[2][l], mu[4][l], mu[2][l], mu[2][l], mu[4][l], mu[4][l], mu[6][l], mu[2][l], mu[4][l]]
+                        + [mu[2][l], mu[2][l], mu[4][l], mu[4][l], mu[6][l], mu[6][l]] ])
+                    else: self.l13[i] = np.array([ 2 * [mu[0][l]] + 2 * [mu[2][l]] + [mu[4][l], mu[0][l], mu[2][l], mu[4][l], mu[2][l], mu[2][l], mu[4][l], mu[4][l], mu[6][l], mu[2][l], mu[4][l]] ])
                 elif self.with_tidal_alignments:
                     self.l22[i] = np.array([ mu[2][l], mu[2][l], mu[2][l], mu[2][l], mu[4][l], mu[0][l], mu[0][l], mu[0][l], mu[0][l], mu[0][l], mu[0][l], mu[0][l], mu[0][l], mu[0][l], mu[0][l], mu[2][l], mu[2][l], mu[2][l], mu[2][l], mu[4][l], mu[2][l], mu[2][l], mu[2][l], mu[2][l], mu[4][l], mu[2][l], mu[4][l], mu[2][l], mu[4][l], mu[2][l], mu[4][l], mu[2][l], mu[4][l], mu[2][l], mu[4][l], mu[6][l], mu[4][l], mu[4][l], mu[6][l], mu[4][l], mu[6][l], mu[4][l], mu[6][l], mu[8][l] ])
                     self.l13[i] = np.array([ mu[2][l], mu[2][l], mu[2][l], mu[4][l], mu[0][l], mu[0][l], mu[0][l], mu[0][l], mu[0][l], mu[2][l], mu[2][l], mu[4][l], mu[2][l], mu[2][l], mu[2][l], mu[4][l], mu[2][l], mu[4][l], mu[2][l], mu[4][l], mu[6][l], mu[4][l], mu[4][l], mu[6][l] ])
                 else:
-                    self.l22[i] = np.array([ 6 * [mu[0][l]] + 7 * [mu[2][l]] + [mu[4][l], mu[2][l], mu[4][l], mu[2][l], mu[4][l], mu[2][l]] 
-                        + 3 * [mu[4][l]] + [mu[6][l], mu[4][l], mu[6][l], mu[4][l], mu[6][l], mu[8][l]] ])
-                    self.l13[i] = np.array([2 * [mu[0][l]] + 4 * [mu[2][l]] + 3 * [mu[4][l]] + [mu[6][l]]])
+                    self.l22[i] = np.array([ 6 * [mu[0][l]] + 7 * [mu[2][l]] + [mu[4][l], mu[2][l], mu[4][l], mu[2][l], mu[4][l], mu[2][l]] + 3 * [mu[4][l]] + [mu[6][l], mu[4][l], mu[6][l], mu[4][l], mu[6][l], mu[8][l]] ])
+                    if self.with_uvmatch: self.l13[i] = np.array([ 2 * [mu[0][l]] + 4 * [mu[2][l]] + 3 * [mu[4][l]] + [mu[6][l]]
+                        + [mu[2][l], mu[4][l], mu[6][l]] ])
+                    else: self.l13[i] = np.array([ 2 * [mu[0][l]] + 4 * [mu[2][l]] + 3 * [mu[4][l]] + [mu[6][l]] ])
+
             else: # halo-matter
                 self.l11[i] = np.array([ mu[0][l], mu[2][l], mu[2][l], mu[4][l] ])
                 self.lct[i] = np.array([ mu[0][l], mu[2][l], mu[4][l], mu[2][l], mu[4][l], mu[6][l], mu[0][l], mu[2][l], mu[4][l], mu[2][l], mu[4][l], mu[6][l] ])
