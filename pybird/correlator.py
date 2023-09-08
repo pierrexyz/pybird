@@ -216,7 +216,7 @@ class Correlator(object):
             "fftbias": Option("fftbias", float,
                 description="real power bias for fftlog decomposition of pk_lin (usually to keep to default value)",
                 default=-1.6) ,
-            "with_uvmatch_twopk": Option("with_uvmatch_twopk", bool,
+            "with_uvmatch_2": Option("with_uvmatch_2", bool,
                 description="In case two linear power spectra \`pk_lin\` and \`pk_lin_2\` are provided (see description in cosmo_catalog), match the UV as in the case if only \`pk_lin\` would be provided. Implemented only for output=\`Pk\`. ",
                 default=False) ,
             "keep_loop_pieces_independent": Option("keep_loop_pieces_independent", bool,
@@ -287,7 +287,7 @@ class Correlator(object):
                 else: self.nnlo_counterterm.Ps(self.bird, ilogPsmooth)
             if not correlator_engine: self.nonlinear.PsCf(self.bird)
             elif correlator_engine: correlator_engine.nonlinear.PsCf(self.bird, c_alpha) # emu
-            if self.c["with_uvmatch_twopk"]: self.matching.Ps(self.bird) 
+            if self.c["with_uvmatch_2"]: self.matching.Ps(self.bird) 
             if self.c["with_bias"]: self.bird.setPsCf(self.bias)
             else: self.bird.setPsCfl()
             if self.c["with_resum"]:
@@ -371,11 +371,11 @@ class Correlator(object):
 
         self.co = Common(Nl=self.c["multipole"], kmax=self.c["kmax"], km=self.c["km"], kr=self.c["kr"], nd=self.c["nd"], eft_basis=self.c["eft_basis"],
             halohalo=self.c["halohalo"], with_cf=self.c["with_cf"], with_time=self.c["with_time"], accboost=self.c["accboost"], optiresum=self.c["optiresum"],
-            exact_time=self.c["with_exact_time"], quintessence=self.c["with_quintessence"], with_uvmatch=self.c["with_uvmatch_twopk"],
+            exact_time=self.c["with_exact_time"], quintessence=self.c["with_quintessence"], with_uvmatch=self.c["with_uvmatch_2"],
             with_tidal_alignments=self.c["with_tidal_alignments"], nonequaltime=self.c["with_common_nonequal_time"], keep_loop_pieces_independent=self.c["keep_loop_pieces_independent"])
         if load_engines:
             self.nonlinear = NonLinear(load=True, save=True, NFFT=256*self.c["fftaccboost"], fftbias=self.c["fftbias"], co=self.co)
-            if self.c["with_uvmatch_twopk"]: self.matching = Matching(self.nonlinear, co=self.co)
+            if self.c["with_uvmatch_2"]: self.matching = Matching(self.nonlinear, co=self.co)
             self.resum = Resum(co=self.co)
             self.projection = Projection(self.c["xdata"],
                 with_ap=self.c["with_ap"], H_fid=self.c["H_fid"], D_fid=self.c["D_fid"],

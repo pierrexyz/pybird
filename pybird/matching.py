@@ -50,8 +50,9 @@ class Matching(object):
         bird.P13 += delta_sigmavv * np.einsum('n,k->nk', self.uv13, self.co.k**2 * bird.P11) 
         bird.P22 += delta_sigmavvdd * np.einsum('n,k->nk', self.uv22, self.co.k**2) 
 
-        # as the correlation function used only for resummation, we neglect the matching here and just pad with 0 C13l so it has the correct shape
+        # as the correlation function used only for resummation, we also add something; note that we don't add anything to 22 since the Fourier transform of a power law is just a delta
         if bird.C13l.shape[1] != self.co.N13: bird.C13l = pad_along_axis(bird.C13l, self.co.N13, axis=1)
+        bird.C13l += delta_sigmavv * np.einsum('n,lk->lnk', self.uv13, bird.Cct) 
 
 
 
