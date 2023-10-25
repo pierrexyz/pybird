@@ -35,7 +35,7 @@ class ReadWrite(object):
     def read(self, c, verbose=True):
         data = os.path.join(c['data_path'], c['data_file'])
         if not os.path.isfile(data): raise Exception("%s not found" % data)
-        # elif verbose: print ('reading data file: %s' % data)
+        elif verbose: print ('reading data file: %s' % data)
         with h5py.File(data, 'r') as hf: d = get_dict_from_hdf5(hf)
         # d = np.load(data, allow_pickle='TRUE').item()
         self.check(c, d, verbose=verbose)
@@ -200,7 +200,7 @@ class ReadWrite(object):
                     if c['output'] == 'bCf': cov_cross_cf = d[sky]['bao_rec']['cov']['cross-bCf']
                     else: cov_cross_cf = None
                     self.write_bao_rec(fake_d[sky], d[sky]['bao_rec']['fid']['rd'], d[sky]['bao_rec']['fid']['H'], d[sky]['bao_rec']['fid']['D'], o['alpha'][0], o['alpha'][1], d[sky]['bao_rec']['cov']['alpha'], cov_cross_pk=cov_cross_pk, cov_cross_cf=cov_cross_cf)
-            with h5py.File(os.path.join(c['data_path'], 'fake_%s.h5') % c['write']['out_name'], 'w') as hf: hf.create_dataset('data', data=fake_d)
+            with h5py.File(os.path.join(c['data_path'], 'fake_%s.h5') % c['write']['out_name'], 'w') as hf: save_dict_to_hdf5(hf, fake_d)
             # np.save(os.path.join(c['data_path'], 'fake_%s.npy') % c['write']['out_name'], fake_d) 
             print ('fake data from best fit saved to %s.' % c['data_path'])
         for fdata, o, sky in zip(fd_sky, out, c['sky']):

@@ -36,6 +36,13 @@ Soon available:
 ## Dependencies
 PyBird depends on the numerical libraries [NumPy](https://numpy.org/) and [SciPy](http://scipy.org/).  
 
+PyBird likelihoods use [h5py](https://www.h5py.org/) and [yaml](https://https://yaml.org/) to store/read resp. data and configs.  
+Both can be `pip-install` as:  
+```
+pip install h5py
+pip install pyyaml
+``` 
+
 The following packages are not strictly neccessary but recommended to run the cookbooks:
 * PyBird has extra compatibility with **[CLASS](https://lesgourg.github.io/class_public/class.html)**.  
 * PyBird likelihoods are integrated within **[MontePython 3](https://github.com/brinckmann/montepython_public)**. 
