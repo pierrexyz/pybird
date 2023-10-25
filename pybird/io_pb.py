@@ -1,5 +1,32 @@
 import os, sys
+import h5py
 import numpy as np
+
+def get_dict_from_hdf5(group, none_flag="NoneValue"):
+    d = {}
+    for key in group.keys():
+        if isinstance(group[key], h5py.Group):
+            d[key] = get_dict_from_hdf5(group[key], none_flag=none_flag)
+        elif isinstance(group[key], h5py.Dataset):
+            data = group[key][()]
+
+            if np.array_equal(data, none_flag):
+                d[key] = None
+            else:
+                d[key] = data
+    return d
+
+def save_dict_to_hdf5(group, data, none_flag="NoneValue"):
+    def save_recursive(subgroup, subdata):
+        for key, value in subdata.items():
+            if isinstance(value, dict):
+                save_recursive(subgroup.create_group(key), value)
+            elif value is None:
+                subgroup.create_dataset(key, data=none_flag)
+            else:
+                subgroup.create_dataset(key, data=value)
+    
+    save_recursive(group, data)
 
 class ReadWrite(object):
     def __init__(self):
@@ -8,8 +35,9 @@ class ReadWrite(object):
     def read(self, c, verbose=True):
         data = os.path.join(c['data_path'], c['data_file'])
         if not os.path.isfile(data): raise Exception("%s not found" % data)
-        elif verbose: print ('reading data file: %s' % data)
-        d = np.load(data, allow_pickle='TRUE').item()
+        # elif verbose: print ('reading data file: %s' % data)
+        with h5py.File(data, 'r') as hf: d = get_dict_from_hdf5(hf)
+        # d = np.load(data, allow_pickle='TRUE').item()
         self.check(c, d, verbose=verbose)
         fd_sky = self.format(c, d, verbose=verbose) # skylist of formatted data dict for Likelihood
         fc_sky = self.config(c, fd_sky)             # skylist of formatted config dict for Correlator
@@ -172,7 +200,8 @@ class ReadWrite(object):
                     if c['output'] == 'bCf': cov_cross_cf = d[sky]['bao_rec']['cov']['cross-bCf']
                     else: cov_cross_cf = None
                     self.write_bao_rec(fake_d[sky], d[sky]['bao_rec']['fid']['rd'], d[sky]['bao_rec']['fid']['H'], d[sky]['bao_rec']['fid']['D'], o['alpha'][0], o['alpha'][1], d[sky]['bao_rec']['cov']['alpha'], cov_cross_pk=cov_cross_pk, cov_cross_cf=cov_cross_cf)
-            np.save(os.path.join(c['data_path'], 'fake_%s.npy') % c['write']['out_name'], fake_d) 
+            with h5py.File(os.path.join(c['data_path'], 'fake_%s.h5') % c['write']['out_name'], 'w') as hf: hf.create_dataset('data', data=fake_d)
+            # np.save(os.path.join(c['data_path'], 'fake_%s.npy') % c['write']['out_name'], fake_d) 
             print ('fake data from best fit saved to %s.' % c['data_path'])
         for fdata, o, sky in zip(fd_sky, out, c['sky']):
             if c['write']['save']:
