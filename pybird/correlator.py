@@ -14,18 +14,18 @@ from pybird.greenfunction import GreenFunction
 from pybird.fourier import FourierTransform
 from pybird.matching import Matching
 
-### dev mode ###
-import importlib, pybird
-importlib.reload(pybird.common)
-from pybird.common import Common, co
-importlib.reload(pybird.bird)
-from pybird.bird import Bird
-importlib.reload(pybird.nonlinear)
-from pybird.nonlinear import NonLinear
-importlib.reload(pybird.resum)
-from pybird.resum import Resum
-importlib.reload(pybird.matching)
-from pybird.matching import Matching
+# ### dev mode ###
+# import importlib, pybird
+# importlib.reload(pybird.common)
+# from pybird.common import Common, co
+# importlib.reload(pybird.bird)
+# from pybird.bird import Bird
+# importlib.reload(pybird.nonlinear)
+# from pybird.nonlinear import NonLinear
+# importlib.reload(pybird.resum)
+# from pybird.resum import Resum
+# importlib.reload(pybird.matching)
+# from pybird.matching import Matching
 
 # # import pdb; pdb.set_trace()
 # ################
