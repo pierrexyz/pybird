@@ -8,7 +8,7 @@ setup(
     author="Pierre Zhang and Guido D'Amico",
     license='MIT',
     packages=['pybird'],
-    install_requires=['numpy', 'scipy', 'h5py', 'yaml'],
+    install_requires=['numpy', 'scipy', 'h5py', 'pyyaml'],
     package_dir = {'pybird': 'pybird'},
     zip_safe=False,
 
