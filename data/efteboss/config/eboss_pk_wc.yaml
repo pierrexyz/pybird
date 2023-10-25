@@ -1,0 +1,74 @@
+data_path: 'data/efteboss/'
+data_file: 'eboss_dr16_2pt.npy'
+
+output: 'bPk'
+multipole: 2
+with_wedge: False
+wedge_type: 'PA-w1-w2' # or 'Q0-w1-w2'
+with_ap: True
+with_survey_mask: False # deconvolved data
+with_binning: False
+
+sky:
+     ngc: #l0,   l2,   l4
+          min: [0.01, 0.01] 
+          max: [0.24, 0.24]  
+     sgc:
+          min: [0.01, 0.01]
+          max: [0.24, 0.24] 
+
+write:
+    save: False
+    fake: False
+    plot: False
+    show: False
+    out_path: 'data/efteboss/out/'
+    out_name: 'eboss_pk_wc'
+
+km: 0.7
+kr: 0.25
+nd: 2.e-5
+
+eft_basis: 'westcoast' # b1, c2, c4, b3 (biased parameters) & cct, cr1, cr2 (counterterms)
+with_stoch: True # ce0, ce1, ce2 
+with_nnlo_counterterm: False # cr4, cr6
+eft_prior:
+     b1:
+          type: flat
+          range: null
+     c2:
+          type: gauss
+          mean: [0., 0.]
+          range: [2., 2.]
+     c4:
+          type: unvaried
+     b3:
+          type: marg_gauss
+          mean: [0., 0.]
+          range: [2., 2.]
+     cct: # mu^0 k^2 P11
+          type: marg_gauss
+          mean: [0., 0.]
+          range: [2., 2.]
+     cr1: # mu^2 k^2 P11
+          type: marg_gauss
+          mean: [0., 0.]
+          range: [2., 2.]
+     cr2: # mu^4 k^2 P11
+          type: marg_gauss
+          mean: [0., 0.]
+          range: [2., 2.]
+     ce0: # k^0 monopole
+          type: marg_gauss
+          mean: [0., 0.]
+          range: [2., 2.]
+     ce1: # k^2 monopole
+          type: unvaried
+     ce2: # k^2 quadrupole
+          type: marg_gauss
+          mean: [0., 0.]
+          range: [2., 2.]
+     cr4: # mu^4 k^4 P11
+          type: unvaried
+     cr6: # mu^6 k^4 P11
+          type: unvaried

@@ -1,0 +1,95 @@
+omegabh2	\Omega_b h^2
+omegach2	\Omega_c h^2
+theta	100\theta_{MC}
+tau	\tau
+mnu	\Sigma m_\nu
+logA	{\rm{ln}}(10^{10} A_s)
+ns	n_s
+calPlanck	y_{\rm cal}
+acib217	A^{CIB}_{217}
+xi	\xi^{tSZ-CIB}
+asz143	A^{tSZ}_{143}
+aps100	A^{PS}_{100}
+aps143	A^{PS}_{143}
+aps143217	A^{PS}_{143\times217}
+aps217	A^{PS}_{217}
+aksz	A^{kSZ}
+kgal100	A^{{\rm dust}TT}_{100}
+kgal143	A^{{\rm dust}TT}_{143}
+kgal143217	A^{{\rm dust}TT}_{143\times217}
+kgal217	A^{{\rm dust}TT}_{217}
+galfTE100	A^{{\rm dust}TE}_{100}
+galfTE100143	A^{{\rm dust}TE}_{100\times143}
+galfTE100217	A^{{\rm dust}TE}_{100\times217}
+galfTE143	A^{{\rm dust}TE}_{143}
+galfTE143217	A^{{\rm dust}TE}_{143\times217}
+galfTE217	A^{{\rm dust}TE}_{217}
+cal0	c_{100}
+cal2	c_{217}
+H0*	H_0
+omegal*	\Omega_\Lambda
+Omega_m	\Omega_m
+omegamh2*	\Omega_m h^2
+omeganuh2*	\Omega_\nu h^2
+omegamh3*	\Omega_m h^3
+sigma8*	\sigma_8
+S8*	S_8
+s8omegamp5*	\sigma_8 \Omega_m^{0.5}
+s8omegamp25*	\sigma_8 \Omega_m^{0.25}
+s8h5*	\sigma_8/h^{0.5}
+rdragh*	r_{\rm drag} h
+rmsdeflect*	\langle d^2\rangle^{1/2}
+zrei*	z_{\rm re}
+A*	10^9 A_s
+clamp*	10^9 A_s e^{-2\tau}
+DL40*	D_{40}
+DL220*	D_{220}
+DL810*	D_{810}
+DL1420*	D_{1420}
+DL2000*	D_{2000}
+ns02*	n_{s,0.002}
+yheused*	Y_P
+YpBBN*	Y_P^{\rm{BBN}}
+DHBBN*	10^5D/H
+age*	{\rm{Age}}/{\rm{Gyr}}
+zstar*	z_*
+rstar*	r_*
+thetastar*	100\theta_*
+DAstar*	D_{\rm{M}}(z_*)/{\rm{Gpc}}
+zdrag*	z_{\rm{drag}}
+rdrag*	r_{\rm{drag}}
+kd*	k_{\rm D}
+thetad*	100\theta_{\rm{D}}
+zeq*	z_{\rm{eq}}
+keq*	k_{\rm{eq}}
+thetaeq*	100\theta_{\rm{eq}}
+thetarseq*	100\theta_{\rm{s,eq}}
+Hubble015*	H(0.15)
+DM015*	D_{\rm{M}}(0.15)
+Hubble038*	H(0.38)
+DM038*	D_{\rm{M}}(0.38)
+Hubble051*	H(0.51)
+DM051*	D_{\rm{M}}(0.51)
+Hubble061*	H(0.61)
+DM061*	D_{\rm{M}}(0.61)
+Hubble233*	H(2.33)
+DM233*	D_{\rm{M}}(2.33)
+fsigma8z015*	f\sigma_8(0.15)
+sigma8z015*	\sigma_8(0.15)
+fsigma8z038*	f\sigma_8(0.38)
+sigma8z038*	\sigma_8(0.38)
+fsigma8z051*	f\sigma_8(0.51)
+sigma8z051*	\sigma_8(0.51)
+fsigma8z061*	f\sigma_8(0.61)
+sigma8z061*	\sigma_8(0.61)
+fsigma8z233*	f\sigma_8(2.33)
+sigma8z233*	\sigma_8(2.33)
+f2000_143*	f_{2000}^{143}
+f2000_x*	f_{2000}^{143\times217}
+f2000_217*	f_{2000}^{217}
+chi2_lensing*	\chi^2_{\rm lensing}
+chi2_simall*	\chi^2_{\rm simall}
+chi2_lowl*	\chi^2_{\rm lowl}
+chi2_plik*	\chi^2_{\rm plik}
+chi2_prior*	\chi^2_{\rm prior}
+chi2_CMB*	\chi^2_{\rm CMB}

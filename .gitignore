@@ -1,5 +1,13 @@
+pybird.egg-info
+dist
+
 # Files to ignore
-*.npz
+pyegg*.npz
+pyegg*.npy
+montepython/chains/*/*.txt
+
+# tmp
+tmp/
 
 # General
 .DS_Store
