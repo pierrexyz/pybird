@@ -47,21 +47,13 @@ class NonLinear(object):
 
         self.co = co
 
-        # if self.co.with_cf: self.fftsettings = dict(Nmax=NFFT, xmin=1.e-4, xmax=100., bias=fftbias)
-        # else: self.fftsettings = dict(Nmax=NFFT, xmin=1.5e-5, xmax=1000., bias=fftbias)
-        self.fftsettings = dict(Nmax=NFFT, xmin=1.e-4, xmax=100., bias=fftbias) 
-
+        self.fftsettings = dict(Nmax=NFFT, xmin=1.e-4, xmax=100., bias=fftbias) # notice that if one wants to resolve the Cf up to s ~ 1000 (which is clearly way beyond what we can analyze) use here xmin=1e-5 instead 
         self.fft = FFTLog(**self.fftsettings)
-
+        
         if self.co.halohalo:
-            if self.co.with_cf: 
-                self.pyegg = os.path.join(path, 'pyegg%s_cf_nl%s.npz') % (NFFT, self.co.Nl)
-                if self.co.exact_time: self.pyegg = os.path.join(path, 'pyegg%s_cf_nl%s_exact_time.npz') % (NFFT, self.co.Nl)
-                if self.co.with_tidal_alignments: self.pyegg = os.path.join(path, 'pyegg%s_cf_nl%s_tidal_alignments.npz') % (NFFT, self.co.Nl)
-            else:
-                if self.co.exact_time: self.pyegg = os.path.join(path, 'pyegg%s_nl%s_exact_time.npz') % (NFFT, self.co.Nl)
-                elif self.co.with_tidal_alignments: self.pyegg = os.path.join(path, 'pyegg%s_nl%s_tidal_alignments.npz') % (NFFT, self.co.Nl)
-                else: self.pyegg = os.path.join(path, 'pyegg%s_fftbias_%s_nl%s.npz') % (NFFT, fftbias, self.co.Nl)
+            if self.co.exact_time: self.pyegg = os.path.join(path, 'pyegg%s_nl%s_exact_time.npz') % (NFFT, self.co.Nl)
+            elif self.co.with_tidal_alignments: self.pyegg = os.path.join(path, 'pyegg%s_nl%s_tidal_alignments.npz') % (NFFT, self.co.Nl)
+            else: self.pyegg = os.path.join(path, 'pyegg%s_fftbias_%s_nl%s.npz') % (NFFT, fftbias, self.co.Nl)
         else:
             self.pyegg = os.path.join(path, 'pyegg%s_gm_nl%s.npz') % (NFFT, self.co.Nl)
 

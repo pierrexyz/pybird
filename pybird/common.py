@@ -100,10 +100,10 @@ class Common(object):
             self.s = np.unique( np.sort( np.concatenate((slog[slogmask], slin)) ) )
         else:
             if self.optiresum: self.s = np.arange(40., 200., 1./accboost)
-            else: self.s = sbird
+            else: self.s = sbird # accuracy for Pk resummation here could be boosted, however compared to thin s computation the relative diffs. on ell=0,2 at ~0.02%, 0.1%, resp., up to k ~ 0.5
         self.Ns = self.s.shape[0]
         
-        if kmax is not None:
+        if kmax: 
             self.kmin = kmin # no support for kmin: keep default
             self.kmax = kmax
             self.k = kbird
@@ -118,7 +118,9 @@ class Common(object):
 
         # for resummation
         if self.with_cf: self.NIR = 20
-        elif self.Nl == 3 or self.kmax > 0.25: self.NIR = 16
+        elif self.Nl == 3 or self.kmax > 0.25: 
+            if self.kmax < 0.45: self.NIR = 16
+            else: self.NIR = 20
         else: self.NIR = 8
         
         if self.NIR == 16: self.Na = 3

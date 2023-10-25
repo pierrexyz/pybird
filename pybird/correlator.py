@@ -14,21 +14,21 @@ from pybird.greenfunction import GreenFunction
 from pybird.fourier import FourierTransform
 from pybird.matching import Matching
 
-# ### dev mode ###
-# import importlib, pybird
-# importlib.reload(pybird.common)
-# from pybird.common import Common, co
-# importlib.reload(pybird.bird)
-# from pybird.bird import Bird
-# importlib.reload(pybird.nonlinear)
-# from pybird.nonlinear import NonLinear
-# importlib.reload(pybird.resum)
-# from pybird.resum import Resum
-# importlib.reload(pybird.matching)
-# from pybird.matching import Matching
+### dev mode ###
+import importlib, pybird
+importlib.reload(pybird.common)
+from pybird.common import Common, co
+importlib.reload(pybird.bird)
+from pybird.bird import Bird
+importlib.reload(pybird.nonlinear)
+from pybird.nonlinear import NonLinear
+importlib.reload(pybird.resum)
+from pybird.resum import Resum
+importlib.reload(pybird.matching)
+from pybird.matching import Matching
 
-# # # import pdb; pdb.set_trace()
-# # ################
+# # import pdb; pdb.set_trace()
+# ################
 
 class Correlator(object):
 
@@ -487,9 +487,9 @@ class Correlator(object):
                 if config_key == name:
                     config.check(config_key, config_dict[config_key])
                     is_config = True
-            ### v1.2: we'll activate this later
-            # if not is_config:
-            #     raise Exception("%s is not an available configuration option. Please check correlator.info() for help. " % config_key)
+            ### Keep this warning for typos in options that are then unread...
+            if not is_config:
+                raise Exception("%s is not an available configuration option. Please check correlator.info() for help. " % config_key)
 
         # Setting unspecified configs to default value
         for (name, config) in zip(self.c_catalog, self.c_catalog.values()):
