@@ -2,10 +2,12 @@ import os
 import numpy as np
 from numpy import pi, cos, sin, log, exp, sqrt, trapz
 from scipy.interpolate import interp1d
+from .fftlog import FFTLog, MPC, CoefWindow
+from .common import co
+from .resumfactor import Qa, Qawithhex, Qawithhex20
+import time
+from scipy.special import spherical_jn
 
-from pybird.fftlog import FFTLog, MPC, CoefWindow
-from pybird.common import co
-from pybird.resumfactor import Qa, Qawithhex, Qawithhex20
 
 class Resum(object):
     """
@@ -63,19 +65,21 @@ class Resum(object):
         s's to the powers on which to perform the FFTLog to evaluate the IR-filters X and Y
     """
 
-    def __init__(self, LambdaIR=.2, NFFT=192, co=co):
+    def __init__(self, LambdaIR=0.2, NFFT=192, co=co):
+        #Current LambdaIR setting is unstable for some high cosmological parameters. 
 
         self.co = co
         self.LambdaIR = LambdaIR
 
-        if self.co.optiresum:
-            self.sLow = 70.
-            self.sHigh = 190.
+        if self.co.optiresum is True:
+            self.sLow = 70.0
+            self.sHigh = 190.0
             self.idlow = np.where(self.co.s > self.sLow)[0][0]
             self.idhigh = np.where(self.co.s > self.sHigh)[0][0]
-            self.sbao = self.co.s[self.idlow:self.idhigh]
-            self.snobao = np.concatenate([self.co.s[:self.idlow], self.co.s[self.idhigh:]])
+            self.sbao = self.co.s[self.idlow : self.idhigh]
+            self.snobao = np.concatenate([self.co.s[: self.idlow], self.co.s[self.idhigh :]])
             self.sr = self.sbao
+            # self.LambdaIR = 1.0
         else:
 
             self.sr = self.co.s
@@ -84,184 +88,357 @@ class Resum(object):
         self.kr = self.co.k[self.klow <= self.co.k]
         self.Nkr = self.kr.shape[0]
         self.Nlow = np.where(self.klow <= self.co.k)[0][0]
-        k2pi = np.array([self.kr**(2*(p+1)) for p in range(self.co.NIR)])
+        k2pi = np.array([self.kr ** (2 * (p + 1)) for p in range(self.co.NIR)])
         self.k2p = np.concatenate((k2pi, k2pi))
 
-        self.fftsettings = dict(Nmax=NFFT, xmin=.1, xmax=10000., bias=-0.6)
+        self.fftsettings = dict(Nmax=NFFT, xmin=0.1, xmax=10000.0, bias=-0.6)
         self.fft = FFTLog(**self.fftsettings)
         self.setM()
         self.setkPow()
 
-        self.Xfftsettings = dict(Nmax=32, xmin=1.5e-5, xmax=10., bias=-2.6)
+        self.Xfftsettings = dict(Nmax=32, xmin=1.5e-5, xmax=10.0, bias=-2.6)
         self.Xfft = FFTLog(**self.Xfftsettings)
         self.setXM()
         self.setXsPow()
 
-        self.Cfftsettings = dict(Nmax=256, xmin=1.e-3, xmax=10., bias=-0.6)
+        self.Cfftsettings = dict(Nmax=256, xmin=1.0e-3, xmax=10.0, bias=-0.6)
         self.Cfft = FFTLog(**self.Cfftsettings)
         self.setMl()
         self.setsPow()
 
-        #self.damping = CoefWindow(self.co.Nk-1, window=.2, left=False, right=True)
+        # self.damping = CoefWindow(self.co.Nk-1, window=.2, left=False, right=True)
         self.kl2 = self.co.k[self.co.k < 0.5]
         Nkl2 = len(self.kl2)
 
         self.kl4 = self.co.k[self.co.k < 0.4]
         Nkl4 = len(self.kl4)
 
-        self.dampPs = np.array([
-            CoefWindow(self.co.Nk-1, window=.25, left=False, right=True),
-            np.pad(CoefWindow(Nkl2-1, window=.25, left=False, right=True), (0,self.co.Nk-Nkl2), mode='constant'),
-            np.pad(CoefWindow(Nkl4-1, window=.25, left=False, right=True), (0,self.co.Nk-Nkl4), mode='constant')
-            ])
+        self.dampPs = np.array(
+            [
+                CoefWindow(self.co.Nk - 1, window=0.25, left=False, right=True),
+                np.pad(
+                    CoefWindow(Nkl2 - 1, window=0.25, left=False, right=True), (0, self.co.Nk - Nkl2), mode="constant"
+                ),
+                np.pad(
+                    CoefWindow(Nkl4 - 1, window=0.25, left=False, right=True), (0, self.co.Nk - Nkl4), mode="constant"
+                ),
+            ]
+        )
 
-        self.scut = self.co.s[self.co.s < 70.]
-        self.dampCf = np.pad(CoefWindow(self.co.Ns-len(self.scut)-1, window=.25, left=True, right=True), (len(self.scut),0), mode='constant')
+        self.scut = self.co.s[self.co.s < 70.0]
+        self.dampCf = np.pad(
+            CoefWindow(self.co.Ns - len(self.scut) - 1, window=0.25, left=True, right=True),
+            (len(self.scut), 0),
+            mode="constant",
+        )
 
     def setXsPow(self):
         """ Multiply the coefficients with the s's to the powers of the FFTLog to evaluate the IR-filters X and Y. """
-        self.XsPow = exp(np.einsum('n,s->ns', -self.Xfft.Pow - 3., log(self.sr)))
+        self.XsPow = exp(np.einsum("n,s->ns", -self.Xfft.Pow - 3.0, log(self.sr)))
 
     def setXM(self):
         """ Compute the matrices to evaluate the IR-filters X and Y. Called at instantiation. """
-        self.XM = np.empty(shape=(2, self.Xfft.Pow.shape[0]), dtype='complex')
-        for l in range(2): self.XM[l] = MPC(2 * l, -0.5 * self.Xfft.Pow)
+        self.XM = np.empty(shape=(2, self.Xfft.Pow.shape[0]), dtype="complex")
+        for l in range(2):
+            self.XM[l] = MPC(2 * l, -0.5 * self.Xfft.Pow)
 
-    def IRFilters(self, bird, soffset=1., LambdaIR=None, RescaleIR=1., window=None):
+    def IRFilters(self, bird, soffset=1.0, LambdaIR=None, RescaleIR=1.0, window=None):
         """ Compute the IR-filters X and Y. """
-        if LambdaIR is None: LambdaIR = self.LambdaIR
-        if self.co.exact_time and self.co.quintessence: Pin = bird.G1**2 * bird.Pin
-        else: Pin = bird.Pin
-        Coef = self.Xfft.Coef(bird.kin, Pin * exp(-bird.kin**2 / LambdaIR**2) / bird.kin**2, window=window)
-        CoefsPow = np.einsum('n,ns->ns', Coef, self.XsPow)
-        X02 = np.real(np.einsum('ns,ln->ls', CoefsPow, self.XM))
-        X0offset = np.real(np.einsum('n,n->', np.einsum('n,n->n', Coef, soffset**(-self.Xfft.Pow - 3.)), self.XM[0]))
+        if LambdaIR is None:
+            LambdaIR = self.LambdaIR
+        if self.co.exact_time and self.co.quintessence:
+            Pin = bird.G1 ** 2 * bird.Pin
+        else:
+            Pin = bird.Pin
+        
+        # try:
+        #     Coef = self.Xfft.Coef(bird.kin, Pin*bird.ratio_new * exp(-bird.kin ** 2 / LambdaIR ** 2) / bird.kin ** 2, window=window)
+        # except:
+        #     Coef = self.Xfft.Coef(bird.kin, Pin * exp(-bird.kin ** 2 / LambdaIR ** 2) / bird.kin ** 2, window=window)
+        
+        Coef = self.Xfft.Coef(bird.kin, Pin * exp(-bird.kin ** 2 / LambdaIR ** 2) / bird.kin ** 2, window=window)
+
+        
+        CoefsPow = np.einsum("n,ns->ns", Coef, self.XsPow)
+        X02 = np.real(np.einsum("ns,ln->ls", CoefsPow, self.XM))
+        X0offset = np.real(np.einsum("n,n->", np.einsum("n,n->n", Coef, soffset ** (-self.Xfft.Pow - 3.0)), self.XM[0]))
+
         X02[0] = X0offset - X02[0]
         # if self.co.nonequaltime:
         #     X = RescaleIR * 2/3. * bird.D1*bird.D2/bird.D**2 * (X02[0] - X02[1]) + 1/3. * (bird.D1-bird.D2)**2/bird.D**2 * X0offset
         #     Y = 2. * bird.D1*bird.D2/bird.D**2 * X02[1]
         # else:
-        X = RescaleIR * 2. / 3. * (X02[0] - X02[1])
-        Y = 2. * X02[1]
+        X = RescaleIR * 2.0 / 3.0 * (X02[0] - X02[1])
+        Y = 2.0 * X02[1]
+        
+        # ratioes = [-0.05, -0.025, -0.01, -0.005, 0.0, 0.005, 0.01, 0.025, 0.05]
+        # results_X = []
+        # results_Y = []
+        # for i in range(len(ratioes)):
+        #     factor_m = ratioes[i]
+        #     factor_a = 0.6
+        #     factor_kp = 0.03
+        #     ratio = np.exp(factor_m/factor_a*np.tanh(factor_a*np.log(bird.kin/factor_kp)))
+        #     Coef = self.Xfft.Coef(bird.kin, Pin * ratio * exp(-bird.kin ** 2 / LambdaIR ** 2) / bird.kin ** 2, window=window)
+        #     CoefsPow = np.einsum("n,ns->ns", Coef, self.XsPow)
+        #     X02 = np.real(np.einsum("ns,ln->ls", CoefsPow, self.XM))
+        #     X0offset = np.real(np.einsum("n,n->", np.einsum("n,n->n", Coef, soffset ** (-self.Xfft.Pow - 3.0)), self.XM[0]))
+
+        #     X02[0] = X0offset - X02[0]
+        #     # if self.co.nonequaltime:
+        #     #     X = RescaleIR * 2/3. * bird.D1*bird.D2/bird.D**2 * (X02[0] - X02[1]) + 1/3. * (bird.D1-bird.D2)**2/bird.D**2 * X0offset
+        #     #     Y = 2. * bird.D1*bird.D2/bird.D**2 * X02[1]
+        #     # else:
+        #     X = RescaleIR * 2.0 / 3.0 * (X02[0] - X02[1])
+        #     Y = 2.0 * X02[1]
+        #     # pq = np.einsum('m, n->nm', bird.kin, self.sr)
+        #     # integrand_x = np.einsum('m, nm-> nm', 2.0/3.0*Pin*exp(-bird.kin**2/LambdaIR**2)*ratio, (1.0-spherical_jn(0, pq)-spherical_jn(2, pq)))/(2.0*np.pi**2)
+        #     # integrand_y = np.einsum('m, nm-> nm', 2.0*Pin*exp(-bird.kin**2/LambdaIR**2)*ratio, (spherical_jn(2, pq)))/(2.0*np.pi**2)
+        #     # results_X.append(np.trapz(integrand_x, bird.kin))
+        #     # results_Y.append(np.trapz(integrand_y, bird.kin))
+        #     print(i, factor_m, X0offset)
+        # # np.save('X_SF.npy', results_X)
+        # # np.save('Y_SF.npy', results_Y)
+        # # np.save('xm.npy', self.XM)
+        # # np.save('xfft_x', self.Xfft.x)
+        # # np.save('xfft_pow', self.Xfft.Pow)
+        # # np.save('x_trapz.npy', results_X)
+        # # np.save('y_trapz.npy', results_Y)
+        # raise ValueError('Test completed.')
         return X, Y
 
     def setkPow(self):
         """ Multiply the coefficients with the k's to the powers of the FFTLog to evaluate the IR-corrections. """
-        self.kPow = exp(np.einsum('n,s->ns', -self.fft.Pow - 3., log(self.kr)))
+        self.kPow = exp(np.einsum("n,s->ns", -self.fft.Pow - 3.0, log(self.kr)))
 
     def setM(self, Nl=3):
         """ Compute the matrices to evaluate the IR-corrections. Called at instantiation. """
-        self.M = np.empty(shape=(Nl, self.fft.Pow.shape[0]), dtype='complex')
-        for l in range(Nl): self.M[l] = 8.*pi**3 * MPC(2 * l, -0.5 * self.fft.Pow)
+        self.M = np.empty(shape=(Nl, self.fft.Pow.shape[0]), dtype="complex")
+        for l in range(Nl):
+            self.M[l] = 8.0 * pi ** 3 * MPC(2 * l, -0.5 * self.fft.Pow)
 
     def IRn(self, XpYpC, window=None):
         """ Compute the spherical Bessel transform in the IR correction of order n given [XY]^n """
-        Coef = self.fft.Coef(self.sr, XpYpC, extrap='padding', window=window)
-        CoefkPow = np.einsum('n,nk->nk', Coef, self.kPow)
-        return np.real(np.einsum('nk,ln->lk', CoefkPow, self.M[:self.co.Na]))
+        Coef = self.fft.Coef(self.sr, XpYpC, extrap="padding", window=window)
+        CoefkPow = np.einsum("n,nk->nk", Coef, self.kPow)
+        return np.real(np.einsum("nk,ln->lk", CoefkPow, self.M[:self.co.Nl]))
+
+        # output = np.real(np.einsum("nk,ln->lk", CoefkPow, self.M[:self.co.Na]))
+        # knew = np.linspace(self.klow, self.co.kmax, 1001)
+        # kq = np.einsum('m, n-> nm', knew, self.sr)
+        # integrand_0 = np.einsum('n, nm-> nm', self.sr**2*XpYpC, spherical_jn(0, kq))
+        # integrand_2 = np.einsum('n, nm-> nm', self.sr**2*XpYpC, spherical_jn(2, kq))
+        # integrand_4 = np.einsum('n, nm-> nm', self.sr**2*XpYpC, spherical_jn(4, kq))
+        # integrand = np.array([integrand_0, integrand_2, integrand_4])
+        # output_trapz = np.trapz(integrand, self.sr, axis=1)
+        # output_trapz = interp1d(knew, output_trapz, kind='cubic', fill_value='extrapolate')(self.kr)
+        # return output_trapz
 
     def extractBAO(self, cf):
-        """ Given a correlation function cf,
-            - if fullresum, return cf
-            - if optiresum, extract the BAO peak """
-        if self.co.optiresum:
-            cfnobao = np.concatenate([cf[..., :self.idlow], cf[..., self.idhigh:]], axis=-1)
-            nobao = interp1d(self.snobao, self.snobao**2 * cfnobao, kind='linear', axis=-1)(self.sbao) * self.sbao**-2
-            bao = cf[..., self.idlow:self.idhigh] - nobao
+        """Given a correlation function cf,
+        - if fullresum, return cf
+        - if optiresum, extract the BAO peak"""
+        if self.co.optiresum is True:
+            cfnobao = np.concatenate([cf[..., : self.idlow], cf[..., self.idhigh :]], axis=-1)
+            nobao = (
+                interp1d(self.snobao, self.snobao ** 2 * cfnobao, kind="linear", axis=-1)(self.sbao) * self.sbao ** -2
+            )
+            bao = cf[..., self.idlow : self.idhigh] - nobao
             return bao
         else:
             return cf
 
     def setXpYp(self, bird):
         X, Y = self.IRFilters(bird)
-        Xp = np.array([X**(p+1) for p in range(self.co.NIR)])
-        XpY = np.array([Y * X**p for p in range(self.co.NIR)])
+        Xp = np.array([X ** (p + 1) for p in range(self.co.NIR)])
+        XpY = np.array([Y * X ** p for p in range(self.co.NIR)])
         XpYp = np.concatenate((Xp, XpY))
-        #return np.array([item for pair in zip(Xp, XpY + [0]) for item in pair])
+        # return np.array([item for pair in zip(Xp, XpY + [0]) for item in pair])
         return XpYp
 
     def makeQ(self, f):
         """ Compute the bulk coefficients Q^{ll'}_{||N-j}(n, \alpha, f) """
-        Q = np.empty(shape=(2, self.co.Nl, self.co.Nl, self.co.Nn))
+        # if len(f) == 1:
+        # Q = np.empty(shape=(2, self.co.Nl, self.co.Nl, self.co.Nn))
+        Q = np.zeros(shape=(2, self.co.Nl, self.co.Nl, self.co.Nn))
+        # for a in range(2):
+        #     for l in range(self.co.Nl):
+        #         for lpr in range(self.co.Nl):
+        #             for u in range(self.co.Nn):
+        #                 if self.co.NIR is 8:
+        #                     Q[a][l][lpr][u] = Qa[1 - a][2 * l][2 * lpr][u](f)
+        #                 elif self.co.NIR is 16:
+        #                     Q[a][l][lpr][u] = Qawithhex[1 - a][2 * l][2 * lpr][u](f)
+        #                 elif self.co.NIR is 20:
+        #                     Q[a][l][lpr][u] = Qawithhex20[1 - a][2 * l][2 * lpr][u](f)
+        
         for a in range(2):
-            for l in range(self.co.Nl):
-                for lpr in range(self.co.Nl):
+            for l in range(3):
+                for lpr in range(3):
                     for u in range(self.co.Nn):
-                        if self.co.NIR == 8: Q[a][l][lpr][u] = Qa[1 - a][2 * l][2 * lpr][u](f)
-                        elif self.co.NIR == 16: Q[a][l][lpr][u] = Qawithhex[1 - a][2 * l][2 * lpr][u](f)
-                        elif self.co.NIR == 20: Q[a][l][lpr][u] = Qawithhex20[1 - a][2 * l][2 * lpr][u](f)
+                        if self.co.NIR is 8:
+                            Q[a][l][lpr][u] = Qa[1 - a][2 * l][2 * lpr][u](f)
+                        elif self.co.NIR is 16:
+                            Q[a][l][lpr][u] = Qawithhex[1 - a][2 * l][2 * lpr][u](f)
+                        elif self.co.NIR is 20:
+                            Q[a][l][lpr][u] = Qawithhex20[1 - a][2 * l][2 * lpr][u](f)
+    
+        # else:
+        #     Q = np.zeros(shape=(len(f), 2, self.co.Nl, self.co.Nl, self.co.Nn))
+        #     for i in range(len(f)):
+        #         for a in range(2):
+        #             for l in range(3):
+        #                 for lpr in range(3):
+        #                     for u in range(self.co.Nn):
+        #                         if self.co.NIR is 8:
+        #                             Q[i][a][l][lpr][u] = Qa[1 - a][2 * l][2 * lpr][u](f[i])
+        #                         elif self.co.NIR is 16:
+        #                             Q[i][a][l][lpr][u] = Qawithhex[1 - a][2 * l][2 * lpr][u](f[i])
+        #                         elif self.co.NIR is 20:
+        #                             Q[i][a][l][lpr][u] = Qawithhex20[1 - a][2 * l][2 * lpr][u](f[i])
+                  
         return Q
 
     def setMl(self):
         """ Compute the power spectrum to correlation function spherical Bessel transform matrices. Called at the instantiation. """
-        self.Ml = np.empty(shape=(self.co.Nl, self.Cfft.Pow.shape[0]), dtype='complex')
+        self.Ml = np.empty(shape=(self.co.Nl, self.Cfft.Pow.shape[0]), dtype="complex")
         for l in range(self.co.Nl):
-            self.Ml[l] = 1j**(2*l) * MPC(2 * l, -0.5 * self.Cfft.Pow)
+            self.Ml[l] = 1j ** (2 * l) * MPC(2 * l, -0.5 * self.Cfft.Pow)
 
     def setsPow(self):
         """ Multiply the coefficients with the s's to the powers of the FFTLog to evaluate the IR corrections in configuration space. """
-        self.sPow = exp(np.einsum('n,s->ns', -self.Cfft.Pow - 3., log(self.co.s)))
+        self.sPow = exp(np.einsum("n,s->ns", -self.Cfft.Pow - 3.0, log(self.co.s)))
 
     def Ps2Cf(self, P, l=0):
-        Coef = self.Cfft.Coef(self.co.k, P * self.dampPs[l], extrap='padding', window=None)
-        CoefsPow = np.einsum('n,ns->ns', Coef, self.sPow)
-        return np.real(np.einsum('ns,n->s', CoefsPow, self.Ml[l])) * self.dampCf
+        Coef = self.Cfft.Coef(self.co.k, P * self.dampPs[l], extrap="padding", window=None)
+        CoefsPow = np.einsum("n,ns->ns", Coef, self.sPow)
+        return np.real(np.einsum("ns,n->s", CoefsPow, self.Ml[l])) * self.dampCf
 
     def IRCf(self, bird, window=None):
         """ Compute the IR corrections in configuration space by spherical Bessel transforming the IR corrections in Fourier space.  """
 
         if bird.with_bias:
-            for a, IRa in enumerate(bird.fullIRPs): # this can be speedup x2 by doing FFTLog[lin+loop] instead of separately
+            for a, IRa in enumerate(
+                bird.fullIRPs
+            ):  # this can be speedup x2 by doing FFTLog[lin+loop] instead of separately
                 for l, IRal in enumerate(IRa):
-                    bird.fullIRCf[a,l] = self.Ps2Cf(IRal, l=l)
+                    bird.fullIRCf[a, l] = self.Ps2Cf(IRal, l=l)
         else:
             for l, IRl in enumerate(bird.fullIRPs11):
                 for j, IRlj in enumerate(IRl):
-                    bird.fullIRCf11[l,j] = self.Ps2Cf(IRlj, l=l)
+                    bird.fullIRCf11[l, j] = self.Ps2Cf(IRlj, l=l)
             for l, IRl in enumerate(bird.fullIRPsct):
                 for j, IRlj in enumerate(IRl):
-                    bird.fullIRCfct[l,j] = self.Ps2Cf(IRlj, l=l)
+                    bird.fullIRCfct[l, j] = self.Ps2Cf(IRlj, l=l)
             for l, IRl in enumerate(bird.fullIRPsloop):
                 for j, IRlj in enumerate(IRl):
-                    bird.fullIRCfloop[l,j] = self.Ps2Cf(IRlj, l=l)
+                    bird.fullIRCfloop[l, j] = self.Ps2Cf(IRlj, l=l)
 
-    def PsCf(self, bird, makeIR=True, makeQ=True, setIR=True, setPs=True, setCf=True, window=None):
+    def PsCf(self, bird, makeIR=True, makeQ=True, setPs=True, setCf=True, window=None):
 
-        self.Ps(bird, makeIR=makeIR, makeQ=makeQ, setIR=setIR, setPs=setPs, window=window)
+        self.Ps(bird, makeIR=makeIR, makeQ=makeQ, setPs=setPs, window=window)
+        self.IRCf(bird, window=window)
         if setCf:
-            self.IRCf(bird, window=window)
             bird.setresumCf()
 
-    def Ps(self, bird, makeIR=True, makeQ=True, setIR=True, setPs=True, window=None):
+    def Ps(self, bird, makeIR=True, makeQ=True, setPs=True, window=None, init=False):
 
-        if makeIR: self.IRPs(bird, window=window)
-        if makeQ: bird.Q = self.makeQ(bird.f)
-        if setIR: bird.setIRPs()
-        if setPs: bird.setresumPs()
+        if makeQ:
+            bird.Q = self.makeQ(bird.f)
+        if makeIR:
+            # ratioes = np.linspace(-0.15, 0.15, 101)
+            # IRPs11_all = []
+            # IRPsct_all = []
+            # IRPsloop_all = []
+            # for i in range(len(ratioes)):
+            #     factor_m = ratioes[i]
+            #     factor_a = 0.6
+            #     factor_kp = 0.03
+            #     self.ratio = np.exp(factor_m/factor_a*np.tanh(factor_a*np.log(bird.kin/factor_kp)))
+            #     # kmode = bird.kin
+            #     # self.ratio = np.exp(factor_m/(factor_a)*np.tanh(factor_a*np.log(kmode/factor_kp)))*np.heaviside(factor_kp-kmode, 0.5) + np.exp(factor_m/(factor_a)*np.arctan(factor_a*np.log(kmode/factor_kp)))*np.heaviside(kmode - factor_kp, 0.5)
+                
+            #     self.IRPs(bird, window=window)
+            #     IRPs11_all.append(bird.IRPs11)
+            #     IRPsct_all.append(bird.IRPsct)
+            #     IRPsloop_all.append(bird.IRPsloop)
+                
+            #     bird.IRPs11 = np.zeros(shape=(self.co.Nl, self.co.Nn, self.co.Nk))
+            #     bird.IRPsct = np.zeros(shape=(self.co.Nl, self.co.Nn, self.co.Nk))
+            #     bird.IRPsloop = np.zeros(shape=(self.co.Nl, self.co.Nloop, self.co.Nn, self.co.Nk))
+                
+            #     print(i, factor_m)
+            # out_IRPs11 = []
+            # out_IRPsct = []
+            # out_IRPsloop = []
+            # for i in range(len(ratioes)):
+            #     ratio_s11 = np.nan_to_num(IRPs11_all[i]/IRPs11_all[50], nan=1.0)
+            #     out_IRPs11.append(ratio_s11)
+            #     ratio_sct = np.nan_to_num(IRPsct_all[i]/IRPsct_all[50], nan=1.0)
+            #     out_IRPsct.append(ratio_sct)
+            #     ratio_sloop = np.nan_to_num(IRPsloop_all[i]/IRPsloop_all[50], nan=1.0)
+            #     out_IRPsloop.append(ratio_sloop)
+                
+            # np.save('IRPs11_interp.npy', out_IRPs11)
+            # np.save('IRPsct_interp.npy', out_IRPsct)
+            # np.save('IRPsloop_interp.npy', out_IRPsloop)
+            # # raise ValueError('Test completed.')
+            
+            self.IRPs(bird, window=window)
+            
+        if init == False:
+            bird.setIRPs()
+        if setPs:
+            bird.setresumPs()
 
-    def IRPs(self, bird, window=None):
+    def IRPs(self, bird, window=None, IRPs_all = None):
         """ This is the main method of the class. Compute the IR corrections in Fourier space. """
 
         XpYp = self.setXpYp(bird)
 
         if bird.with_bias:
-            for a, cf in enumerate(self.extractBAO(bird.Cf[:2])): # linear, loop (but not NNLO)
+            for a, cf in enumerate(self.extractBAO(bird.Cf)):
                 for l, cl in enumerate(cf):
                     for j, xy in enumerate(XpYp):
-                        IRcorrUnsorted = np.real((-1j)**(2*l)) * self.k2p[j] * self.IRn(xy * cl, window=window)
-                        for v in range(self.co.Na): bird.IRPs[a, l, j*self.co.Na + v, self.Nlow:] = IRcorrUnsorted[v]
+                        IRcorrUnsorted = np.real((-1j) ** (2 * l)) * self.k2p[j] * self.IRn(xy * cl, window=window)
+                        for v in range(self.co.Na):
+                            bird.IRPs[a, l, j * self.co.Na + v, self.Nlow :] = IRcorrUnsorted[v]
 
         else:
-            for l, cl in enumerate(self.extractBAO(bird.C11)):
-                for j, xy in enumerate(XpYp):
-                    IRcorrUnsorted = np.real((-1j)**(2*l)) * self.k2p[j] * self.IRn(xy * cl, window=window)
-                    for v in range(self.co.Na): bird.IRPs11[l, j*self.co.Na + v, self.Nlow:] = IRcorrUnsorted[v]
-            for l, cl in enumerate(self.extractBAO(bird.Cct)):
-                for j, xy in enumerate(XpYp):
-                    IRcorrUnsorted = np.real((-1j)**(2*l)) * self.k2p[j] * self.IRn(xy * cl, window=window)
-                    for v in range(self.co.Na): bird.IRPsct[l, j*self.co.Na + v, self.Nlow:] = IRcorrUnsorted[v]
-            for l, cl in enumerate(self.extractBAO(bird.Cloopl)):
-                for i, cli in enumerate(cl):
+            if IRPs_all is None:
+                for l, cl in enumerate(self.extractBAO(bird.C11)):
                     for j, xy in enumerate(XpYp):
-                        IRcorrUnsorted = np.real((-1j)**(2*l)) * self.k2p[j] * self.IRn(xy * cli, window=window)
-                        for v in range(self.co.Na): bird.IRPsloop[l, i, j*self.co.Na + v, self.Nlow:] = IRcorrUnsorted[v]
+                        IRcorrUnsorted = np.real((-1j) ** (2 * l)) * self.k2p[j] * self.IRn(xy * cl, window=window)
+                        for v in range(self.co.Na):
+                            bird.IRPs11[l, j * self.co.Na + v, self.Nlow :] = IRcorrUnsorted[v]
+                for l, cl in enumerate(self.extractBAO(bird.Cct)):
+                    for j, xy in enumerate(XpYp):
+                        IRcorrUnsorted = np.real((-1j) ** (2 * l)) * self.k2p[j] * self.IRn(xy * cl, window=window)
+                        for v in range(self.co.Na):
+                            bird.IRPsct[l, j * self.co.Na + v, self.Nlow :] = IRcorrUnsorted[v]
+                for l, cl in enumerate(self.extractBAO(bird.Cloopl)):
+                    for i, cli in enumerate(cl):
+                        for j, xy in enumerate(XpYp):
+                            IRcorrUnsorted = np.real((-1j) ** (2 * l)) * self.k2p[j] * self.IRn(xy * cli, window=window)
+                            for v in range(self.co.Na):
+                                bird.IRPsloop[l, i, j * self.co.Na + v, self.Nlow :] = IRcorrUnsorted[v]
+            else:
+                IRPs11, IRPsct, IRPsloop = IRPs_all
+                for l, cl in enumerate(self.extractBAO(bird.C11)):
+                    for j, xy in enumerate(XpYp):
+                        IRcorrUnsorted = np.real((-1j) ** (2 * l)) * self.k2p[j] * self.IRn(xy * cl, window=window)
+                        for v in range(self.co.Na):
+                            IRPs11[l, j * self.co.Na + v, self.Nlow :] = IRcorrUnsorted[v]
+                for l, cl in enumerate(self.extractBAO(bird.Cct)):
+                    for j, xy in enumerate(XpYp):
+                        IRcorrUnsorted = np.real((-1j) ** (2 * l)) * self.k2p[j] * self.IRn(xy * cl, window=window)
+                        for v in range(self.co.Na):
+                            IRPsct[l, j * self.co.Na + v, self.Nlow :] = IRcorrUnsorted[v]
+                for l, cl in enumerate(self.extractBAO(bird.Cloopl)):
+                    for i, cli in enumerate(cl):
+                        for j, xy in enumerate(XpYp):
+                            IRcorrUnsorted = np.real((-1j) ** (2 * l)) * self.k2p[j] * self.IRn(xy * cli, window=window)
+                            for v in range(self.co.Na):
+                                IRPsloop[l, i, j * self.co.Na + v, self.Nlow :] = IRcorrUnsorted[v]
+                                
+                return IRPs11, IRPsct, IRPsloop
