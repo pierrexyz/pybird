@@ -37,6 +37,8 @@ from .greenfunction import GreenFunction
 from .eisensteinhu import EisensteinHu
 from .matching import Matching
 
+# # import pdb; pdb.set_trace()
+# ################
 
 class Correlator(object):
     def __init__(self, config_dict=None, load_engines=True):
@@ -1493,6 +1495,10 @@ class Correlator(object):
             for config_key in config_dict:
                 if config_key == name:
                     config.check(config_key, config_dict[config_key])
+                    is_config = True
+            ### Keep this warning for typos in options that are then unread...
+            if not is_config:
+                raise Exception("%s is not an available configuration option. Please check correlator.info() for help. " % config_key)
 
         # Setting unspecified configs to default value
         for (name, config) in zip(self.config_catalog, self.config_catalog.values()):

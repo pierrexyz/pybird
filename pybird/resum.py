@@ -90,8 +90,8 @@ class Resum(object):
         self.Nlow = np.where(self.klow <= self.co.k)[0][0]
         k2pi = np.array([self.kr ** (2 * (p + 1)) for p in range(self.co.NIR)])
         self.k2p = np.concatenate((k2pi, k2pi))
-
-        self.fftsettings = dict(Nmax=NFFT, xmin=0.1, xmax=10000.0, bias=-0.6)
+        
+        self.fftsettings = dict(Nmax=NFFT, xmin=.1, xmax=10000., bias=-0.6)
         self.fft = FFTLog(**self.fftsettings)
         self.setM()
         self.setkPow()
