@@ -211,7 +211,7 @@ class Correlator(object):
             "keep_loop_pieces_independent": Option("keep_loop_pieces_independent", bool,
                 description="keep the loop pieces 13 and 22 independent (mainly for debugging)",
                 default=False) ,
-            "corr_convert": Option("Hankel transform the power spectrum to the correlation function", bool, 
+            "corr_convert": Option("corr_convert", bool, 
                                    description="Using Hankel transform to get the correlation function from the power spectrum", 
                                    default=False)
         }
