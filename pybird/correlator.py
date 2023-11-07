@@ -279,6 +279,7 @@ class Correlator(object):
             self.pk2xi_0 = PowerToCorrelationSphericalBessel(qs=self.kmode, ell=0)
             self.pk2xi_2 = PowerToCorrelationSphericalBessel(qs=self.kmode, ell=2)
             self.pk2xi_4 = PowerToCorrelationSphericalBessel(qs=self.kmode, ell=4)
+            #We only use the power spectrum lower than k = 0.5 h/Mpc for the interpolation. Beyond this number, we do extrapolation. 
             self.kmode_in = self.kmode[np.where(self.kmode <= 0.5)[0]]
             self.kmode_out = self.kmode[np.where(self.kmode > 0.5)[0]]
         
