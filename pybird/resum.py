@@ -2,10 +2,12 @@ import os
 import numpy as np
 from numpy import pi, cos, sin, log, exp, sqrt, trapz
 from scipy.interpolate import interp1d
+from .fftlog import FFTLog, MPC, CoefWindow
+from .common import co
+from .resumfactor import Qa, Qawithhex, Qawithhex20
+import time
+from scipy.special import spherical_jn
 
-from pybird.fftlog import FFTLog, MPC, CoefWindow
-from pybird.common import co
-from pybird.resumfactor import Qa, Qawithhex, Qawithhex20
 
 class Resum(object):
     """
@@ -225,43 +227,75 @@ class Resum(object):
                 for j, IRlj in enumerate(IRl):
                     bird.fullIRCfloop[l,j] = self.Ps2Cf(IRlj, l=l)
 
-    def PsCf(self, bird, makeIR=True, makeQ=True, setIR=True, setPs=True, setCf=True, window=None):
+    def PsCf(self, bird, makeIR=True, setIR = True, makeQ=True, setPs=True, setCf=True, window=None):
 
-        self.Ps(bird, makeIR=makeIR, makeQ=makeQ, setIR=setIR, setPs=setPs, window=window)
+        self.Ps(bird, makeIR=makeIR, setIR = setIR, makeQ=makeQ, setPs=setPs, window=window)
+        self.IRCf(bird, window=window)
         if setCf:
-            self.IRCf(bird, window=window)
             bird.setresumCf()
 
-    def Ps(self, bird, makeIR=True, makeQ=True, setIR=True, setPs=True, window=None):
+    def Ps(self, bird, makeIR=True, setIR = True, makeQ=True, setPs=True, window=None):
 
-        if makeIR: self.IRPs(bird, window=window)
-        if makeQ: bird.Q = self.makeQ(bird.f)
-        if setIR: bird.setIRPs()
-        if setPs: bird.setresumPs()
+        if makeQ:
+            bird.Q = self.makeQ(bird.f)
+        if makeIR:
+            
+            self.IRPs(bird, window=window)
+            
+        if setIR == True:
+            bird.setIRPs()
+        if setPs:
+            bird.setresumPs()
 
-    def IRPs(self, bird, window=None):
+    def IRPs(self, bird, window=None, IRPs_all = None):
         """ This is the main method of the class. Compute the IR corrections in Fourier space. """
 
         XpYp = self.setXpYp(bird)
 
         if bird.with_bias:
-            for a, cf in enumerate(self.extractBAO(bird.Cf[:2])): # linear, loop (but not NNLO)
+            for a, cf in enumerate(self.extractBAO(bird.Cf)):
                 for l, cl in enumerate(cf):
                     for j, xy in enumerate(XpYp):
-                        IRcorrUnsorted = np.real((-1j)**(2*l)) * self.k2p[j] * self.IRn(xy * cl, window=window)
-                        for v in range(self.co.Na): bird.IRPs[a, l, j*self.co.Na + v, self.Nlow:] = IRcorrUnsorted[v]
+                        IRcorrUnsorted = np.real((-1j) ** (2 * l)) * self.k2p[j] * self.IRn(xy * cl, window=window)
+                        for v in range(self.co.Na):
+                            bird.IRPs[a, l, j * self.co.Na + v, self.Nlow :] = IRcorrUnsorted[v]
 
         else:
-            for l, cl in enumerate(self.extractBAO(bird.C11)):
-                for j, xy in enumerate(XpYp):
-                    IRcorrUnsorted = np.real((-1j)**(2*l)) * self.k2p[j] * self.IRn(xy * cl, window=window)
-                    for v in range(self.co.Na): bird.IRPs11[l, j*self.co.Na + v, self.Nlow:] = IRcorrUnsorted[v]
-            for l, cl in enumerate(self.extractBAO(bird.Cct)):
-                for j, xy in enumerate(XpYp):
-                    IRcorrUnsorted = np.real((-1j)**(2*l)) * self.k2p[j] * self.IRn(xy * cl, window=window)
-                    for v in range(self.co.Na): bird.IRPsct[l, j*self.co.Na + v, self.Nlow:] = IRcorrUnsorted[v]
-            for l, cl in enumerate(self.extractBAO(bird.Cloopl)):
-                for i, cli in enumerate(cl):
+            if IRPs_all is None:
+                for l, cl in enumerate(self.extractBAO(bird.C11)):
                     for j, xy in enumerate(XpYp):
-                        IRcorrUnsorted = np.real((-1j)**(2*l)) * self.k2p[j] * self.IRn(xy * cli, window=window)
-                        for v in range(self.co.Na): bird.IRPsloop[l, i, j*self.co.Na + v, self.Nlow:] = IRcorrUnsorted[v]
+                        IRcorrUnsorted = np.real((-1j) ** (2 * l)) * self.k2p[j] * self.IRn(xy * cl, window=window)
+                        for v in range(self.co.Na):
+                            # print(self.co.Na, v, j * self.co.Na + v, self.co.Nn, np.shape(IRcorrUnsorted))
+                            bird.IRPs11[l, j * self.co.Na + v, self.Nlow :] = IRcorrUnsorted[v]
+                for l, cl in enumerate(self.extractBAO(bird.Cct)):
+                    for j, xy in enumerate(XpYp):
+                        IRcorrUnsorted = np.real((-1j) ** (2 * l)) * self.k2p[j] * self.IRn(xy * cl, window=window)
+                        for v in range(self.co.Na):
+                            bird.IRPsct[l, j * self.co.Na + v, self.Nlow :] = IRcorrUnsorted[v]
+                for l, cl in enumerate(self.extractBAO(bird.Cloopl)):
+                    for i, cli in enumerate(cl):
+                        for j, xy in enumerate(XpYp):
+                            IRcorrUnsorted = np.real((-1j) ** (2 * l)) * self.k2p[j] * self.IRn(xy * cli, window=window)
+                            for v in range(self.co.Na):
+                                bird.IRPsloop[l, i, j * self.co.Na + v, self.Nlow :] = IRcorrUnsorted[v]
+            else:
+                IRPs11, IRPsct, IRPsloop = IRPs_all
+                for l, cl in enumerate(self.extractBAO(bird.C11)):
+                    for j, xy in enumerate(XpYp):
+                        IRcorrUnsorted = np.real((-1j) ** (2 * l)) * self.k2p[j] * self.IRn(xy * cl, window=window)
+                        for v in range(self.co.Na):
+                            IRPs11[l, j * self.co.Na + v, self.Nlow :] = IRcorrUnsorted[v]
+                for l, cl in enumerate(self.extractBAO(bird.Cct)):
+                    for j, xy in enumerate(XpYp):
+                        IRcorrUnsorted = np.real((-1j) ** (2 * l)) * self.k2p[j] * self.IRn(xy * cl, window=window)
+                        for v in range(self.co.Na):
+                            IRPsct[l, j * self.co.Na + v, self.Nlow :] = IRcorrUnsorted[v]
+                for l, cl in enumerate(self.extractBAO(bird.Cloopl)):
+                    for i, cli in enumerate(cl):
+                        for j, xy in enumerate(XpYp):
+                            IRcorrUnsorted = np.real((-1j) ** (2 * l)) * self.k2p[j] * self.IRn(xy * cli, window=window)
+                            for v in range(self.co.Na):
+                                IRPsloop[l, i, j * self.co.Na + v, self.Nlow :] = IRcorrUnsorted[v]
+                                
+                return IRPs11, IRPsct, IRPsloop

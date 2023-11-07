@@ -1,19 +1,14 @@
 import os
 import numpy as np
 from numpy import pi, cos, sin, log, exp, sqrt, trapz
-from scipy.interpolate import interp1d
+from scipy.interpolate import interp1d, splev, splrep
 from scipy.integrate import quad
 from scipy.special import legendre, spherical_jn, j1
-from pybird.fftlog import FFTLog, MPC
-from pybird.common import co
-from pybird.greenfunction import GreenFunction
-from pybird.fourier import FourierTransform
-
-# import importlib, sys
-# importlib.reload(sys.modules['greenfunction'])
-# from greenfunction import GreenFunction
-
-# from time import time
+from .fftlog import FFTLog, MPC
+from .common import co
+from .greenfunction import GreenFunction
+from .fourier import FourierTransform
+from scipy import special
 
 def cH(Om, a):
     """ LCDM growth rate auxiliary function """
@@ -107,7 +102,9 @@ class Projection(object):
             self.arrayLegendremukgrid = np.array([(2*2*l+1)/2.*legendre(2*l)(self.mukgrid) for l in range(self.co.Nl)])
 
         if with_survey_mask: self.arr_p, self.mat_kp = survey_mask_arr_p, survey_mask_mat_kp
-        if with_binning: self.loadBinning(self.xout, binsize)
+        if with_binning: 
+            # self.loadBinning(self.xout, binsize)
+            self.getxbin_mat()
         if with_wedge: self.wedge_mat_wl = wedge_mat_wl
         
         # redshift bin evolution
@@ -119,7 +116,7 @@ class Projection(object):
             self.L = np.array([legendre(2*l)(self.mu) for l in range(self.co.Nl)]) # Legendre to reconstruct the 3D 2pt function
             self.Lp = 2. * np.array([(4*l+1)/2. * legendre(2*l)(self.mu) for l in range(self.co.Nl)]) # Legendre in the integrand to get the multipoles ; factor 2 in front because mu integration goes from 0 to 1
             self.ft = FourierTransform(co=self.co)
-
+    
     def get_AP_param(self, bird=None, DA=None, H=None):
         """
         Compute the AP parameters
@@ -128,7 +125,7 @@ class Projection(object):
         elif DA is not None and H is not None: qpar, qperp = self.H_fid / H, DA / self.D_fid
         return qperp, qpar
 
-    def integrAP(self, k, Pk, kp, arrayLegendremup):
+    def integrAP(self, k, Pk, kp, arrayLegendremup, many=False):
         """
         AP integration
         Credit: Jerome Gleyzes
@@ -139,45 +136,101 @@ class Projection(object):
         else:
             mugrid = self.mukgrid
             arrayLegendremugrid = self.arrayLegendremukgrid
-        Pkint = interp1d(k, Pk, axis=-1, kind='cubic', bounds_error=False, fill_value='extrapolate')
-        Pkmu = np.einsum('l...km,lkm->...km', Pkint(kp), arrayLegendremup)
-        Integrandmu = np.einsum('...km,lkm->l...km', Pkmu, arrayLegendremugrid)
+        Pkint = interp1d(k, Pk, axis=-1, kind="cubic", bounds_error=False, fill_value="extrapolate")
+        #
+        if many:
+            Pkmu = np.einsum("lpkm,lkm->pkm", Pkint(kp), arrayLegendremup)
+
+            Integrandmu = np.einsum("pkm,lkm->lpkm", Pkmu, arrayLegendremugrid)
+ 
+        else:
+            Pkmu = np.einsum("lkm,lkm->km", Pkint(kp), arrayLegendremup)
+            Integrandmu = np.einsum("km,lkm->lkm", Pkmu, arrayLegendremugrid)
         return 2 * np.trapz(Integrandmu, x=mugrid, axis=-1)
 
-    def AP(self, bird=None, q=None):
+    def AP(self, bird=None, q=None, overwrite=True, xdata=None, PS=None):
         """
         Apply the AP effect to the bird power spectrum or correlation function
         Credit: Jerome Gleyzes
-            """
-        if q is None: qperp, qpar = self.get_AP_param(bird)
-        else: qperp, qpar = q
+        """
+        if q is None:
+            qperp, qpar = self.get_AP_param(bird)
+        else:
+            qperp, qpar = q
+            
+        if xdata is not None:
+            kdata = xdata
+        else:
+            kdata = self.co.k
 
         if self.cf:
-            G = (self.musgrid**2 * qpar**2 + (1-self.musgrid**2) * qperp**2)**0.5
+            G = (self.musgrid ** 2 * qpar ** 2 + (1 - self.musgrid ** 2) * qperp ** 2) ** 0.5
             sp = self.sgrid * G
             mup = self.musgrid * qpar / G
-            arrayLegendremup = np.array([legendre(2*l)(mup) for l in range(self.co.Nl)])
+            arrayLegendremup = np.array([legendre(2 * l)(mup) for l in range(self.co.Nl)])
 
             if bird.with_bias:
-                bird.fullCf = self.integrAP(self.co.s, bird.fullCf, sp, arrayLegendremup)
+                if overwrite:
+                    bird.fullCf = self.integrAP(self.co.s, bird.fullCf, sp, arrayLegendremup, many=False)
+                else:
+                    return self.integrAP(self.co.s, bird.fullCf, sp, arrayLegendremup, many=False)
             else:
-                bird.C11l = self.integrAP(self.co.s, bird.C11l, sp, arrayLegendremup)
-                bird.Cctl = self.integrAP(self.co.s, bird.Cctl, sp, arrayLegendremup)
-                bird.Cloopl = self.integrAP(self.co.s, bird.Cloopl, sp, arrayLegendremup)
-                if bird.with_nnlo_counterterm: bird.Cnnlol = self.integrAP(self.co.s, bird.Cnnlol, sp, arrayLegendremup)
+                C11l_AP = self.integrAP(self.co.s, bird.C11l, sp, arrayLegendremup, many=True)
+                Cctl_AP = self.integrAP(self.co.s, bird.Cctl, sp, arrayLegendremup, many=True)
+                Cloopl_AP = self.integrAP(self.co.s, bird.Cloopl, sp, arrayLegendremup, many=True)
+                if bird.with_nnlo_counterterm: Cnnlol_AP = self.integrAP(self.co.s, bird.Cnnlol, sp, arrayLegendremup, many=True)
+                if overwrite:
+                    bird.C11l, bird.Cctl, bird.Cloopl = C11l_AP, Cctl_AP, Cloopl_AP
+                else:
+                    return C11l_AP, Cctl_AP, Cloopl_AP
         else:
             F = qpar / qperp
-            kp = self.kgrid / qperp * (1 + self.mukgrid**2 * (F**-2 - 1))**0.5
-            mup = self.mukgrid / F * (1 + self.mukgrid**2 * (F**-2 - 1))**-0.5
-            arrayLegendremup = np.array([legendre(2*l)(mup) for l in range(self.co.Nl)])
+            kp = self.kgrid / qperp * (1.0 + self.mukgrid ** 2 * ((F ** -2) - 1.0)) ** 0.5
+            mup = self.mukgrid / F * (1.0 + self.mukgrid ** 2 * ((F ** -2) - 1.0)) ** -0.5
+            
+            
+            arrayLegendremup = np.array([legendre(2 * l)(mup) for l in range(self.co.Nl)])
 
             if bird.with_bias:
-                bird.fullPs = 1. / (qperp**2 * qpar) * self.integrAP(self.co.k, bird.fullPs, kp, arrayLegendremup)
+                if overwrite:
+                    bird.fullPs = (
+                        1.0
+                        / (qperp ** 2 * qpar)
+                        * self.integrAP(kdata, bird.fullPs, kp, arrayLegendremup, many=False)
+                    )
+                else:
+                    return (
+                        1.0
+                        / (qperp ** 2 * qpar)
+                        * self.integrAP(kdata, bird.fullPs, kp, arrayLegendremup, many=False)
+                    )
             else:
-                bird.P11l = 1. / (qperp**2 * qpar) * self.integrAP(self.co.k, bird.P11l, kp, arrayLegendremup)
-                bird.Pctl = 1. / (qperp**2 * qpar) * self.integrAP(self.co.k, bird.Pctl, kp, arrayLegendremup)
-                bird.Ploopl = 1. / (qperp**2 * qpar) * self.integrAP(self.co.k, bird.Ploopl, kp, arrayLegendremup)
-                if bird.with_nnlo_counterterm: bird.Pnnlol = 1. / (qperp**2 * qpar) * self.integrAP(self.co.k, bird.Pnnlol, kp, arrayLegendremup)      
+                if PS is None:
+                    P11l = bird.P11l
+                    Pctl = bird.Pctl
+                    Ploopl = bird.Ploopl
+                    Pstl = bird.Pstl
+                else:
+                    P11l, Ploopl, Pctl, Pstl = PS
+                    
+                P11l_AP = (
+                    1.0 / (qperp ** 2 * qpar) * self.integrAP(kdata, P11l, kp, arrayLegendremup, many=True)
+                )
+                Pctl_AP = (
+                    1.0 / (qperp ** 2 * qpar) * self.integrAP(kdata, Pctl, kp, arrayLegendremup, many=True)
+                )
+                
+                Ploopl_AP = (
+                    1.0 / (qperp ** 2 * qpar) * self.integrAP(kdata, Ploopl, kp, arrayLegendremup, many=True)
+                )
+                
+                Pstl_AP = Pstl
+                
+                if overwrite:
+                    bird.P11l, bird.Pctl, bird.Ploopl, bird.Pstl = P11l_AP, Pctl_AP, Ploopl_AP, Pstl_AP
+
+                else:
+                    return P11l_AP, Pctl_AP, Ploopl_AP, Pstl_AP
 
     def integrWindow(self, P):
         """
@@ -186,18 +239,63 @@ class Projection(object):
         Pk = interp1d(self.co.k, P, axis=-1, kind='cubic', bounds_error=False, fill_value=0.)(self.arr_p)
         return np.einsum('alkp,l...p->a...k', self.mat_kp, Pk) # (multipole a, multipole l, k, p) , (multipole l, power pectra s, p)
 
-    def Window(self, bird):
+    # def Window(self, bird):
+    #     """
+    #     Apply the survey window function to the bird power spectrum 
+    #     """
+    #     if bird.with_bias:
+    #         bird.fullPs = self.integrWindow(bird.fullPs)
+    #     else:
+    #         bird.P11l = self.integrWindow(bird.P11l)
+    #         bird.Pctl = self.integrWindow(bird.Pctl)
+    #         bird.Ploopl = self.integrWindow(bird.Ploopl)
+    #         if bird.with_stoch: bird.Pstl = self.integrWindow(bird.Pstl)
+    #         if bird.with_nnlo_counterterm: bird.Pnnlol = self.integrWindow(bird.Pnnlol)
+            
+    def Window(self, bird, PS=None):
         """
-        Apply the survey window function to the bird power spectrum 
+        Apply the survey window function to the bird power spectrum
         """
+            
+        # if self.cf:
+        #     if bird.with_bias:
+        #         bird.fullCf = np.einsum("als,ls->as", self.Qal, bird.fullCf)
+        #     else:
+        #         bird.C11l = np.einsum("als,lns->ans", self.Qal, bird.C11l)
+        #         bird.Cctl = np.einsum("als,lns->ans", self.Qal, bird.Cctl)
+        #         bird.Cloopl = np.einsum("als,lns->ans", self.Qal, bird.Cloopl)
+        #         if bird.with_nnlo_counterterm:
+        #             bird.Cnnlol = np.einsum("als,lns->ans", self.Qal, bird.Cnnlol)
+        
+        # else:
         if bird.with_bias:
             bird.fullPs = self.integrWindow(bird.fullPs)
         else:
-            bird.P11l = self.integrWindow(bird.P11l)
-            bird.Pctl = self.integrWindow(bird.Pctl)
-            bird.Ploopl = self.integrWindow(bird.Ploopl)
-            if bird.with_stoch: bird.Pstl = self.integrWindow(bird.Pstl)
-            if bird.with_nnlo_counterterm: bird.Pnnlol = self.integrWindow(bird.Pnnlol)
+            if PS is None:
+                bird.P11l = self.integrWindow(bird.P11l)
+                bird.Pctl = self.integrWindow(bird.Pctl)
+                bird.Ploopl = self.integrWindow(bird.Ploopl)
+                if bird.with_stoch:
+                    bird.Pstl = self.integrWindow(bird.Pstl)
+                if bird.with_nnlo_counterterm:
+                    bird.Pnnlol = self.integrWindow(bird.Pnnlol)
+            else:
+                
+                P11l_in, Ploopl_in, Pctl_in, Pstl_in = PS
+                P11l = self.integrWindow(P11l_in)
+                Pctl = self.integrWindow(Pctl_in)
+                Ploopl = self.integrWindow(Ploopl_in)
+                if bird.with_stoch:
+                    Pstl = self.integrWindow(Pstl_in)
+                    
+                    return P11l, Ploopl, Pctl, Pstl
+                
+                elif bird.with_nnlo_counterterm:
+                    raise Exception('Pnnlol not avaliable for Shapefit yet.')
+                    Pnnlol = self.integrWindow(Pnnlol_in)
+                else:
+                    return P11l, Ploopl, Pctl
+                    
 
     def dPuncorr(self, xout, fs=0.6, Dfc=0.43 / 0.6777):
         """
@@ -273,68 +371,276 @@ class Projection(object):
             bird.Ploopl += self.dPcorr(self.co.k, self.co.k, bird.Ploopl, many=True)
             # bird.Pnnlol += self.dPcorr(self.co.k, self.co.k, bird.Pnnlol, many=True)
 
-    def loadBinning(self, xout, binsize):
+            
+    def getxbin_mat(self):
+        
+        try:
+            dist_input = self.co.dist
+            print('Converting power spectrum to correlation function.')
+            self.corr_convert = True
+        except:
+            dist_input = None
+            self.corr_convert = False
+        
+        if (self.cf == False and dist_input is None):
+        
+            ks = self.xout
+            
+            dk = ks[-1] - ks[-2]
+            ks_input = self.co.k
+            
+            self.kmat = ks_input
+           
+    
+            binmat = np.zeros((len(ks), len(ks_input)))
+            for ii in range(len(ks_input)):
+    
+                # Define basis vector
+                pkvec = np.zeros_like(ks_input)
+                pkvec[ii] = 1
+                # print(pkvec)
+    
+                # Define the spline:
+                pkvec_spline = splrep(ks_input, pkvec)
+    
+                # Now compute binned basis vector:
+                tmp = np.zeros_like(ks)
+                for i, kk in enumerate(ks):
+                    if i == 0 or i == len(ks) - 1:
+                        kl = kk - dk / 2
+                        kr = kk + dk / 2
+                    else:
+                        kl = (kk + ks[i-1])/2.0
+                        kr = (ks[i+1] + kk)/2.0
+                    
+                    kin = np.linspace(kl, kr, 100)
+                    tmp[i] = np.trapz(kin**2 * splev(kin, pkvec_spline, ext=0), x=kin) * 3 / (kr**3 - kl**3)
+                    
+                binmat[:, ii] = tmp
+            
+            
+            self.xbin_mat = binmat
+        else:
+            ss = self.xout
+            
+            ds = ss[-1] - ss[-2]
+            if dist_input is None:
+                ss_input = self.co.s
+            else:
+                ss_input = dist_input
+            
+            self.smat = ss_input
+            # print(self.kmat)
+            
+    
+            binmat = np.zeros((len(ss), len(ss_input)))
+            for ii in range(len(ss_input)):
+    
+                # Define basis vector
+                cfvec = np.zeros_like(ss_input)
+                cfvec[ii] = 1
+    
+                # Define the spline:
+                cfvec_spline = splrep(ss_input, cfvec)
+    
+                # Now compute binned basis vector:
+                tmp = np.zeros_like(ss)
+                for i, sk in enumerate(ss):
+                    if i == 0 or i == len(ss) - 1:
+                        sl = sk - ds / 2
+                        sr = sk + ds / 2
+                    else:
+                        sl = (sk + ss[i-1])/2.0
+                        sr = (ss[i+1] + sk)/2.0
+                    
+                    s_in = np.linspace(sl, sr, 100)
+                    tmp[i] = np.trapz(s_in**2 * splev(s_in, cfvec_spline, ext=2), x=s_in) * 3 / (sr**3 - sl**3)
+                    
+                binmat[:, ii] = tmp
+            
+            
+            
+            self.xbin_mat = binmat
+
+    def loadBinning(self, setxout):
         """
         Create the bins of the data k's
         """
-        kcentral = (xout[-1] - binsize * np.arange(len(xout)))[::-1] # in case the provided ks are not the central ones but effective ones...
-        binmin = kcentral - binsize / 2.
-        binmax = kcentral + binsize / 2.
-        self.binvol = np.array([quad(lambda k: k**2, kbinmin, kbinmax)[0] for (kbinmin, kbinmax) in zip(binmin, binmax)])
+        
+        delta_k = setxout[-1] - setxout[-2]
+        kcentral = (setxout[-1] - delta_k * np.arange(len(setxout)))[::-1]
+        binmin = kcentral - delta_k / 2
+        binmax = kcentral + delta_k / 2
+        
+        binmin = np.where(binmin<0.0, 0.0, binmin)
+        
+        # binmin = []
+        # binmax = []
+        # for i in range(len(setxout)):
+        #     if i != len(setxout) - 1:
+        #         delta_k = setxout[i+1]-setxout[i]
+        #     else:
+        #         delta_k = setxout[-1]-setxout[-2]
+        #     kcentral = setxout[i]
+        #     binmin.append(kcentral - delta_k/2.0)
+        #     binmax.append(kcentral + delta_k/2.0)
+            
+        # print('New binning routine')
+            
+        # binmin = np.array(binmin)
+        # binmax = np.array(binmax)
+        
+        self.binvol = np.array(
+            [quad(lambda k: k ** 2, kbinmin, kbinmax)[0] for (kbinmin, kbinmax) in zip(binmin, binmax)]
+        )
+
         self.points = [np.linspace(kbinmin, kbinmax, 100) for (kbinmin, kbinmax) in zip(binmin, binmax)]
 
     def integrBinning(self, P):
         """
         Integrate over each bin of the data k's
         """
-        if self.cf: integrand = interp1d(self.co.s, P, axis=-1, kind='cubic', bounds_error=False, fill_value=0.)
-        else: integrand = interp1d(self.co.k, P, axis=-1, kind='cubic', bounds_error=False, fill_value=0.)
-        res = np.array([np.trapz(integrand(pts) * pts**2, x=pts) for pts in self.points])
+        if self.cf:
+            integrand = interp1d(self.co.s, P, axis=-1, kind="cubic", bounds_error=True)
+        else:
+            integrand = interp1d(self.co.k, P, axis=-1, kind="cubic", bounds_error=True)
+        
+        res = np.array([np.trapz(integrand(pts) * pts ** 2, x=pts) for pts in self.points])
+        
+        # result_all = []
+        # for i in range(len(self.xout)):
+        #     n = 1000
+        #     xp = (self.kcentral[i] + self.delta_k*(np.linspace(0, n-1, n) - n)/(2.0*n))
+        #     result = np.sum(xp**2*integrand(xp)*self.delta_k/np.float64(n))/self.binvol[i]
+        #     result_all.append(result)
+            
+        # result_all = np.array(result_all)
+            
         return np.moveaxis(res, 0, -1) / self.binvol
 
-    def xbinning(self, bird):
+    def xbinning(self, bird, PS_all = None, CF_all = None):
         """
         Apply binning in k-space for linear-spaced data k-array
         """
-        if self.cf:
-            if bird.with_bias:
-                bird.fullCf = self.integrBinning(bird.fullCf)
+        if (self.cf or self.corr_convert):
+            if CF_all is None:
+                if bird.with_bias:
+                    bird.fullCf = np.einsum("abc, dc -> abd", bird.fullCf, self.xbin_mat)
+                else:
+                    bird.C11l = np.einsum("abc, dc -> abd", bird.C11l, self.xbin_mat)
+                    bird.Cctl = np.einsum("abc, dc -> abd", bird.Cctl, self.xbin_mat)
+                    bird.Cloopl = np.einsum("abc, dc -> abd", bird.Cloopl, self.xbin_mat)
+                    if bird.with_stoch: bird.Cstl = np.einsum("abc, dc -> abd", bird.Cstl, self.xbin_mat)
+                    if bird.with_nnlo_counterterm:
+                        bird.Cnnlol = self.integrBinning(bird.Cnnlol)
             else:
-                bird.C11l = self.integrBinning(bird.C11l)
-                bird.Cctl = self.integrBinning(bird.Cctl)
-                bird.Cloopl = self.integrBinning(bird.Cloopl)
-                if bird.with_nnlo_counterterm: bird.Cnnlol = self.integrBinning(bird.Cnnlol)
+                C11l_in, Cloopl_in, Cctl_in, Cstl_in = CF_all
+                
+                C11l_new = np.einsum("abc, dc -> abd", C11l_in, self.xbin_mat)
+                Cctl_new = np.einsum("abc, dc -> abd", Cctl_in, self.xbin_mat)
+                Cloopl_new = np.einsum("abc, dc -> abd", Cloopl_in, self.xbin_mat)
+                Cstl_new = np.einsum("abc, dc -> abd", Cstl_in, self.xbin_mat)
+                
+                return C11l_new, Cloopl_new, Cctl_new, Cstl_new
+        
         else:
-            if bird.with_bias:
-                bird.fullPs = self.integrBinning(bird.fullPs)
+            
+            if PS_all is None:
+                if bird.with_bias:
+                    bird.fullPs = np.einsum("abc, dc -> abd", bird.fullPs, self.xbin_mat)
+                else:
+                    bird.P11l = np.einsum("abc, dc -> abd", bird.P11l, self.xbin_mat)
+                    bird.Pctl = np.einsum("abc, dc -> abd", bird.Pctl, self.xbin_mat)
+                    bird.Ploopl = np.einsum("abc, dc -> abd", bird.Ploopl, self.xbin_mat)
+                    if bird.with_stoch:
+                        bird.Pstl = np.einsum("abc, dc -> abd", bird.Pstl, self.xbin_mat)
+                    if bird.with_nnlo_counterterm:
+                        bird.Pnnlol = np.einsum("abc, dc -> abd", bird.Pnnlol, self.xbin_mat)
             else:
-                bird.P11l = self.integrBinning(bird.P11l)
-                bird.Pctl = self.integrBinning(bird.Pctl)
-                bird.Ploopl = self.integrBinning(bird.Ploopl)
-                if bird.with_stoch: bird.Pstl = self.integrBinning(bird.Pstl)
-                if bird.with_nnlo_counterterm: bird.Pnnlol = self.integrBinning(bird.Pnnlol)
+                    P11l_in, Ploopl_in, Pctl_in, Pstl_in = PS_all
+                    P11l_out = np.einsum("abc, dc -> abd", P11l_in, self.xbin_mat)
+                    Pctl_out = np.einsum("abc, dc -> abd", Pctl_in, self.xbin_mat)
+                    Ploopl_out = np.einsum("abc, dc -> abd", Ploopl_in, self.xbin_mat)
+                    Pstl_out = np.einsum("abc, dc -> abd", Pstl_in, self.xbin_mat)
+        
+                    return P11l_out, Ploopl_out, Pctl_out, Pstl_out
+        
 
-    def xdata(self, bird):
+    def xdata(self, bird, PS=None, CF = None):
         """
         Interpolate the bird power spectrum on the data k-array
         """
         if self.cf:
-            if bird.with_bias:
-                bird.fullCf = interp1d(self.co.s, bird.fullCf, axis=-1, kind='cubic', bounds_error=False)(self.xout)
+            if self.corr_convert:
+                dist = self.co.dist
             else:
-                bird.C11l = interp1d(self.co.s, bird.C11l, axis=-1, kind='cubic', bounds_error=False)(self.xout)
-                bird.Cctl = interp1d(self.co.s, bird.Cctl, axis=-1, kind='cubic', bounds_error=False)(self.xout)
-                bird.Cloopl = interp1d(self.co.s, bird.Cloopl, axis=-1, kind='cubic', bounds_error=False)(self.xout)
-                if bird.with_nnlo_counterterm: bird.Cnnlol = interp1d(self.co.s, bird.Cnnlol, axis=-1, kind='cubic', bounds_error=False)(self.xout)
+                dist = self.co.s
+            
+            if CF is None:
+                if bird.with_bias:
+                    bird.fullCf = interp1d(dist, bird.fullCf, axis=-1, kind="cubic", bounds_error=False)(self.xout)
+                else:
+                    bird.C11l = interp1d(dist, bird.C11l, axis=-1, kind="cubic", bounds_error=False)(self.xout)
+                    bird.Cctl = interp1d(dist, bird.Cctl, axis=-1, kind="cubic", bounds_error=False)(self.xout)
+                    bird.Cloopl = interp1d(dist, bird.Cloopl, axis=-1, kind="cubic", bounds_error=False)(self.xout)
+                    if bird.with_stoch: bird.Cstl = interp1d(dist, bird.Cstl, axis=-1, kind='cubic', bounds_error=False)(self.xout)
+                    if bird.with_nnlo_counterterm:
+                        bird.Cnnlol = interp1d(dist, bird.Cnnlol, axis=-1, kind="cubic", bounds_error=False)(self.xout)
+            else:
+                C11l_in, Cloopl_in, Cctl_in, Cstl_in = CF
+                C11l_new = interp1d(dist, C11l_in, axis=-1, kind="cubic", bounds_error=False)(self.xout)
+                Cctl_new = interp1d(dist, Cctl_in, axis=-1, kind="cubic", bounds_error=False)(self.xout)
+                Cloopl_new = interp1d(dist, Cloopl_in, axis=-1, kind="cubic", bounds_error=False)(self.xout)
+                Cstl_new = interp1d(dist, Cstl_in, axis=-1, kind='cubic', bounds_error=False)(self.xout)
+                
+                return C11l_new, Cloopl_new, Cctl_new, Cstl_new
+        
         else:
-            if bird.with_bias:
-                bird.fullPs = interp1d(self.co.k, bird.fullPs, axis=-1, kind='cubic', bounds_error=False)(self.xout)
+            if PS is None:
+                bird.P11l = interp1d(self.co.k, bird.P11l, axis=-1, kind="cubic", bounds_error=False)(self.xout)
+                bird.Pctl = interp1d(self.co.k, bird.Pctl, axis=-1, kind="cubic", bounds_error=False)(self.xout)
+                bird.Ploopl = interp1d(self.co.k, bird.Ploopl, axis=-1, kind="cubic", bounds_error=False)(self.xout)
+                if bird.with_stoch:
+                    bird.Pstl = interp1d(self.co.k, bird.Pstl, kind="cubic", bounds_error=False)(self.xout)
+                if bird.with_nnlo_counterterm:
+                    bird.Pnnlol = interp1d(self.co.k, bird.Pnnlol, axis=-1, kind="cubic", bounds_error=False)(self.xout)
             else:
-                bird.P11l = interp1d(self.co.k, bird.P11l, axis=-1, kind='cubic', bounds_error=False)(self.xout)
-                bird.Pctl = interp1d(self.co.k, bird.Pctl, axis=-1, kind='cubic', bounds_error=False)(self.xout)
-                bird.Ploopl = interp1d(self.co.k, bird.Ploopl, axis=-1, kind='cubic', bounds_error=False)(self.xout)
-                if bird.with_stoch: bird.Pstl = interp1d(self.co.k, bird.Pstl, kind='cubic', bounds_error=False)(self.xout)
-                if bird.with_nnlo_counterterm: bird.Pnnlol = interp1d(self.co.k, bird.Pnnlol, axis=-1, kind='cubic', bounds_error=False)(self.xout)
+                if bird.with_stoch:
+                    P11l, Pctl, Ploopl, Pstl = PS
+                else:
+                    P11l, Pctl, Ploopl = PS
+                P11l_new = interp1d(self.co.k, P11l, axis=-1, kind="cubic", bounds_error=False)(self.xout)
+                Pctl_new = interp1d(self.co.k, Pctl, axis=-1, kind="cubic", bounds_error=False)(self.xout)
+                Ploopl_new = interp1d(self.co.k, Ploopl, axis=-1, kind="cubic", bounds_error=False)(self.xout)
+                if bird.with_stoch:
+                    Pstl_new = interp1d(self.co.k, Pstl, kind="cubic", bounds_error=False)(self.xout)
+                    return P11l_new, Pctl_new, Ploopl_new, Pstl_new
+                else:
+                    return P11l_new, Pctl_new, Ploopl_new
+
+    def IntegralLegendre(self, l, a, b):
+        if l == 0:
+            return 1.0
+        if l == 2:
+            return 0.5 * (b ** 3 - b - a ** 3 + a) / (b - a)
+        if l == 4:
+            return (
+                0.25
+                * (-3 / 2.0 * a + 5 * a ** 3 - 7 / 2.0 * a ** 5 + 3 / 2.0 * b - 5 * b ** 3 + 7 / 2.0 * b ** 5)
+                / (b - a)
+            )
+
+    def IntegralLegendreArray(self, Nw=3, Nl=2, bounds=None):
+        deltamu = 1.0 / float(Nw)
+        if bounds is None:
+            boundsmu = np.arange(0.0, 1.0 + deltamu, deltamu)
+        else:
+            boundsmu = bounds
+        IntegrLegendreArray = np.empty(shape=(Nw, Nl))
+        for w in range(Nw):
+            for l in range(Nl):
+                IntegrLegendreArray[w, l] = self.IntegralLegendre(2 * l, boundsmu[w], boundsmu[w + 1])
+        return IntegrLegendreArray
 
     def integrWedges(self, P):
         w = np.einsum('l...k,wl->w...k', P, self.wedge_mat_wl)
@@ -462,8 +768,3 @@ class Projection(object):
             bird.C11l = integration(tlin, bird.C11l)
             bird.Cctl = integration(tct, bird.Cctl)
             bird.Cloopl = integration(tloop, bird.Cloopl)
-
-        
-
-            
-
