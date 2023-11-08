@@ -262,7 +262,7 @@ class Correlator(object):
 
     def compute(self, cosmo_dict, module=None, Templatefit = False, corr_convert = False, cosmo_module=None, cosmo_engine=None, correlator_engine=None, do_core=True, do_survey_specific=True):
 
-        
+
         if cosmo_dict: cosmo_dict_local = cosmo_dict.copy()
         elif cosmo_module and cosmo_engine: cosmo_dict_local = {}
         else: raise Exception('provide cosmo_dict or CLASSy engine with cosmo_module=\'class\' ')
@@ -307,12 +307,12 @@ class Correlator(object):
                     if Templatefit == False:
                         self.resum.PsCf(self.bird, makeIR=False, makeQ=True, setIR=True, setPs=True, setCf=self.c["with_cf"])
                 if self.c["with_redshift_bin"]: self.projection.redshift(self.bird, self.cosmo["rz"], self.cosmo["Dz"], self.cosmo["fz"], pk=self.c["output"])
-                if self.c["with_ap"]: self.projection.AP(self.bird)
-                if self.c["with_fibercol"]: self.projection.fibcolWindow(self.bird)
                 if (corr_convert == True and Templatefit == False):  
                     self.pk2xi_fun(bird=[self.bird.P11l, self.bird.Ploopl, self.bird.Pctl, self.bird.Pstl])
                     
                 if Templatefit == False:
+                    if self.c["with_ap"]: self.projection.AP(self.bird)
+                    if self.c["with_fibercol"]: self.projection.fibcolWindow(self.bird)
                     if self.c["with_survey_mask"]: self.projection.Window(self.bird)
                     elif self.c["with_binning"]: self.projection.xbinning(self.bird) # no binning if 'with_survey_mask' since the mask should account for it.
                     elif self.c["xdata"] is not None: self.projection.xdata(self.bird)
@@ -325,7 +325,7 @@ class Correlator(object):
         P11l_mono, P11l_quad, P11l_hexa = P11l
         Ploopl_mono, Ploopl_quad, Ploopl_hexa = Ploopl
         Pctl_mono, Pctl_quad, Pctl_hexa = Pctl
-        
+
         #Power law extrapolation for the monopole of the linear power spectrum.
         power_0, scale_0, r_value_0, p_value_0, std_err = linregress(np.log10(self.co.k[-20:]), np.log10(P11l_mono[0][-20:]))
         power_1, scale_1, r_value_1, p_value_1, std_err = linregress(np.log10(self.co.k[-20:]), np.log10(P11l_mono[1][-20:]))
@@ -361,7 +361,7 @@ class Correlator(object):
         Pstl_interp[0, 1] = self.kmode ** 2 #/ self.co.km ** 2 / self.co.nd
         Pstl_interp[1, 2] = self.kmode ** 2 #/ self.co.km ** 2 / self.co.nd
         
-        #Hankel transform power spectrum. 
+        #Hankel transform power spectrum.
         P11l_mono_new = np.array([[self.pk2xi_0.__call__(self.kmode, P11l_interp[0, i], self.co.dist, damping=damping) for i in range(self.co.N11)]])
         P11l_quad_new = np.array([[self.pk2xi_2.__call__(self.kmode, P11l_interp[1, i], self.co.dist, damping=damping) for i in range(self.co.N11)]])
         P11l_hexa_new = np.array([[self.pk2xi_4.__call__(self.kmode, P11l_interp[2, i], self.co.dist, damping=damping) for i in range(self.co.N11)]])
@@ -976,4 +976,3 @@ class PowerToCorrelationSphericalBessel(PowerToCorrelation):
             )
 
         return yint2
-    
