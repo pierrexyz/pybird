@@ -88,11 +88,36 @@ class Projection(object):
         with_wedge=0, wedge_mat_wl=None, 
         with_redshift_bin=False, redshift_bin_zz=None, redshift_bin_nz=None, 
         co=co):
-
+        
+    # def __init__(
+    #     self,
+    #     xout,
+    #     DA_AP=None,
+    #     H_AP=None,
+    #     nbinsmu=100,
+    #     window_fourier_name=None,
+    #     path_to_window=None,
+    #     window_configspace_file=None,
+    #     binning=False,
+    #     fibcol=False,
+    #     Nwedges=0,
+    #     wedges_bounds=None,
+    #     zz=None,
+    #     nz=None,
+    #     co=co,
+    # ):
+        
+    #     with_ap = True
+    #     H_fid = H_AP
+    #     D_fid = DA_AP
+    #     with_survey_mask = False
+    #     with_binning = True
+    #     with_wedge = False
+    #     with_redshift_bin = False
+    
         self.co = co
         self.cf = self.co.with_cf
         self.xout = xout
-
         if with_ap: 
             self.H_fid, self.D_fid, = H_fid, D_fid
             self.muacc = np.linspace(0., 1., 100)

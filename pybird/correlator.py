@@ -262,7 +262,7 @@ class Correlator(object):
 
     def compute(self, cosmo_dict, module=None, Templatefit = False, corr_convert = False, cosmo_module=None, cosmo_engine=None, correlator_engine=None, do_core=True, do_survey_specific=True):
 
-        
+
         if cosmo_dict: cosmo_dict_local = cosmo_dict.copy()
         elif cosmo_module and cosmo_engine: cosmo_dict_local = {}
         else: raise Exception('provide cosmo_dict or CLASSy engine with cosmo_module=\'class\' ')
@@ -274,14 +274,15 @@ class Correlator(object):
         self.__is_cosmo_conflict()
         
         if (corr_convert == True):
+            #For Hankel transform, we extrapolate the power spectrum up to k = 40 h/Mpc. 
             self.kmode = np.logspace(np.log10(self.co.kmin), np.log10(40.0), 10000)
             # self.dist = np.logspace(0.0, 3.0, 5000)
             self.pk2xi_0 = PowerToCorrelationSphericalBessel(qs=self.kmode, ell=0)
             self.pk2xi_2 = PowerToCorrelationSphericalBessel(qs=self.kmode, ell=2)
             self.pk2xi_4 = PowerToCorrelationSphericalBessel(qs=self.kmode, ell=4)
-            #We only use the power spectrum lower than k = 0.5 h/Mpc for the interpolation. Beyond this number, we do extrapolation. 
-            self.kmode_in = self.kmode[np.where(self.kmode <= 0.5)[0]]
-            self.kmode_out = self.kmode[np.where(self.kmode > 0.5)[0]]
+            # #We only use the power spectrum lower than k = 0.5 h/Mpc for the interpolation. Beyond this number, we do extrapolation. 
+            # self.kmode_in = self.kmode[np.where(self.kmode <= 0.5)[0]]
+            # self.kmode_out = self.kmode[np.where(self.kmode > 0.5)[0]]
         
         if do_core:
             self.bird = Bird(self.cosmo, with_bias=self.c["with_bias"], eft_basis=self.c["eft_basis"], with_stoch=self.c["with_stoch"], with_nnlo_counterterm=self.c["with_nnlo_counterterm"], co=self.co)
@@ -307,12 +308,15 @@ class Correlator(object):
                     if Templatefit == False:
                         self.resum.PsCf(self.bird, makeIR=False, makeQ=True, setIR=True, setPs=True, setCf=self.c["with_cf"])
                 if self.c["with_redshift_bin"]: self.projection.redshift(self.bird, self.cosmo["rz"], self.cosmo["Dz"], self.cosmo["fz"], pk=self.c["output"])
-                if self.c["with_ap"]: self.projection.AP(self.bird)
-                if self.c["with_fibercol"]: self.projection.fibcolWindow(self.bird)
                 if (corr_convert == True and Templatefit == False):  
                     self.pk2xi_fun(bird=[self.bird.P11l, self.bird.Ploopl, self.bird.Pctl, self.bird.Pstl])
                     
+                # np.save('Ploop_long_high.npy', self.bird.Ploopl)
+                # raise Exception('Test completed')
+                    
                 if Templatefit == False:
+                    if self.c["with_ap"]: self.projection.AP(self.bird)
+                    if self.c["with_fibercol"]: self.projection.fibcolWindow(self.bird)
                     if self.c["with_survey_mask"]: self.projection.Window(self.bird)
                     elif self.c["with_binning"]: self.projection.xbinning(self.bird) # no binning if 'with_survey_mask' since the mask should account for it.
                     elif self.c["xdata"] is not None: self.projection.xdata(self.bird)
@@ -326,32 +330,73 @@ class Correlator(object):
         Ploopl_mono, Ploopl_quad, Ploopl_hexa = Ploopl
         Pctl_mono, Pctl_quad, Pctl_hexa = Pctl
         
+        Plin_mono = P11l_mono
+        
+        #Find the index where the monopole of the linear power spectrum reaches zero. This should not happen theoretically, so it will
+        #indicate the model breaks down beyond kcut. 
+        index_0 = np.where(Plin_mono[0] > 0.0)[0]
+
+        index_1 = np.where(Plin_mono[1] > 0.0)[0]
+
+        index_2 = np.where(Plin_mono[2] > 0.0)[0]
+
+        kcut_0_index = np.where(index_0 == np.arange(len(index_0)))[0][-1]
+
+        kcut_1_index = np.where(index_1 == np.arange(len(index_1)))[0][-1]
+
+        kcut_2_index = np.where(index_2 == np.arange(len(index_2)))[0][-1]
+
+        index_min = np.int32(np.min([kcut_0_index, kcut_1_index, kcut_2_index]))
+        
+        #The monopole of the linear power spectrum should also be monotonically decreasing beyond the 
+        #matter radiation equality (should be smaller than 0.1). Check if this is the case
+        
+        de_0 = np.where((np.diff(Plin_mono[0][:index_min+1]) > 0) & (self.co.k[:index_min] > 0.1))[0]
+        de_1 = np.where((np.diff(Plin_mono[1][:index_min+1]) > 0) & (self.co.k[:index_min] > 0.1))[0]
+        de_2 = np.where((np.diff(Plin_mono[2][:index_min+1]) > 0) & (self.co.k[:index_min] > 0.1))[0]
+        de_all = np.concatenate((de_0, de_1, de_2))
+        
+        if len(de_all) > 0.5:
+            index_min = np.int32(np.min(de_all))
+            
+        kcut = self.co.k[index_min]
+        
+        self.kmode_in = self.kmode[np.where(self.kmode <= kcut)[0]]
+        self.kmode_out = self.kmode[np.where(self.kmode > kcut)[0]]
+        
+        print('The reliable kmax is:' + str(kcut) + ' h/Mpc.')
+
         #Power law extrapolation for the monopole of the linear power spectrum.
-        power_0, scale_0, r_value_0, p_value_0, std_err = linregress(np.log10(self.co.k[-20:]), np.log10(P11l_mono[0][-20:]))
-        power_1, scale_1, r_value_1, p_value_1, std_err = linregress(np.log10(self.co.k[-20:]), np.log10(P11l_mono[1][-20:]))
-        power_2, scale_2, r_value_2, p_value_2, std_err = linregress(np.log10(self.co.k[-20:]), np.log10(P11l_mono[2][-20:]))
+        power_0, scale_0, r_value_0, p_value_0, std_err = linregress(np.log10(self.co.k[index_min-19:index_min+1]), np.log10(P11l_mono[0][index_min-19:index_min+1]))
+        power_1, scale_1, r_value_1, p_value_1, std_err = linregress(np.log10(self.co.k[index_min-19:index_min+1]), np.log10(P11l_mono[1][index_min-19:index_min+1]))
+        power_2, scale_2, r_value_2, p_value_2, std_err = linregress(np.log10(self.co.k[index_min-19:index_min+1]), np.log10(P11l_mono[2][index_min-19:index_min+1]))
+        # power_0, scale_0, r_value_0, p_value_0, std_err = linregress(np.log10(self.co.k[-20:]), np.log10(P11l_mono[0][-20:]))
+        # power_1, scale_1, r_value_1, p_value_1, std_err = linregress(np.log10(self.co.k[-20:]), np.log10(P11l_mono[1][-20:]))
+        # power_2, scale_2, r_value_2, p_value_2, std_err = linregress(np.log10(self.co.k[-20:]), np.log10(P11l_mono[2][-20:]))
         
+        # print(power_0, power_1, power_2)
+        # print(r_value_0, r_value_1, r_value_2)
         
-        P11l_mono_interp = np.array([np.concatenate((interp1d(self.co.k, P11l_mono[0], fill_value = 'extrapolate', kind = 'cubic')(self.kmode_in), 
+        P11l_mono_interp = np.array([np.concatenate((interp1d(self.co.k[:index_min+1], P11l_mono[0][:index_min+1], fill_value = 'extrapolate', kind = 'cubic')(self.kmode_in), 
                                     10.0**scale_0*self.kmode_out**power_0)), 
-                                    np.concatenate((interp1d(self.co.k, P11l_mono[1], fill_value = 'extrapolate', kind = 'cubic')(self.kmode_in), 
+                                    np.concatenate((interp1d(self.co.k[:index_min+1], P11l_mono[1][:index_min+1], fill_value = 'extrapolate', kind = 'cubic')(self.kmode_in), 
                                                                   10.0**scale_1*self.kmode_out**power_1)),
-                                    np.concatenate((interp1d(self.co.k, P11l_mono[2], fill_value = 'extrapolate', kind = 'cubic')(self.kmode_in), 
+                                    np.concatenate((interp1d(self.co.k[:index_min+1], P11l_mono[2][:index_min+1], fill_value = 'extrapolate', kind = 'cubic')(self.kmode_in), 
                                                                 10.0**scale_2*self.kmode_out**power_2))])
         
-        P11l_quad_interp = interp1d(self.co.k, P11l_quad, kind = 'linear', fill_value='extrapolate')(self.kmode)
-        P11l_hexa_interp = interp1d(self.co.k, P11l_hexa, kind = 'nearest', fill_value = 'extrapolate')(self.kmode)
+        P11l_quad_interp = interp1d(self.co.k[:index_min+1], P11l_quad[:, :index_min+1], kind = 'linear', fill_value='extrapolate')(self.kmode)
+        P11l_hexa_interp = interp1d(self.co.k[:index_min+1], P11l_hexa[:, :index_min+1], kind = 'nearest', fill_value = 'extrapolate')(self.kmode)
         
         P11l_interp = np.array([P11l_mono_interp, P11l_quad_interp, P11l_hexa_interp])
         
-        Ploopl_mono_interp = interp1d(self.co.k, Ploopl_mono, kind = 'linear', fill_value = 'extrapolate')(self.kmode)
-        Ploopl_quad_interp = interp1d(self.co.k, Ploopl_quad, kind = 'linear', fill_value = 'extrapolate')(self.kmode)
-        Ploopl_hexa_interp = interp1d(self.co.k, Ploopl_hexa, kind = 'nearest', fill_value = 'extrapolate')(self.kmode)
+        Ploopl_mono_interp = interp1d(self.co.k[:index_min+1], Ploopl_mono[:, :index_min+1], kind = 'linear', fill_value = 'extrapolate')(self.kmode)
+        Ploopl_quad_interp = interp1d(self.co.k[:index_min+1], Ploopl_quad[:, :index_min+1], kind = 'linear', fill_value = 'extrapolate')(self.kmode)
+        Ploopl_hexa_interp = interp1d(self.co.k[:index_min+1], Ploopl_hexa[:, :index_min+1], kind = 'nearest', fill_value = 'extrapolate')(self.kmode)
         Ploopl_interp = np.array([Ploopl_mono_interp, Ploopl_quad_interp, Ploopl_hexa_interp])
         
-        Pctl_mono_interp = interp1d(self.co.k, Pctl_mono, kind = 'linear', fill_value = 'extrapolate')(self.kmode)
-        Pctl_quad_interp = interp1d(self.co.k, Pctl_quad, kind = 'linear', fill_value = 'extrapolate')(self.kmode)
-        Pctl_hexa_interp = interp1d(self.co.k, Pctl_hexa, kind = 'nearest', fill_value = 'extrapolate')(self.kmode)
+        Pctl_mono_interp = interp1d(self.co.k[:index_min+1], Pctl_mono[:, :index_min+1], kind = 'linear', fill_value = 'extrapolate')(self.kmode)
+        Pctl_quad_interp = interp1d(self.co.k[:index_min+1], Pctl_quad[:, :index_min+1], kind = 'linear', fill_value = 'extrapolate')(self.kmode)
+        Pctl_hexa_interp = interp1d(self.co.k[:index_min+1], Pctl_hexa[:, :index_min+1], kind = 'nearest', fill_value = 'extrapolate')(self.kmode)
         Pctl_interp = np.array([Pctl_mono_interp, Pctl_quad_interp, Pctl_hexa_interp])
         
         Pstl_interp = np.zeros(shape=(self.co.Nl, self.co.Nst, len(self.kmode)))
@@ -361,7 +406,7 @@ class Correlator(object):
         Pstl_interp[0, 1] = self.kmode ** 2 #/ self.co.km ** 2 / self.co.nd
         Pstl_interp[1, 2] = self.kmode ** 2 #/ self.co.km ** 2 / self.co.nd
         
-        #Hankel transform power spectrum. 
+        #Hankel transform power spectrum.
         P11l_mono_new = np.array([[self.pk2xi_0.__call__(self.kmode, P11l_interp[0, i], self.co.dist, damping=damping) for i in range(self.co.N11)]])
         P11l_quad_new = np.array([[self.pk2xi_2.__call__(self.kmode, P11l_interp[1, i], self.co.dist, damping=damping) for i in range(self.co.N11)]])
         P11l_hexa_new = np.array([[self.pk2xi_4.__call__(self.kmode, P11l_interp[2, i], self.co.dist, damping=damping) for i in range(self.co.N11)]])
@@ -976,4 +1021,3 @@ class PowerToCorrelationSphericalBessel(PowerToCorrelation):
             )
 
         return yint2
-    

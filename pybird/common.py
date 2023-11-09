@@ -141,9 +141,11 @@ class Common(object):
             print(self.km)
         if corr_convert==True:
             self.dist = np.logspace(0.0, np.log10(200.0), 5000)
-            #Fix kmax to 0.5 for Hankel transform. The power spectrum beyond k = 0.5 is extrapolated. This is to avoid the monopole
-            #of the linear power spectrum becomes less than zero which will create error in the Hankel transform. 
-            kmax = 0.5
+            #The minimum kmax is set to 1.0. However, PyBird may not produce accurate model up to this range, so we only use the part 
+            #of the power spectrum before the monopole of the linear power spectrum reaches 0. 
+            if kmax < 1.0:
+                kmax = 1.0
+            # kmax = 0.6
             print('Hankel transform power spectrum to correlation function.')
             
         self.kr = kr # I've put back the factor 1/4 in front of the NNLO term

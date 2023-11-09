@@ -214,6 +214,61 @@ class Bird(object):
             self.D2 = cosmo["D2"]
             self.f1 = cosmo["f1"]
             self.f2 = cosmo["f2"]
+    
+    # def setcosmo(self, cosmo):
+
+    #     self.kin = cosmo["k11"]
+    #     self.Pin = cosmo["P11"]
+    #     try:
+    #         self.Plin = interp1d(self.kin, self.Pin, kind="cubic")
+    #         self.P11 = self.Plin(self.co.k)
+    #     except:
+    #         self.Plin = None
+    #         self.P11 = None
+
+    #     if not self.co.with_time:
+    #         self.D = cosmo["D"]
+    #     self.f = cosmo["f"]
+    #     self.DA = cosmo["DA"]
+    #     self.H = cosmo["H"]
+        
+    #     # print(cosmo["Omega0_m"], cosmo["z"])
+
+    #     if self.co.exact_time:
+    #         # try:
+    #         try:
+    #             self.w0 = cosmo["w0_fld"]
+    #         except:
+    #             self.w0 = None
+    #         self.Omega0_m = cosmo["Omega0_m"]
+    #         self.z = cosmo["z"]
+            
+    #         # print(self.z, self.Omega0_m)
+            
+    #         self.a = 1 / (1.0 + self.z)
+    #         GF = GreenFunction(self.Omega0_m, w=self.w0, quintessence=self.co.quintessence)
+    #         self.Y1 = GF.Y(self.a)
+    #         self.G1t = GF.mG1t(self.a)
+    #         self.V12t = GF.mV12t(self.a)
+    #         if self.co.quintessence:
+    #             self.G1 = GF.G(self.a)
+    #             self.f = GF.fplus(self.a)
+    #         else:
+    #             self.G1 = 1.0
+    #         # print (self.Y1, self.G1t, self.V12t, self.G1, self.f, GF.fplus(self.a))
+    #         # except:
+    #         #     print ("setting EdS time approximation")
+    #         #     self.Y1 = 0.
+    #         #     self.G1t = 3/7.
+    #         #     self.V12t = 1/7.
+    #         #     self.G1 = 1.
+
+    #     if self.co.nonequaltime:
+    #         self.D = cosmo["D"]
+    #         self.D1 = cosmo["D1"]
+    #         self.D2 = cosmo["D2"]
+    #         self.f1 = cosmo["f1"]
+    #         self.f2 = cosmo["f2"]
 
     def setBias(self, bias):
         """ Given an array of EFT parameters, set them among linear, loops and counter terms, and among multipoles
