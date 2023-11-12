@@ -83,7 +83,12 @@ class Likelihood(object):
             
             bg_prior_mean = np.concatenate(self.bg_prior_mean.T)
             self.F1_bg_prior_mean = np.einsum('a,ab->b', bg_prior_mean, self.F2_bg_prior_matrix) 
-            self.chi2_bg_prior_mean = np.einsum('a,b,ab->', bg_prior_mean, bg_prior_mean, self.F2_bg_prior_matrix) 
+            self.chi2_bg_prior_mean = np.einsum('a,b,ab->', bg_prior_mean, bg_prior_mean, self.F2_bg_prior_matrix)
+        else:
+            if self.c['with_boss_correlated_skies_prior']: # BOSS skies i,j = {1, 2, 3, 4} = {CMASS NGC, CMASS SGC, LOWZ NGC, LOWZ SGC}
+                self.prior_inv_corr_matrix = np.linalg.inv(get_corr(N=1)) # inverse correlation matrix for non-marg EFT parameters
+            else: 
+                self.prior_inv_corr_matrix = np.eye(self.nsky)
         
         return
 
