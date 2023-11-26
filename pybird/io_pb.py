@@ -105,7 +105,7 @@ class ReadWrite(object):
             if c['with_ap']: fc.update({'H_fid': fd['fid']['H'], 'D_fid': fd['fid']['D']})
             if c['with_survey_mask']: 
                 fc.update({'survey_mask_arr_p': fd['survey_mask_arr_p'], 'survey_mask_mat_kp': fd['survey_mask_mat_kp']})
-                fc['kmax'] = max([k[-1] for k in fd['x_arr']]) + 0.2 # we give margin since mask mat_kp has a p-support of +/- 0.2 around k at ~ 0.1% precision
+                fc['kmax'] = max([k[-1] for k in fd['x_arr']]) + 0.3 # we give margin since mask mat_kp has a p-support of +/- 0.3 around k at ~ 0.1% precision
             if c['with_binning']: fc['binsize'] = float(fd['binsize'])
             if c['with_wedge']: fc['wedge_mat_wl'] = fd['wedge_mat_wl']
             if c['with_redshift_bin']: fc.update({'redshift_bin_zz': fd['redshift_bin_zz'], 'redshift_bin_nz': fd['redshift_bin_nz']})

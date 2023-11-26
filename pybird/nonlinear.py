@@ -214,6 +214,7 @@ class NonLinear(object):
         coefkPow = self.CoefkPow(coef)
         self.makeP22(coefkPow, bird)
         self.makeP13(coefkPow, bird)
+        self.clean_lowk(bird)
 
     def Cf(self, bird, window=None):
         """ Compute the loop correlation function given a Bird(). Perform the FFTLog and the matrix multiplications.
@@ -243,14 +244,18 @@ class NonLinear(object):
         coefkPow = self.CoefkPow(coef)
         self.makeP22(coefkPow, bird)
         self.makeP13(coefkPow, bird)
-
+        self.clean_lowk(bird)
+        
         coefsPow = self.CoefsPow(coef)
         self.makeC11(coefsPow, bird)
         self.makeCct(coefsPow, bird)
         self.makeC22l(coefsPow, bird)
         self.makeC13l(coefsPow, bird)
 
-
+    def clean_lowk(self, bird): 
+        if self.co.id_kstable > 0: # = 1 if kmin < 0.001,
+            bird.P22[:, 0] = 1. * bird.P22[:, 1] # replace junky P22(kmin) = P22(0.001) 
+            bird.P13[:, 0] = 1. * bird.P13[:, 1] # replace junky P13(kmin) = P22(0.001) 
 
 def M13a(n1):
     """ Common part of the 13-loop matrices """

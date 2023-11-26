@@ -179,7 +179,7 @@ class Projection(object):
                 bird.Ploopl = 1. / (qperp**2 * qpar) * self.integrAP(self.co.k, bird.Ploopl, kp, arrayLegendremup)
                 if bird.with_stoch: bird.Pstl = 1. / (qperp**2 * qpar) * self.integrAP(self.co.k, bird.Pstl, kp, arrayLegendremup)
                 if bird.with_nnlo_counterterm: bird.Pnnlol = 1. / (qperp**2 * qpar) * self.integrAP(self.co.k, bird.Pnnlol, kp, arrayLegendremup)
-
+    
     def integrWindow(self, P):
         """
         Convolve the window functions to a power spectrum P

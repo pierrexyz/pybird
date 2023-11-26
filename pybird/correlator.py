@@ -14,7 +14,7 @@ from pybird.greenfunction import GreenFunction
 from pybird.fourier import FourierTransform
 from pybird.matching import Matching
 
-# ### dev mode ###
+# # ### dev mode ###
 # import importlib, pybird
 # importlib.reload(pybird.common)
 # from pybird.common import Common, co
@@ -120,6 +120,9 @@ class Correlator(object):
             "nd": Option("nd", float,
                 description="Mean galaxy density",
                 default=3e-4) ,
+            "kmin": Option("kmin", float,
+                description="kmin in [h/Mpc] for \'output\': \'_Pk\', to be chosen between [1e-4, 1e-3]. ",
+                default=0.001) ,
             "kmax": Option("kmax", float,
                 description="kmax in [h/Mpc] for \'output\': \'_Pk\'",
                 default=0.25) ,
@@ -219,6 +222,9 @@ class Correlator(object):
             "with_uvmatch_2": Option("with_uvmatch_2", bool,
                 description="In case two linear power spectra \`pk_lin\` and \`pk_lin_2\` are provided (see description in cosmo_catalog), match the UV as in the case if only \`pk_lin\` would be provided. Implemented only for output=\`Pk\`. ",
                 default=False) ,
+            "with_irmatch_2": Option("with_uvmatch_2", bool,
+                description="In case two linear power spectra \`pk_lin\` and \`pk_lin_2\` are provided (see description in cosmo_catalog), match the IR as in the case if only \`pk_lin\` would be provided. Implemented only for output=\`Pk\`. In practice, mostly useless since the IR pieces anyway cancel once adding 13 and 22, and for fftbias < -1.5, are set to 0 by dim. reg. ",
+                default=False) ,
             "keep_loop_pieces_independent": Option("keep_loop_pieces_independent", bool,
                 description="keep the loop pieces 13 and 22 independent (mainly for debugging)",
                 default=False) ,
@@ -256,7 +262,7 @@ class Correlator(object):
         # Setting no-optional config
         self.c["smin"] = 1.
         self.c["smax"] = 1000.
-        self.c["kmin"] = 0.001
+        # self.c["kmin"] = 0.001
 
         # Checking for config conflict
         self.__is_config_conflict()
@@ -287,7 +293,8 @@ class Correlator(object):
                 else: self.nnlo_counterterm.Ps(self.bird, ilogPsmooth)
             if not correlator_engine: self.nonlinear.PsCf(self.bird)
             elif correlator_engine: correlator_engine.nonlinear.PsCf(self.bird, c_alpha) # emu
-            if self.c["with_uvmatch_2"]: self.matching.Ps(self.bird) 
+            if self.c["with_uvmatch_2"]: self.matching.UVPsCf(self.bird) 
+            if self.c["with_irmatch_2"]: self.matching.IRPsCf(self.bird) 
             if self.c["with_bias"]: self.bird.setPsCf(self.bias)
             else: self.bird.setPsCfl()
             if self.c["with_resum"]:
@@ -369,13 +376,13 @@ class Correlator(object):
 
     def __load_engines(self, load_engines=True):
 
-        self.co = Common(Nl=self.c["multipole"], kmax=self.c["kmax"], km=self.c["km"], kr=self.c["kr"], nd=self.c["nd"], eft_basis=self.c["eft_basis"],
+        self.co = Common(Nl=self.c["multipole"], kmin=self.c["kmin"], kmax=self.c["kmax"], km=self.c["km"], kr=self.c["kr"], nd=self.c["nd"], eft_basis=self.c["eft_basis"],
             halohalo=self.c["halohalo"], with_cf=self.c["with_cf"], with_time=self.c["with_time"], accboost=self.c["accboost"], optiresum=self.c["optiresum"],
-            exact_time=self.c["with_exact_time"], quintessence=self.c["with_quintessence"], with_uvmatch=self.c["with_uvmatch_2"],
+            exact_time=self.c["with_exact_time"], quintessence=self.c["with_quintessence"], with_uvmatch=self.c["with_uvmatch_2"], with_irmatch=self.c["with_irmatch_2"], 
             with_tidal_alignments=self.c["with_tidal_alignments"], nonequaltime=self.c["with_common_nonequal_time"], keep_loop_pieces_independent=self.c["keep_loop_pieces_independent"])
         if load_engines:
             self.nonlinear = NonLinear(load=True, save=True, NFFT=256*self.c["fftaccboost"], fftbias=self.c["fftbias"], co=self.co)
-            if self.c["with_uvmatch_2"]: self.matching = Matching(self.nonlinear, co=self.co)
+            if self.c["with_uvmatch_2"] or self.c["with_irmatch_2"]: self.matching = Matching(self.nonlinear, co=self.co)
             self.resum = Resum(co=self.co)
             self.projection = Projection(self.c["xdata"],
                 with_ap=self.c["with_ap"], H_fid=self.c["H_fid"], D_fid=self.c["D_fid"],

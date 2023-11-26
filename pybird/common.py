@@ -8,7 +8,7 @@ mu = {
     2: {0: 1. / 3., 2: 2. / 3., 4: 0.},
     4: {0: 1. / 5., 2: 4. / 7., 4: 8. / 35.},
     6: {0: 1. / 7., 2: 10. / 21., 4: 24. / 77.},
-    8: {0: 1. / 9., 2: 40. / 99., 4: 48. / 148.}
+    8: {0: 1. / 9., 2: 40. / 99., 4: 48. / 143.}
 }
 
 kbird = np.array([0.001, 0.0025, 0.005, 0.0075, 0.01, 0.0125, 0.015, 0.0175, 0.02, 0.0225, 0.025, 0.0275, 0.03])
@@ -28,7 +28,7 @@ class Common(object):
 
     def __init__(self, Nl=2, kmin=0.001, kmax=0.25, km=1., kr=1., nd=3e-4, eft_basis='eftoflss',
         halohalo=True, with_cf=False, with_time=True, accboost=1., optiresum=False, orderresum=16, 
-        with_uvmatch=False, exact_time=False, quintessence=False, with_tidal_alignments=False, nonequaltime=False, keep_loop_pieces_independent=False):
+        with_uvmatch=False, with_irmatch=False, exact_time=False, quintessence=False, with_tidal_alignments=False, nonequaltime=False, keep_loop_pieces_independent=False):
         
         self.eft_basis = eft_basis
         self.halohalo = halohalo
@@ -39,6 +39,7 @@ class Common(object):
         self.optiresum = optiresum
         self.with_time = with_time
         self.with_uvmatch = with_uvmatch
+        self.with_irmatch = with_irmatch
         self.exact_time = exact_time
         self.quintessence = quintessence
         # if self.quintessence: self.exact_time = True
@@ -65,7 +66,7 @@ class Common(object):
             else:
                 self.N22 = 28  # number of 22-loops
                 self.N13 = 10  # number of 13-loops
-            if self.with_uvmatch: 
+            if self.with_uvmatch or self.with_irmatch: 
                 if self.exact_time: self.N13 += 6
                 else: self.N13 += 3 
             
@@ -104,16 +105,26 @@ class Common(object):
         self.Ns = self.s.shape[0]
         
         if kmax: 
-            self.kmin = kmin # no support for kmin: keep default
             self.kmax = kmax
             self.k = kbird
-            if self.kmax > kbird[-1]:
+            if self.kmax > kbird[-1]: 
                 kextra = np.arange(kbird[-1], 0.3+1e-3, 0.005/accboost)
                 self.k = np.concatenate([self.k, kextra[1:]])
             if self.kmax > 0.3:
                 kextra = np.arange(0.3, self.kmax+1e-3, 0.01/accboost)
                 self.k = np.concatenate([self.k, kextra[1:]])
+            self.Nk = self.k.shape[0]
 
+        if kmin: 
+            if kmin >= kbird[0]: self.kmin = kbird[0] # enforce kmin = kbird[0] = 0.001 for numerical stability when user asks kmin > 0.001 
+            else: self.kmin = kmin 
+            self.id_kstable = 0      
+            if self.kmin < kbird[0]: # kbird[0] = 0.001 
+                # self.id_kstable = 1  # placeholder to know if kmin < 0.001
+                # self.k = np.concatenate(([self.kmin], self.k))
+                self.id_kstable = 5
+                kextra = np.geomspace(self.kmin, kbird[0], num=self.id_kstable, endpoint=False)
+                self.k = np.concatenate([kextra, self.k])
             self.Nk = self.k.shape[0]
 
         # for resummation
@@ -147,7 +158,7 @@ class Common(object):
                     self.lnnlo[i] = np.array([mu[4][l], mu[6][l], mu[8][l]])
                 if self.exact_time:
                     self.l22[i] = np.array([ 6 * [mu[0][l]] + 7 * [mu[2][l]] + [mu[4][l], mu[2][l], mu[4][l], mu[2][l], mu[4][l], mu[2][l]] + 3 * [mu[4][l]] + [mu[6][l], mu[4][l], mu[6][l], mu[4][l], mu[6][l], mu[8][l]] + 3 * [mu[2][l]] + 3 * [mu[4][l]] + [mu[6][l], mu[4][l]] ])
-                    if self.with_uvmatch: self.l13[i] = np.array([ 2 * [mu[0][l]] + 2 * [mu[2][l]] + [mu[4][l], mu[0][l], mu[2][l], mu[4][l], mu[2][l], mu[2][l], mu[4][l], mu[4][l], mu[6][l], mu[2][l], mu[4][l]]
+                    if self.with_uvmatch or self.with_irmatch: self.l13[i] = np.array([ 2 * [mu[0][l]] + 2 * [mu[2][l]] + [mu[4][l], mu[0][l], mu[2][l], mu[4][l], mu[2][l], mu[2][l], mu[4][l], mu[4][l], mu[6][l], mu[2][l], mu[4][l]]
                         + [mu[2][l], mu[2][l], mu[4][l], mu[4][l], mu[6][l], mu[6][l]] ])
                     else: self.l13[i] = np.array([ 2 * [mu[0][l]] + 2 * [mu[2][l]] + [mu[4][l], mu[0][l], mu[2][l], mu[4][l], mu[2][l], mu[2][l], mu[4][l], mu[4][l], mu[6][l], mu[2][l], mu[4][l]] ])
                 elif self.with_tidal_alignments:
@@ -155,7 +166,7 @@ class Common(object):
                     self.l13[i] = np.array([ mu[2][l], mu[2][l], mu[2][l], mu[4][l], mu[0][l], mu[0][l], mu[0][l], mu[0][l], mu[0][l], mu[2][l], mu[2][l], mu[4][l], mu[2][l], mu[2][l], mu[2][l], mu[4][l], mu[2][l], mu[4][l], mu[2][l], mu[4][l], mu[6][l], mu[4][l], mu[4][l], mu[6][l] ])
                 else:
                     self.l22[i] = np.array([ 6 * [mu[0][l]] + 7 * [mu[2][l]] + [mu[4][l], mu[2][l], mu[4][l], mu[2][l], mu[4][l], mu[2][l]] + 3 * [mu[4][l]] + [mu[6][l], mu[4][l], mu[6][l], mu[4][l], mu[6][l], mu[8][l]] ])
-                    if self.with_uvmatch: self.l13[i] = np.array([ 2 * [mu[0][l]] + 4 * [mu[2][l]] + 3 * [mu[4][l]] + [mu[6][l]]
+                    if self.with_uvmatch or self.with_irmatch: self.l13[i] = np.array([ 2 * [mu[0][l]] + 4 * [mu[2][l]] + 3 * [mu[4][l]] + [mu[6][l]]
                         + [mu[2][l], mu[4][l], mu[6][l]] ])
                     else: self.l13[i] = np.array([ 2 * [mu[0][l]] + 4 * [mu[2][l]] + 3 * [mu[4][l]] + [mu[6][l]] ])
 

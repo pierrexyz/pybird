@@ -33,6 +33,18 @@ Currently available:
 Soon available: 
 > [BOSS DR12 LRG 3pt full-shape]
 
+
+
+## Changelog
+v0.2.1, Nov 26, 2023
+- \[io_pb\] data format changed from npy bad pickle to hdf5 for increased portability (w/ Marco Bonici)
+- \[io_pb\] BOSS mask applied over larger k-range: kmax + 0.2 -> kmax + 0.3 (w/ Marco Bonici)
+- \[common\, correlator\] option for kmin between \[1e-4, 1e-3\] (w/ Arnaud de Mattia)
+- \[common\] accuracy boost in ell=2,4 for k > 0.45 h/Mpc
+- various bugfixes and pull requests
+
+
+
 ## Dependencies
 PyBird depends on the numerical libraries [NumPy](https://numpy.org/) and [SciPy](http://scipy.org/).  
 
@@ -84,7 +96,7 @@ Read the docs at [https://pybird.readthedocs.io](https://pybird.readthedocs.io).
 ## Attribution
 * Written by [Pierre Zhang](mailto:pierrexyz@protonmail.com) and [Guido D'Amico](mailto:damico.guido@gmail.com)
 * License: MIT
-* Special thanks to: Arnaud de Mattia, Thomas Colas, Théo Simon, Luis Ureña
+* Special thanks to: Marco Bonici, Thomas Colas, Yan Lai, Arnaud de Mattia, Théo Simon, Luis Ureña
 
 When using PyBird in a publication, please acknowledge the code by citing the following paper:  
 > G. D’Amico, L. Senatore and P. Zhang, "Limits on wCDM from the EFTofLSS with the PyBird code", JCAP 01 (2021) 006, [2003.07956](https://arxiv.org/abs/2003.07956)
@@ -134,3 +146,5 @@ When using the likelihoods, here are some relevant references:
 > eBOSS EFT likelihood: [2210.14931](https://arxiv.org/abs/2210.14931)
  
 *** Disclaimer: due to updates in the data and the prior definition, it is possible that results obtained with up-to-date likelihoods differ slightly with the ones presented in the articles. 
+
+
