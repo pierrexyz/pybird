@@ -1,8 +1,4 @@
-import os
-import numpy as np
-from copy import deepcopy
-from scipy.interpolate import interp1d
-from scipy.fftpack import dst
+from pybird.module import *
 
 from pybird.common import Common, co
 from pybird.bird import Bird
@@ -15,30 +11,32 @@ from pybird.fourier import FourierTransform
 from pybird.matching import Matching
 
 # ### dev mode ###
-# import importlib, pybird
-# importlib.reload(pybird.common)
-# from pybird.common import Common, co
-# importlib.reload(pybird.bird)
-# from pybird.bird import Bird
-# importlib.reload(pybird.nonlinear)
-# from pybird.nonlinear import NonLinear
-# importlib.reload(pybird.resum)
-# from pybird.resum import Resum
-# importlib.reload(pybird.matching)
-# from pybird.matching import Matching
+import importlib, pybird
+importlib.reload(pybird.common)
+from pybird.common import Common, co
+importlib.reload(pybird.bird)
+from pybird.bird import Bird
+importlib.reload(pybird.nonlinear)
+from pybird.nonlinear import NonLinear
+importlib.reload(pybird.resum)
+from pybird.resum import Resum
+importlib.reload(pybird.matching)
+from pybird.matching import Matching
+importlib.reload(pybird.module)
+from pybird.module import *
 
-# # import pdb; pdb.set_trace()
-# ################
+# import pdb; pdb.set_trace()
+################
 
 class Correlator(object):
 
     def __init__(self, config_dict=None, load_engines=True):
 
         self.cosmo_catalog = {
-            "pk_lin": Option("pk_lin", (list, np.ndarray),
+            "pk_lin": Option("pk_lin", (list, ndarray),
                 description="Linear matter power spectrum in [Mpc/h]^3",
                 default=None) ,
-            "kk": Option("kk", (list, np.ndarray),
+            "kk": Option("kk", (list, ndarray),
                 description="k-array in [h/Mpc] on which pk_lin is evaluated",
                 default=None) ,
             "f": Option("f", float,
@@ -72,13 +70,13 @@ class Correlator(object):
             "w0_fld": Option("w0_fld", float,
                 description="Dark energy equation of state parameter. To specify in presence of dark energy if \'with_exact_time\' is True (otherwise w0 = -1).",
                 default=None) ,
-            "Dz": Option("Dz", (list, np.ndarray),
+            "Dz": Option("Dz", (list, ndarray),
                 description="Scale independent growth function over redshift bin. To specify if \'with_redshift_bin\' is True.",
                 default=None) ,
-            "fz": Option("fz", (list, np.ndarray),
+            "fz": Option("fz", (list, ndarray),
                 description="Scale independent growth rate over redshift bin. To specify if \'with_redshift_bin\' is True.",
                 default=None) ,
-            "rz": Option("rz", (list, np.ndarray),
+            "rz": Option("rz", (list, ndarray),
                 description="Comoving distance in [Mpc/h] over redshift bin. To specify if \'with_redshift_bin\' or if \'output\':\'w\'.",
                 default=None) ,
             "D1": Option("D1", float,
@@ -93,10 +91,10 @@ class Correlator(object):
             "f2": Option("f2", float,
                 description="Scale independent growth rate at redshift z2. To specify if \'with_nonequal_time\' is True.",
                 default=None) ,
-            "Psmooth": Option("Psmooth", (list, np.ndarray),
+            "Psmooth": Option("Psmooth", (list, ndarray),
                 description="Smooth power spectrum. To specify if \'with_nnlo_counterterm\' is True.",
                 default=None) ,
-            "pk_lin_2": Option("pk_lin_2", (list, np.ndarray),
+            "pk_lin_2": Option("pk_lin_2", (list, ndarray),
                 description="Alternative linear matter power spectrum in [Mpc/h]^3 replacing \'pk_lin\' in the internal loop integrals (and resummation)",
                 default=None) ,
         }
@@ -120,6 +118,9 @@ class Correlator(object):
             "nd": Option("nd", float,
                 description="Mean galaxy density",
                 default=3e-4) ,
+            "kmin": Option("kmin", float,
+                description="kmin in [h/Mpc] for \'output\': \'_Pk\', to be chosen between [1e-4, 1e-3]. ",
+                default=0.001) ,
             "kmax": Option("kmax", float,
                 description="kmax in [h/Mpc] for \'output\': \'_Pk\'",
                 default=0.25) ,
@@ -162,7 +163,7 @@ class Correlator(object):
             "optiresum": Option("optiresum", bool,
                 description="[depreciated: keep on default False] True: Resumming only with the BAO peak. False: Resummation on the full correlation function.",
                 default=False) ,
-            "xdata": Option("xdata", (list, np.ndarray),
+            "xdata": Option("xdata", (list, ndarray),
                 description="Array of k [h/Mpc] (or s [Mpc/h]) on which to output the correlator. If \'with_binning\' is True, please provide the central k (or s). If not, it can be bin-weighted k (or s). If no \'xdata\' provided, output is on internal default array. ",
                 default=None) ,
             "with_binning": Option("with_binning", bool,
@@ -183,10 +184,10 @@ class Correlator(object):
             "with_survey_mask": Option("with_survey_mask", bool,
                 description="Apply survey mask. Automatically set to False for \'output\': \'_Cf\'.",
                 default=False) ,
-            "survey_mask_arr_p": Option("survey_mask_arr_p", (list, np.ndarray),
+            "survey_mask_arr_p": Option("survey_mask_arr_p", (list, ndarray),
                 description="Mask convolution array for \'output\': \'_Pk\'.",
                 default=None) ,
-            "survey_mask_mat_kp": Option("survey_mask_mat_kp", (list, np.ndarray),
+            "survey_mask_mat_kp": Option("survey_mask_mat_kp", (list, ndarray),
                 description="Mask convolution matrix for \'output\': \'_Pk\'.",
                 default=None) ,
             "with_fibercol": Option("with_fibercol", bool,
@@ -195,16 +196,16 @@ class Correlator(object):
             "with_wedge": Option("with_wedge", bool,
                 description="Rotate multipoles to wedges",
                 default=False) ,
-            "wedge_mat_wl": Option("wedge_mat_wl", (list, np.ndarray),
+            "wedge_mat_wl": Option("wedge_mat_wl", (list, ndarray),
                 description="multipole-to-wedge rotation matrix",
                 default=None) ,
             "with_redshift_bin": Option("with_redshift_bin", bool,
                 description="Account for the galaxy count distribution over a redshift bin.",
                 default=False) ,
-            "redshift_bin_zz": Option("redshift_bin_zz", (list, np.ndarray),
+            "redshift_bin_zz": Option("redshift_bin_zz", (list, ndarray),
                 description="Array of redshift points inside a redshift bin.",
                 default=None) ,
-            "redshift_bin_nz": Option("redshift_bin_nz", (list, np.ndarray),
+            "redshift_bin_nz": Option("redshift_bin_nz", (list, ndarray),
                 description="Galaxy counts distribution over a redshift bin.",
                 default=None) ,
             "accboost": Option("accboost", int, [1, 2, 3],
@@ -218,6 +219,9 @@ class Correlator(object):
                 default=-1.6) ,
             "with_uvmatch_2": Option("with_uvmatch_2", bool,
                 description="In case two linear power spectra \`pk_lin\` and \`pk_lin_2\` are provided (see description in cosmo_catalog), match the UV as in the case if only \`pk_lin\` would be provided. Implemented only for output=\`Pk\`. ",
+                default=False) ,
+            "with_irmatch_2": Option("with_uvmatch_2", bool,
+                description="In case two linear power spectra \`pk_lin\` and \`pk_lin_2\` are provided (see description in cosmo_catalog), match the IR as in the case if only \`pk_lin\` would be provided. Implemented only for output=\`Pk\`. In practice, mostly useless since the IR pieces anyway cancel once adding 13 and 22, and for fftbias < -1.5, are set to 0 by dim. reg. ",
                 default=False) ,
             "keep_loop_pieces_independent": Option("keep_loop_pieces_independent", bool,
                 description="keep the loop pieces 13 and 22 independent (mainly for debugging)",
@@ -256,7 +260,7 @@ class Correlator(object):
         # Setting no-optional config
         self.c["smin"] = 1.
         self.c["smax"] = 1000.
-        self.c["kmin"] = 0.001
+        # self.c["kmin"] = 0.001
 
         # Checking for config conflict
         self.__is_config_conflict()
@@ -282,12 +286,13 @@ class Correlator(object):
         if do_core:
             self.bird = Bird(self.cosmo, with_bias=self.c["with_bias"], eft_basis=self.c["eft_basis"], with_stoch=self.c["with_stoch"], with_nnlo_counterterm=self.c["with_nnlo_counterterm"], co=self.co)
             if self.c["with_nnlo_counterterm"]: # we use smooth power spectrum since we don't want spurious BAO signals
-                ilogPsmooth = interp1d(np.log(self.bird.kin), np.log(self.cosmo["Psmooth"]), fill_value='extrapolate')
+                ilogPsmooth = interp1d(log(self.bird.kin), log(self.cosmo["Psmooth"]), fill_value='extrapolate')
                 if self.c["with_cf"]: self.nnlo_counterterm.Cf(self.bird, ilogPsmooth)
                 else: self.nnlo_counterterm.Ps(self.bird, ilogPsmooth)
             if not correlator_engine: self.nonlinear.PsCf(self.bird)
             elif correlator_engine: correlator_engine.nonlinear.PsCf(self.bird, c_alpha) # emu
-            if self.c["with_uvmatch_2"]: self.matching.Ps(self.bird) 
+            if self.c["with_uvmatch_2"]: self.matching.UVPsCf(self.bird) 
+            if self.c["with_irmatch_2"]: self.matching.IRPsCf(self.bird) 
             if self.c["with_bias"]: self.bird.setPsCf(self.bias)
             else: self.bird.setPsCfl()
             if self.c["with_resum"]:
@@ -323,12 +328,12 @@ class Correlator(object):
         def marg(loopl, ctl, b1, f, stl=None, nnlol=None, bq=0):
 
             # concatenating multipoles: loopl.shape = (Nl, Nloop, Nk) -> loop.shape = (Nloop, Nl * Nk)
-            loop = np.swapaxes(loopl, axis1=0, axis2=1).reshape(loopl.shape[1],-1)
-            ct = np.swapaxes(ctl, axis1=0, axis2=1).reshape(ctl.shape[1],-1)
-            if stl is not None: st = np.swapaxes(stl, axis1=0, axis2=1).reshape(stl.shape[1],-1)
-            if nnlol is not None: nnlo = np.swapaxes(nnlol, axis1=0, axis2=1).reshape(nnlol.shape[1],-1)
+            loop = swapaxes(loopl, axis1=0, axis2=1).reshape(loopl.shape[1],-1)
+            ct = swapaxes(ctl, axis1=0, axis2=1).reshape(ctl.shape[1],-1)
+            if stl is not None: st = swapaxes(stl, axis1=0, axis2=1).reshape(stl.shape[1],-1)
+            if nnlol is not None: nnlo = swapaxes(nnlol, axis1=0, axis2=1).reshape(nnlol.shape[1],-1)
 
-            pg = np.empty(shape=(len(marg_gauss_eft_parameters_list), loop.shape[1]))
+            pg = empty(shape=(len(marg_gauss_eft_parameters_list), loop.shape[1]))
             for i, p in enumerate(marg_gauss_eft_parameters_list):
                 if p in ['b3', 'bGamma3']:
                     if self.co.Nloop == 12: pg[i] = loop[3] + b1 * loop[7]                          # config["with_time"] = True
@@ -369,13 +374,15 @@ class Correlator(object):
 
     def __load_engines(self, load_engines=True):
 
-        self.co = Common(Nl=self.c["multipole"], kmax=self.c["kmax"], km=self.c["km"], kr=self.c["kr"], nd=self.c["nd"], eft_basis=self.c["eft_basis"],
+        self.co = Common(Nl=self.c["multipole"], kmin=self.c["kmin"], kmax=self.c["kmax"], km=self.c["km"], kr=self.c["kr"], nd=self.c["nd"], eft_basis=self.c["eft_basis"],
             halohalo=self.c["halohalo"], with_cf=self.c["with_cf"], with_time=self.c["with_time"], accboost=self.c["accboost"], optiresum=self.c["optiresum"],
-            exact_time=self.c["with_exact_time"], quintessence=self.c["with_quintessence"], with_uvmatch=self.c["with_uvmatch_2"],
+            exact_time=self.c["with_exact_time"], quintessence=self.c["with_quintessence"], with_uvmatch=self.c["with_uvmatch_2"], with_irmatch=self.c["with_irmatch_2"], 
             with_tidal_alignments=self.c["with_tidal_alignments"], nonequaltime=self.c["with_common_nonequal_time"], keep_loop_pieces_independent=self.c["keep_loop_pieces_independent"])
         if load_engines:
-            self.nonlinear = NonLinear(load=True, save=True, NFFT=256*self.c["fftaccboost"], fftbias=self.c["fftbias"], co=self.co)
-            if self.c["with_uvmatch_2"]: self.matching = Matching(self.nonlinear, co=self.co)
+            self.nonlinear = NonLinear(load_matrix=True, save_matrix=True, NFFT=64, 
+                                       # NFFT=256*self.c["fftaccboost"], 
+                                       fftbias=self.c["fftbias"], co=self.co)
+            if self.c["with_uvmatch_2"] or self.c["with_irmatch_2"]: self.matching = Matching(self.nonlinear, co=self.co)
             self.resum = Resum(co=self.co)
             self.projection = Projection(self.c["xdata"],
                 with_ap=self.c["with_ap"], H_fid=self.c["H_fid"], D_fid=self.c["D_fid"],
@@ -435,7 +442,7 @@ class Correlator(object):
     def __is_bias_conflict(self, bias=None):
         if bias is not None: self.cosmo["bias"] = bias
         if self.cosmo["bias"] is None: raise Exception("Please specify \'bias\'. ")
-        if isinstance(self.cosmo["bias"], (list, np.ndarray)): self.cosmo["bias"] = self.cosmo["bias"][0]
+        if isinstance(self.cosmo["bias"], (list, ndarray)): self.cosmo["bias"] = self.cosmo["bias"][0]
         if not isinstance(self.cosmo["bias"], dict): raise Exception("Please specify bias in a dict. ")
 
         for p in self.eft_parameters_list:
@@ -547,8 +554,8 @@ class Correlator(object):
                 M.compute()
             else: M = engine
 
-            cosmo["kk"] = np.logspace(-5, log10kmax, 200)  # k in h/Mpc
-            cosmo["pk_lin"] = np.array([M.pk_lin(k*M.h(), self.c["z"])*M.h()**3 for k in cosmo["kk"]]) # P(k) in (Mpc/h)**3
+            cosmo["kk"] = logspace(-5, log10kmax, 200)  # k in h/Mpc
+            cosmo["pk_lin"] = array([M.pk_lin(k*M.h(), self.c["z"])*M.h()**3 for k in cosmo["kk"]]) # P(k) in (Mpc/h)**3
 
             if self.c["multipole"] > 0: cosmo["f"] = M.scale_independent_growth_factor_f(self.c["z"])
             if not self.c["with_time"]: cosmo["D"] = M.scale_independent_growth_factor(self.c["z"])
@@ -566,9 +573,9 @@ class Correlator(object):
 
             if self.c["with_redshift_bin"]:
                 def comoving_distance(z): return M.angular_distance(z) * (1+z) * M.h()
-                cosmo["Dz"] = np.array([M.scale_independent_growth_factor(z) for z in self.c["redshift_bin_zz"]])
-                cosmo["fz"] = np.array([M.scale_independent_growth_factor_f(z) for z in self.c["redshift_bin_zz"]])
-                cosmo["rz"] = np.array([comoving_distance(z) for z in self.c["redshift_bin_zz"]])
+                cosmo["Dz"] = array([M.scale_independent_growth_factor(z) for z in self.c["redshift_bin_zz"]])
+                cosmo["fz"] = array([M.scale_independent_growth_factor_f(z) for z in self.c["redshift_bin_zz"]])
+                cosmo["rz"] = array([comoving_distance(z) for z in self.c["redshift_bin_zz"]])
 
             if self.c["with_quintessence"]:
                 # starting deep inside matter domination and evolving to the total adiabatic linear power spectrum.
@@ -586,24 +593,24 @@ class Correlator(object):
 
             # wiggle-no-wiggle split # algo: 1003.3999; details: 2004.10607
             def get_smooth_wiggle_resc(kk, pk, alpha_rs=1.): # k [h/Mpc], pk [(Mpc/h)**3]
-                kp = np.linspace(1.e-7, 7, 2**16)   # 1/Mpc
-                ilogpk = interp1d(np.log(kk * M.h()), np.log(pk / M.h()**3), fill_value="extrapolate") # Mpc**3
-                lnkpk = np.log(kp) + ilogpk(np.log(kp))
+                kp = linspace(1.e-7, 7, 2**16)   # 1/Mpc
+                ilogpk = interp1d(log(kk * M.h()), log(pk / M.h()**3), fill_value="extrapolate") # Mpc**3
+                lnkpk = log(kp) + ilogpk(log(kp))
                 harmonics = dst(lnkpk, type=2, norm='ortho')
                 odd, even = harmonics[::2], harmonics[1::2]
-                nn = np.arange(0, odd.shape[0], 1)
-                nobao = np.delete(nn, np.arange(120, 240,1))
+                nn = arange(0, odd.shape[0], 1)
+                nobao = delete(nn, arange(120, 240,1))
                 smooth_odd = interp1d(nn, odd, kind='cubic')(nobao)
                 smooth_even = interp1d(nn, even, kind='cubic')(nobao)
                 smooth_odd = interp1d(nobao, smooth_odd, kind='cubic')(nn)
                 smooth_even = interp1d(nobao, smooth_even, kind='cubic')(nn)
-                smooth_harmonics =  np.array([[o, e] for (o, e) in zip(smooth_odd, smooth_even)]).reshape(-1)
+                smooth_harmonics =  array([[o, e] for (o, e) in zip(smooth_odd, smooth_even)]).reshape(-1)
                 smooth_lnkpk = dst(smooth_harmonics, type=3, norm='ortho')
-                smooth_pk = np.exp(smooth_lnkpk) / kp
-                wiggle_pk = np.exp(ilogpk(np.log(kp))) - smooth_pk
+                smooth_pk = exp(smooth_lnkpk) / kp
+                wiggle_pk = exp(ilogpk(log(kp))) - smooth_pk
                 spk = interp1d(kp, smooth_pk, bounds_error=False)(kk * M.h()) * M.h()**3 # (Mpc/h)**3
                 wpk_resc = interp1d(kp, wiggle_pk, bounds_error=False)(alpha_rs * kk * M.h()) * M.h()**3 # (Mpc/h)**3 # wiggle rescaling
-                kmask = np.where(kk < 1.02)[0]
+                kmask = where(kk < 1.02)[0]
                 return kk[kmask], spk[kmask], pk[kmask] #spk[kmask]+wpk_resc[kmask]
 
             if self.c["with_nnlo_counterterm"]: cosmo["kk"], cosmo["Psmooth"], cosmo["pk_lin"] = get_smooth_wiggle_resc(cosmo["kk"], cosmo["pk_lin"])

@@ -1,23 +1,12 @@
-import os
-import numpy as np
-from numpy import pi, cos, sin, log, exp, sqrt, trapz
-from scipy.interpolate import interp1d
-from scipy.integrate import quad
-from scipy.special import legendre, spherical_jn, j1
+from pybird.module import *
 from pybird.fftlog import FFTLog, MPC
 from pybird.common import co
 from pybird.greenfunction import GreenFunction
 from pybird.fourier import FourierTransform
 
-# import importlib, sys
-# importlib.reload(sys.modules['greenfunction'])
-# from greenfunction import GreenFunction
-
-# from time import time
-
 def cH(Om, a):
     """ LCDM growth rate auxiliary function """
-    return np.sqrt(Om / a + a**2 * (1 - Om))
+    return sqrt(Om / a + a**2 * (1 - Om))
 
 def DgN(Om, a):
     """ LCDM growth rate auxiliary function """
@@ -85,39 +74,39 @@ class Projection(object):
     - Fiber collision corrections
     - Wedges
     """
-    def __init__(self, xout, 
-        with_ap=False, H_fid=None, D_fid=None, 
-        with_survey_mask=False, survey_mask_arr_p=None, survey_mask_mat_kp=None, 
-        with_binning=False, binsize=None, 
-        fibcol=False, 
-        with_wedge=0, wedge_mat_wl=None, 
-        with_redshift_bin=False, redshift_bin_zz=None, redshift_bin_nz=None, 
+    def __init__(self, xout,
+        with_ap=False, H_fid=None, D_fid=None,
+        with_survey_mask=False, survey_mask_arr_p=None, survey_mask_mat_kp=None,
+        with_binning=False, binsize=None,
+        fibcol=False,
+        with_wedge=0, wedge_mat_wl=None,
+        with_redshift_bin=False, redshift_bin_zz=None, redshift_bin_nz=None,
         co=co):
 
         self.co = co
         self.cf = self.co.with_cf
         self.xout = xout
 
-        if with_ap: 
+        if with_ap:
             self.H_fid, self.D_fid, = H_fid, D_fid
-            self.muacc = np.linspace(0., 1., 100)
-            self.sgrid, self.musgrid = np.meshgrid(self.co.s, self.muacc, indexing='ij')
-            self.kgrid, self.mukgrid = np.meshgrid(self.co.k, self.muacc, indexing='ij')
-            self.arrayLegendremusgrid = np.array([(2*2*l+1)/2.*legendre(2*l)(self.musgrid) for l in range(self.co.Nl)])
-            self.arrayLegendremukgrid = np.array([(2*2*l+1)/2.*legendre(2*l)(self.mukgrid) for l in range(self.co.Nl)])
+            self.muacc = linspace(0., 1., 100)
+            self.sgrid, self.musgrid = meshgrid(self.co.s, self.muacc, indexing='ij')
+            self.kgrid, self.mukgrid = meshgrid(self.co.k, self.muacc, indexing='ij')
+            self.arrayLegendremusgrid = array([(2*2*l+1)/2.*legendre(2*l)(self.musgrid) for l in range(self.co.Nl)])
+            self.arrayLegendremukgrid = array([(2*2*l+1)/2.*legendre(2*l)(self.mukgrid) for l in range(self.co.Nl)])
 
         if with_survey_mask: self.arr_p, self.mat_kp = survey_mask_arr_p, survey_mask_mat_kp
         if with_binning: self.loadBinning(self.xout, binsize)
         if with_wedge: self.wedge_mat_wl = wedge_mat_wl
-        
+
         # redshift bin evolution
         if with_redshift_bin:
             self.zz, self.nz = redshift_bin_zz, redshift_bin_nz
-            mu = np.linspace(0, 1, 60)
-            self.s, self.z1, self.mu = np.meshgrid(self.co.s, self.zz, mu, indexing='ij')
+            mu = linspace(0, 1, 60)
+            self.s, self.z1, self.mu = meshgrid(self.co.s, self.zz, mu, indexing='ij')
             self.n1 = self.mesheval1d(self.zz, self.z1, nz)
-            self.L = np.array([legendre(2*l)(self.mu) for l in range(self.co.Nl)]) # Legendre to reconstruct the 3D 2pt function
-            self.Lp = 2. * np.array([(4*l+1)/2. * legendre(2*l)(self.mu) for l in range(self.co.Nl)]) # Legendre in the integrand to get the multipoles ; factor 2 in front because mu integration goes from 0 to 1
+            self.L = array([legendre(2*l)(self.mu) for l in range(self.co.Nl)]) # Legendre to reconstruct the 3D 2pt function
+            self.Lp = 2. * array([(4*l+1)/2. * legendre(2*l)(self.mu) for l in range(self.co.Nl)]) # Legendre in the integrand to get the multipoles ; factor 2 in front because mu integration goes from 0 to 1
             self.ft = FourierTransform(co=self.co)
 
     def get_AP_param(self, bird=None, DA=None, H=None):
@@ -140,9 +129,9 @@ class Projection(object):
             mugrid = self.mukgrid
             arrayLegendremugrid = self.arrayLegendremukgrid
         Pkint = interp1d(k, Pk, axis=-1, kind='cubic', bounds_error=False, fill_value='extrapolate')
-        Pkmu = np.einsum('l...km,lkm->...km', Pkint(kp), arrayLegendremup)
-        Integrandmu = np.einsum('...km,lkm->l...km', Pkmu, arrayLegendremugrid)
-        return 2 * np.trapz(Integrandmu, x=mugrid, axis=-1)
+        Pkmu = einsum('l...km,lkm->...km', Pkint(kp), arrayLegendremup)
+        Integrandmu = einsum('...km,lkm->l...km', Pkmu, arrayLegendremugrid)
+        return 2 * trapz(Integrandmu, x=mugrid, axis=-1)
 
     def AP(self, bird=None, q=None):
         """
@@ -156,7 +145,7 @@ class Projection(object):
             G = (self.musgrid**2 * qpar**2 + (1-self.musgrid**2) * qperp**2)**0.5
             sp = self.sgrid * G
             mup = self.musgrid * qpar / G
-            arrayLegendremup = np.array([legendre(2*l)(mup) for l in range(self.co.Nl)])
+            arrayLegendremup = array([legendre(2*l)(mup) for l in range(self.co.Nl)])
 
             if bird.with_bias:
                 bird.fullCf = self.integrAP(self.co.s, bird.fullCf, sp, arrayLegendremup)
@@ -169,7 +158,7 @@ class Projection(object):
             F = qpar / qperp
             kp = self.kgrid / qperp * (1 + self.mukgrid**2 * (F**-2 - 1))**0.5
             mup = self.mukgrid / F * (1 + self.mukgrid**2 * (F**-2 - 1))**-0.5
-            arrayLegendremup = np.array([legendre(2*l)(mup) for l in range(self.co.Nl)])
+            arrayLegendremup = array([legendre(2*l)(mup) for l in range(self.co.Nl)])
 
             if bird.with_bias:
                 bird.fullPs = 1. / (qperp**2 * qpar) * self.integrAP(self.co.k, bird.fullPs, kp, arrayLegendremup)
@@ -177,18 +166,19 @@ class Projection(object):
                 bird.P11l = 1. / (qperp**2 * qpar) * self.integrAP(self.co.k, bird.P11l, kp, arrayLegendremup)
                 bird.Pctl = 1. / (qperp**2 * qpar) * self.integrAP(self.co.k, bird.Pctl, kp, arrayLegendremup)
                 bird.Ploopl = 1. / (qperp**2 * qpar) * self.integrAP(self.co.k, bird.Ploopl, kp, arrayLegendremup)
-                if bird.with_nnlo_counterterm: bird.Pnnlol = 1. / (qperp**2 * qpar) * self.integrAP(self.co.k, bird.Pnnlol, kp, arrayLegendremup)      
+                if bird.with_stoch: bird.Pstl = 1. / (qperp**2 * qpar) * self.integrAP(self.co.k, bird.Pstl, kp, arrayLegendremup)
+                if bird.with_nnlo_counterterm: bird.Pnnlol = 1. / (qperp**2 * qpar) * self.integrAP(self.co.k, bird.Pnnlol, kp, arrayLegendremup)
 
     def integrWindow(self, P):
         """
         Convolve the window functions to a power spectrum P
         """
         Pk = interp1d(self.co.k, P, axis=-1, kind='cubic', bounds_error=False, fill_value=0.)(self.arr_p)
-        return np.einsum('alkp,l...p->a...k', self.mat_kp, Pk) # (multipole a, multipole l, k, p) , (multipole l, power pectra s, p)
+        return einsum('alkp,l...p->a...k', self.mat_kp, Pk) # (multipole a, multipole l, k, p) , (multipole l, power pectra s, p)
 
     def Window(self, bird):
         """
-        Apply the survey window function to the bird power spectrum 
+        Apply the survey window function to the bird power spectrum
         """
         if bird.with_bias:
             bird.fullPs = self.integrWindow(bird.fullPs)
@@ -209,7 +199,7 @@ class Projection(object):
 
         Credit: Thomas Colas
         """
-        dPunc = np.zeros((3, len(xout)))
+        dPunc = zeros((3, len(xout)))
         for l in [0, 2, 4]:
             dPunc[int(l / 2)] = - fs * pi * Dfc**2. * (2. * pi / xout) * (2. * l + 1.) / \
                 2. * special.legendre(l)(0) * (1. - (xout * Dfc)**2 / 8.)
@@ -227,39 +217,39 @@ class Projection(object):
 
         Credit: Thomas Colas
         """
-        q_ref = np.geomspace(min(kPS), ktrust, num=1024)
+        q_ref = geomspace(min(kPS), ktrust, num=1024)
         # create log bin
         dq_ref = q_ref[1:] - q_ref[:-1]
-        dq_ref = np.concatenate([[0], dq_ref])
+        dq_ref = concatenate([[0], dq_ref])
 
         PS_interp = interp1d(kPS, PS, axis=-1, bounds_error=False, fill_value='extrapolate')(q_ref)
 
         if many:
-            dPcorr = np.zeros(shape=(PS.shape[0], PS.shape[1], len(xout)))
+            dPcorr = zeros(shape=(PS.shape[0], PS.shape[1], len(xout)))
             for j in range(PS.shape[1]):
                 for l in range(self.co.Nl):
                     for lp in range(self.co.Nl):
                         for i, k in enumerate(xout):
                             if lp <= l:
                                 maskIR = (q_ref < k)
-                                dPcorr[l, j, i] += - 0.5 * fs * Dfc**2 * np.einsum('q,q,q,q->', q_ref[maskIR],
+                                dPcorr[l, j, i] += - 0.5 * fs * Dfc**2 * einsum('q,q,q,q->', q_ref[maskIR],
                                                                                    dq_ref[maskIR], PS_interp[lp, j, maskIR], fllp_IR(2 * l, 2 * lp, k, q_ref[maskIR], Dfc))
                             if lp >= l:
                                 maskUV = ((q_ref > k) & (q_ref < ktrust))
-                                dPcorr[l, j, i] += - 0.5 * fs * Dfc**2 * np.einsum('q,q,q,q->', q_ref[maskUV],
+                                dPcorr[l, j, i] += - 0.5 * fs * Dfc**2 * einsum('q,q,q,q->', q_ref[maskUV],
                                                                                    dq_ref[maskUV], PS_interp[lp, j, maskUV], fllp_UV(2 * l, 2 * lp, k, q_ref[maskUV], Dfc))
         else:
-            dPcorr = np.zeros(shape=(PS.shape[0], len(xout)))
+            dPcorr = zeros(shape=(PS.shape[0], len(xout)))
             for l in range(self.co.Nl):
                 for lp in range(self.co.Nl):
                     for i, k in enumerate(xout):
                         if lp <= l:
                             maskIR = (q_ref < k)
-                            dPcorr[l, i] += - 0.5 * fs * Dfc**2 * np.einsum('q,q,q,q->', q_ref[maskIR],
+                            dPcorr[l, i] += - 0.5 * fs * Dfc**2 * einsum('q,q,q,q->', q_ref[maskIR],
                                                                             dq_ref[maskIR], PS_interp[lp, maskIR], fllp_IR(2 * l, 2 * lp, k, q_ref[maskIR], Dfc))
                         if lp >= l:
                             maskUV = ((q_ref > k) & (q_ref < ktrust))
-                            dPcorr[l, i] += - 0.5 * fs * Dfc**2 * np.einsum('q,q,q,q->', q_ref[maskUV],
+                            dPcorr[l, i] += - 0.5 * fs * Dfc**2 * einsum('q,q,q,q->', q_ref[maskUV],
                                                                             dq_ref[maskUV], PS_interp[lp, maskUV], fllp_UV(2 * l, 2 * lp, k, q_ref[maskUV], Dfc))
         return dPcorr
 
@@ -277,11 +267,11 @@ class Projection(object):
         """
         Create the bins of the data k's
         """
-        kcentral = (xout[-1] - binsize * np.arange(len(xout)))[::-1] # in case the provided ks are not the central ones but effective ones...
+        kcentral = (xout[-1] - binsize * arange(len(xout)))[::-1] # in case the provided ks are not the central ones but effective ones...
         binmin = kcentral - binsize / 2.
         binmax = kcentral + binsize / 2.
-        self.binvol = np.array([quad(lambda k: k**2, kbinmin, kbinmax)[0] for (kbinmin, kbinmax) in zip(binmin, binmax)])
-        self.points = [np.linspace(kbinmin, kbinmax, 100) for (kbinmin, kbinmax) in zip(binmin, binmax)]
+        self.binvol = array([quad(lambda k: k**2, kbinmin, kbinmax)[0] for (kbinmin, kbinmax) in zip(binmin, binmax)])
+        self.points = [linspace(kbinmin, kbinmax, 100) for (kbinmin, kbinmax) in zip(binmin, binmax)]
 
     def integrBinning(self, P):
         """
@@ -289,8 +279,8 @@ class Projection(object):
         """
         if self.cf: integrand = interp1d(self.co.s, P, axis=-1, kind='cubic', bounds_error=False, fill_value=0.)
         else: integrand = interp1d(self.co.k, P, axis=-1, kind='cubic', bounds_error=False, fill_value=0.)
-        res = np.array([np.trapz(integrand(pts) * pts**2, x=pts) for pts in self.points])
-        return np.moveaxis(res, 0, -1) / self.binvol
+        res = array([trapz(integrand(pts) * pts**2, x=pts) for pts in self.points])
+        return moveaxis(res, 0, -1) / self.binvol
 
     def xbinning(self, bird):
         """
@@ -337,7 +327,7 @@ class Projection(object):
                 if bird.with_nnlo_counterterm: bird.Pnnlol = interp1d(self.co.k, bird.Pnnlol, axis=-1, kind='cubic', bounds_error=False)(self.xout)
 
     def integrWedges(self, P):
-        w = np.einsum('l...k,wl->w...k', P, self.wedge_mat_wl)
+        w = einsum('l...k,wl->w...k', P, self.wedge_mat_wl)
         return w
 
     def Wedges(self, bird):
@@ -361,7 +351,7 @@ class Projection(object):
                 bird.Ploopl = self.integrWedges(bird.Ploopl)
                 if bird.with_stoch: bird.Pstl = self.integrWedges(bird.Pstl)
                 if bird.with_nnlo_counterterm: bird.Pnnlol = self.integrWedges(bird.Pnnlol)
-    
+
     def Wedges_external(self, P):
         return self.integrWedges(P, many=False)
 
@@ -370,55 +360,55 @@ class Projection(object):
         return ifunc(zm)
 
     def redshift(self, bird, rz, Dz, fz, pk='Pk'):
-        
+
         if 'Pk' in pk: # for the Pk, we use the endpoint LOS. We first do the line-of-sight integral in configuration space, then Fourier transform the integrated Cf to get the integrated Pk
-            D1 = self.mesheval1d(self.zz, self.z1, Dz/bird.D) 
-            f1 = self.mesheval1d(self.zz, self.z1, fz/bird.f) 
-            s1 = self.mesheval1d(self.zz, self.z1, rz) 
+            D1 = self.mesheval1d(self.zz, self.z1, Dz/bird.D)
+            f1 = self.mesheval1d(self.zz, self.z1, fz/bird.f)
+            s1 = self.mesheval1d(self.zz, self.z1, rz)
             s2 = (self.s**2 + s1**2 + 2*self.s*s1*self.mu)**0.5
-            n2 = self.mesheval1d(rz, s2, self.nz)  
-            D2 = self.mesheval1d(rz, s2, Dz/bird.D) 
-            f2 = self.mesheval1d(rz, s2, fz/bird.f) 
-            # in principle, 13-type and 22-type loops have different time dependence, however, using the time dependence D1^2 x D^2 for both 22 and 13 gives a ~1e-4 relative difference ; similarly, we do some approximations in powers of f ; 
+            n2 = self.mesheval1d(rz, s2, self.nz)
+            D2 = self.mesheval1d(rz, s2, Dz/bird.D)
+            f2 = self.mesheval1d(rz, s2, fz/bird.f)
+            # in principle, 13-type and 22-type loops have different time dependence, however, using the time dependence D1^2 x D^2 for both 22 and 13 gives a ~1e-4 relative difference ; similarly, we do some approximations in powers of f ;
             # if self.co.nonequaltime:
             #     Dp2 = D1 * D2
             #     Dp22 = Dp2 * Dp2
-            #     Dp13 = Dp22 # 0.5 * (D1**2 + D2**2) * Dp2 
-            #     fp0 = np.ones_like(f1)  # f1**0
-            #     fp1 = 0.5 * (f1 + f2)   # this one is exact, 
+            #     Dp13 = Dp22 # 0.5 * (D1**2 + D2**2) * Dp2
+            #     fp0 = ones_like(f1)  # f1**0
+            #     fp1 = 0.5 * (f1 + f2)   # this one is exact,
             #     fp2 = fp1**2            # but this one is approximate, since f**2 = f1 * f2 or 0.5 * (f1**2+f2**2), instead we use mean f approximation
             #     fp3 = fp1 * fp2         # and similar here
             #     fp4 = f1**2 * f2**2     # however this one is exact
-            #     f11 = np.array([fp0, fp1, fp2])
-            #     fct = np.array([fp0, fp0, fp0, fp1, fp1, fp1])
-            #     floop = np.concatenate([6*[fp0], 6*[fp1], 9*[fp2], 4*[fp3], 3*[fp4], 2*[fp0],  3*[fp1], 3*[fp2], 2*[fp3]])
-            #     tlin = np.einsum('n...,...->n...', f11, Dp2 * self.n1 * n2)
-            #     tct = np.einsum('n...,...->n...', fct, Dp2 * self.n1 * n2)
-            #     tloop = np.empty_like(floop) 
-            #     tloop[:self.co.N22] = np.einsum('n...,...->n...', floop[:self.co.N22], Dp22 * self.n1 * n2)
-            #     tloop[self.co.N22:] = np.einsum('n...,...->n...', floop[self.co.N22:], Dp13 * self.n1 * n2)
+            #     f11 = array([fp0, fp1, fp2])
+            #     fct = array([fp0, fp0, fp0, fp1, fp1, fp1])
+            #     floop = concatenate([6*[fp0], 6*[fp1], 9*[fp2], 4*[fp3], 3*[fp4], 2*[fp0],  3*[fp1], 3*[fp2], 2*[fp3]])
+            #     tlin = einsum('n...,...->n...', f11, Dp2 * self.n1 * n2)
+            #     tct = einsum('n...,...->n...', fct, Dp2 * self.n1 * n2)
+            #     tloop = empty_like(floop)
+            #     tloop[:self.co.N22] = einsum('n...,...->n...', floop[:self.co.N22], Dp22 * self.n1 * n2)
+            #     tloop[self.co.N22:] = einsum('n...,...->n...', floop[self.co.N22:], Dp13 * self.n1 * n2)
             # else:
             Dp2 = D1 * D2
             Dp4 = Dp2**2
-            fp0 = np.ones_like(f1) 
+            fp0 = ones_like(f1)
             fp1 = 0.5 * (f1 + f2)
             fp2 = fp1**2
             fp3 = fp1 * fp2
             fp4 = f1**2 * f2**2
-            f11 = np.array([fp0, fp1, fp2])
-            fct = np.array([fp0, fp0, fp0, fp1, fp1, fp1])
-            floop = np.array([fp2, fp3, fp4, fp1, fp2, fp3, fp1, fp2, fp1, fp1, fp2, fp0, fp1, fp2, fp0, fp1, fp0, fp0, fp1, fp0, fp0, fp0])
-            tlin = np.einsum('n...,...->n...', f11, Dp2 * self.n1 * n2)
-            tct = np.einsum('n...,...->n...', fct, Dp2 * self.n1 * n2)
-            tloop = np.einsum('n...,...->n...', floop, Dp4 * self.n1 * n2)
-            
-            norm = np.trapz(self.nz**2 * rz**2, x=rz) # FKP normalization
-            # norm = np.trapz(np.trapz(self.n1 * n2 * s1**2, x=self.mu, axis=-1), x=rz, axis=-1) # for CF with endpoint LOS
-            def integrand(t, c): 
-                cmesh = self.mesheval1d(self.co.s, self.s, c)  
-                return np.einsum('p...,l...,ln...,n...,...->pn...', self.Lp, self.L, cmesh, t, s1**2) # p: legendre polynomial order, l: multipole, n: number of linear/loop terms, (s, z1, mu)
+            f11 = array([fp0, fp1, fp2])
+            fct = array([fp0, fp0, fp0, fp1, fp1, fp1])
+            floop = array([fp2, fp3, fp4, fp1, fp2, fp3, fp1, fp2, fp1, fp1, fp2, fp0, fp1, fp2, fp0, fp1, fp0, fp0, fp1, fp0, fp0, fp0])
+            tlin = einsum('n...,...->n...', f11, Dp2 * self.n1 * n2)
+            tct = einsum('n...,...->n...', fct, Dp2 * self.n1 * n2)
+            tloop = einsum('n...,...->n...', floop, Dp4 * self.n1 * n2)
+
+            norm = trapz(self.nz**2 * rz**2, x=rz) # FKP normalization
+            # norm = trapz(trapz(self.n1 * n2 * s1**2, x=self.mu, axis=-1), x=rz, axis=-1) # for CF with endpoint LOS
+            def integrand(t, c):
+                cmesh = self.mesheval1d(self.co.s, self.s, c)
+                return einsum('p...,l...,ln...,n...,...->pn...', self.Lp, self.L, cmesh, t, s1**2) # p: legendre polynomial order, l: multipole, n: number of linear/loop terms, (s, z1, mu)
             def integration(t, c):
-                return np.trapz(np.trapz(integrand(t, c), x=self.mu, axis=-1), x=rz, axis=-1) / norm
+                return trapz(trapz(integrand(t, c), x=self.mu, axis=-1), x=rz, axis=-1) / norm
 
             bird.C11l = integration(tlin, bird.C11l)
             bird.Cctl = integration(tct, bird.Cctl)
@@ -434,36 +424,31 @@ class Projection(object):
             D2 = self.mesheval1d(rz, s2, Dz/bird.D)
             f1 = self.mesheval1d(rz, s1, fz/bird.f)
             f2 = self.mesheval1d(rz, s2, fz/bird.f)
-            n1 = self.mesheval1d(rz, s1, self.nz)  
-            n2 = self.mesheval1d(rz, s2, self.nz)  
+            n1 = self.mesheval1d(rz, s1, self.nz)
+            n2 = self.mesheval1d(rz, s2, self.nz)
 
             Dp2 = D1 * D2
             Dp4 = Dp2**2
-            fp0 = np.ones_like(f1) 
+            fp0 = ones_like(f1)
             fp1 = 0.5 * (f1 + f2)
             fp2 = fp1**2
             fp3 = fp1 * fp2
             fp4 = f1**2 * f2**2
-            f11 = np.array([fp0, fp1, fp2])
-            fct = np.array([fp0, fp0, fp0, fp1, fp1, fp1])
-            floop = np.array([fp2, fp3, fp4, fp1, fp2, fp3, fp1, fp2, fp1, fp1, fp2, fp0, fp1, fp2, fp0, fp1, fp0, fp0, fp1, fp0, fp0, fp0])
-            tlin = np.einsum('n...,...->n...', f11, Dp2 * n1 * n2)
-            tct = np.einsum('n...,...->n...', fct, Dp2 * n1 * n2)
-            tloop = np.einsum('n...,...->n...', floop, Dp4 * n1 * n2)
-            
-            norm = np.trapz(np.trapz(n1 * n2 * r**2, x=self.mu, axis=-1), x=rz, axis=-1)
-            #norm = np.trapz(self.nz**2 * rz**2, x=rz)
-            def integrand(t, c): 
-                cmesh = self.mesheval1d(self.co.s, self.s, c)  
-                return np.einsum('p...,l...,ln...,n...,...->pn...', self.Lp, self.L, cmesh, t, r**2) # p: legendre polynomial order, l: multipole, n: number of linear/loop terms, (s, z1, mu)
+            f11 = array([fp0, fp1, fp2])
+            fct = array([fp0, fp0, fp0, fp1, fp1, fp1])
+            floop = array([fp2, fp3, fp4, fp1, fp2, fp3, fp1, fp2, fp1, fp1, fp2, fp0, fp1, fp2, fp0, fp1, fp0, fp0, fp1, fp0, fp0, fp0])
+            tlin = einsum('n...,...->n...', f11, Dp2 * n1 * n2)
+            tct = einsum('n...,...->n...', fct, Dp2 * n1 * n2)
+            tloop = einsum('n...,...->n...', floop, Dp4 * n1 * n2)
+
+            norm = trapz(trapz(n1 * n2 * r**2, x=self.mu, axis=-1), x=rz, axis=-1)
+            #norm = trapz(self.nz**2 * rz**2, x=rz)
+            def integrand(t, c):
+                cmesh = self.mesheval1d(self.co.s, self.s, c)
+                return einsum('p...,l...,ln...,n...,...->pn...', self.Lp, self.L, cmesh, t, r**2) # p: legendre polynomial order, l: multipole, n: number of linear/loop terms, (s, z1, mu)
             def integration(t, c):
-                return np.trapz(np.trapz(integrand(t, c), x=self.mu, axis=-1), x=rz, axis=-1) / norm
+                return trapz(trapz(integrand(t, c), x=self.mu, axis=-1), x=rz, axis=-1) / norm
 
             bird.C11l = integration(tlin, bird.C11l)
             bird.Cctl = integration(tct, bird.Cctl)
             bird.Cloopl = integration(tloop, bird.Cloopl)
-
-        
-
-            
-

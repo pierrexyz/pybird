@@ -1,5 +1,31 @@
-import os, sys
-import numpy as np
+import h5py
+from pybird.module import *
+
+def get_dict_from_hdf5(group, none_flag="NoneValue"):
+    d = {}
+    for key in group.keys():
+        if isinstance(group[key], h5py.Group):
+            d[key] = get_dict_from_hdf5(group[key], none_flag=none_flag)
+        elif isinstance(group[key], h5py.Dataset):
+            data = group[key][()]
+
+            if array_equal(data, none_flag):
+                d[key] = None
+            else:
+                d[key] = data
+    return d
+
+def save_dict_to_hdf5(group, data, none_flag="NoneValue"):
+    def save_recursive(subgroup, subdata):
+        for key, value in subdata.items():
+            if isinstance(value, dict):
+                save_recursive(subgroup.create_group(key), value)
+            elif value is None:
+                subgroup.create_dataset(key, data=none_flag)
+            else:
+                subgroup.create_dataset(key, data=value)
+    
+    save_recursive(group, data)
 
 class ReadWrite(object):
     def __init__(self):
@@ -9,7 +35,8 @@ class ReadWrite(object):
         data = os.path.join(c['data_path'], c['data_file'])
         if not os.path.isfile(data): raise Exception("%s not found" % data)
         elif verbose: print ('reading data file: %s' % data)
-        d = np.load(data, allow_pickle='TRUE').item()
+        with h5py.File(data, 'r') as hf: d = get_dict_from_hdf5(hf)
+        # d = load(data, allow_pickle='TRUE').item()
         self.check(c, d, verbose=verbose)
         fd_sky = self.format(c, d, verbose=verbose) # skylist of formatted data dict for Likelihood
         fc_sky = self.config(c, fd_sky)             # skylist of formatted config dict for Correlator
@@ -77,7 +104,7 @@ class ReadWrite(object):
             if c['with_ap']: fc.update({'H_fid': fd['fid']['H'], 'D_fid': fd['fid']['D']})
             if c['with_survey_mask']: 
                 fc.update({'survey_mask_arr_p': fd['survey_mask_arr_p'], 'survey_mask_mat_kp': fd['survey_mask_mat_kp']})
-                fc['kmax'] = max([k[-1] for k in fd['x_arr']]) + 0.2 # we give margin since mask mat_kp has a p-support of +/- 0.2 around k at ~ 0.1% precision
+                fc['kmax'] = max([k[-1] for k in fd['x_arr']]) + 0.3 # we give margin since mask mat_kp has a p-support of +/- 0.3 around k at ~ 0.1% precision
             if c['with_binning']: fc['binsize'] = float(fd['binsize'])
             if c['with_wedge']: fc['wedge_mat_wl'] = fd['wedge_mat_wl']
             if c['with_redshift_bin']: fc.update({'redshift_bin_zz': fd['redshift_bin_zz'], 'redshift_bin_nz': fd['redshift_bin_nz']})
@@ -93,21 +120,21 @@ class ReadWrite(object):
             d = data[sky]
             dd = d[c['output']]
 
-            xmask = [np.where((dd['x'] >= cut['min'][i]) & (dd['x'] <= cut['max'][i]))[0] for i in range(c["multipole"])]
-            cmask = np.concatenate([xmask_i + i*len(dd['x']) for i, xmask_i in enumerate(xmask)]) 
+            xmask = [where((dd['x'] >= cut['min'][i]) & (dd['x'] <= cut['max'][i]))[0] for i in range(c["multipole"])]
+            cmask = concatenate([xmask_i + i*len(dd['x']) for i, xmask_i in enumerate(xmask)]) 
 
-            x_arr = np.array([dd['x'] for i in range(c['multipole'])])
-            y_arr = np.array([dd['l%s'%(2*i)] for i in range(c['multipole'])])
+            x_arr = array([dd['x'] for i in range(c['multipole'])])
+            y_arr = array([dd['l%s'%(2*i)] for i in range(c['multipole'])])
             cov = dd['cov']
 
             if c['with_wedge']:
-                if c['wedge_type'] == 'PA-w1-w2': mat = np.array([[1., -3./7., 11./56.], [1., -3/8., 15/128.], [1., 3/8., -15./128.]])
-                elif c['wedge_type'] == 'Q0-w1-w2': mat = np.array([[1., -1./2., 3./8.], [1., -3/8., 15/128.], [1., 3/8., -15./128.]])
-                y_arr = np.einsum('al,lk->ak', mat, y_arr)
+                if c['wedge_type'] == 'PA-w1-w2': mat = array([[1., -3./7., 11./56.], [1., -3/8., 15/128.], [1., 3/8., -15./128.]])
+                elif c['wedge_type'] == 'Q0-w1-w2': mat = array([[1., -1./2., 3./8.], [1., -3/8., 15/128.], [1., 3/8., -15./128.]])
+                y_arr = einsum('al,lk->ak', mat, y_arr)
                 cov_resh = cov.reshape((3, cov.shape[0] // 3, 3, cov.shape[1] // 3))
-                cov = np.einsum('al,bm,lkmj->akbj', mat, mat, cov_resh).reshape(cov.shape)
+                cov = einsum('al,bm,lkmj->akbj', mat, mat, cov_resh).reshape(cov.shape)
 
-            y_err = np.sqrt(np.diag(cov)).reshape(3,-1)
+            y_err = sqrt(diag(cov)).reshape(3,-1)
 
             fdata = { 'z': d['z']['eff'], 
                       'mask_arr': xmask,                                               # mask for theory model for plotting
@@ -121,13 +148,13 @@ class ReadWrite(object):
 
             if c['with_bao_rec']: 
                 fdata['bao_rec_fid'] = d['bao_rec']['fid']
-                fdata['y'] = np.concatenate((fdata['y'], [d['bao_rec']['alpha']['par'], d['bao_rec']['alpha']['per']]))
-                cmask = np.concatenate((cmask, [-2, -1])) 
+                fdata['y'] = concatenate((fdata['y'], [d['bao_rec']['alpha']['par'], d['bao_rec']['alpha']['per']]))
+                cmask = concatenate((cmask, [-2, -1])) 
                 cross_fs_alpha = d['bao_rec']['cov']['cross-%s' % c['output']]
                 cov_alpha = d['bao_rec']['cov']['alpha']
-                cov = np.block([[cov, cross_fs_alpha], [cross_fs_alpha.T, cov_alpha]])
+                cov = block([[cov, cross_fs_alpha], [cross_fs_alpha.T, cov_alpha]])
 
-            fdata['p'] = np.linalg.inv(cov[np.ix_(cmask, cmask)])                 # precision matrix for analysis
+            fdata['p'] = linalg.inv(cov[ix_(cmask, cmask)])                 # precision matrix for analysis
             if dd['nsims'] > 0: 
                 fdata['p'] *= (dd['nsims'] - len(cmask) - 2) / (dd['nsims'] - 1.) # Hartlap factor correction
                 if verbose: print('%s: Hartlap factor correction on precision matrix estimated from %s mocks for %s bins' % (sky, dd['nsims'], len(cmask)))
@@ -172,22 +199,23 @@ class ReadWrite(object):
                     if c['output'] == 'bCf': cov_cross_cf = d[sky]['bao_rec']['cov']['cross-bCf']
                     else: cov_cross_cf = None
                     self.write_bao_rec(fake_d[sky], d[sky]['bao_rec']['fid']['rd'], d[sky]['bao_rec']['fid']['H'], d[sky]['bao_rec']['fid']['D'], o['alpha'][0], o['alpha'][1], d[sky]['bao_rec']['cov']['alpha'], cov_cross_pk=cov_cross_pk, cov_cross_cf=cov_cross_cf)
-            np.save(os.path.join(c['data_path'], 'fake_%s.npy') % c['write']['out_name'], fake_d) 
+            with h5py.File(os.path.join(c['data_path'], 'fake_%s.h5') % c['write']['out_name'], 'w') as hf: save_dict_to_hdf5(hf, fake_d)
+            # save(os.path.join(c['data_path'], 'fake_%s.npy') % c['write']['out_name'], fake_d) 
             print ('fake data from best fit saved to %s.' % c['data_path'])
         for fdata, o, sky in zip(fd_sky, out, c['sky']):
             if c['write']['save']:
                 header = self.set_header(o)
                 for i, l in enumerate(range(0,2*c['multipole'],2)):
-                    to_save = np.vstack([ fdata['x_arr'][i], fdata['y_arr'][i], fdata['y_err'][i] ])
+                    to_save = vstack([ fdata['x_arr'][i], fdata['y_arr'][i], fdata['y_err'][i] ])
                     if c['output'] == 'bPk': header += "k [h/Mpc], P_data_l%s [Mpc/h]^3, sigma_data_l%s [Mpc/h]^3" % (l, l)
                     elif c['output'] == 'bCf': header += 's [Mpc/h], C_data_l%s, sigma_data_l%s' % (l, l)
                     fmt = "%.4f %.6e %.6e"
                     if fit: 
-                        to_save =  np.vstack([ to_save, o['y_arr'][i] ]) 
+                        to_save =  vstack([ to_save, o['y_arr'][i] ]) 
                         if c['output'] == 'bPk': header += ", P_theo_l%s [Mpc/h]^3" % l
                         elif c['output'] == 'bCf': header += ", C_theo_l%s" % l
                         fmt += " %.6e"
-                    np.savetxt(os.path.join(c['write']['out_path'], 'fit_%s_%s_l%s.dat') % (c['write']['out_name'], sky, l), to_save.T, header=header, fmt=fmt)
+                    savetxt(os.path.join(c['write']['out_path'], 'fit_%s_%s_l%s.dat') % (c['write']['out_name'], sky, l), to_save.T, header=header, fmt=fmt)
                 print ('data files with best fit saved to %s.' % c['write']['out_path'])
             if c['write']['plot']: 
                 import matplotlib.pyplot as plt

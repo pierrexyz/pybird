@@ -1,5 +1,4 @@
-from scipy.integrate import quad
-from scipy.special import hyp2f1
+from pybird.module import *
 
 class GreenFunction(object):
    

@@ -2,13 +2,13 @@ from setuptools import setup
 
 setup(
     name='pybird',
-    version='0.2.0',
+    version='0.2.1',
     description='EFT predictions for biased tracers in redshift space.',
 #    url='https://github.com/pierrexyz/pybird',
     author="Pierre Zhang and Guido D'Amico",
     license='MIT',
     packages=['pybird'],
-    install_requires=['numpy', 'scipy'],
+    install_requires=['numpy', 'scipy', 'h5py', 'pyyaml'],
     package_dir = {'pybird': 'pybird'},
     zip_safe=False,
 
