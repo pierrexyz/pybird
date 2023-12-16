@@ -6,16 +6,17 @@ is_jax = True
 if is_jax:
     import jax.numpy as numpy
     from jax.numpy import isnan, savez, load, array, ndarray, conj, ones, tan, log, logspace, swapaxes, empty, linspace, arange, delete, where, pi, cos, sin, log, exp, sqrt, trapz, concatenate, linalg, eye, einsum, einsum_path, zeros, sum, pad, diag, block, array_equal, meshgrid, trapz, geomspace, moveaxis, ones_like, empty_like, real, zeros_like
+    from jax.numpy.fft import rfft
     
     from jax import jit
     
 else: 
     import numpy
     from numpy import isnan, savez, load, ndarray, conj, ones, tan, log, logspace, swapaxes, empty, array, linspace, arange, delete, where, pi, cos, sin, log, exp, sqrt, trapz, concatenate, linalg, eye, einsum, einsum_path, zeros, sum, pad, diag, block, array_equal, meshgrid, trapz, geomspace, moveaxis, ones_like, empty_like, real, zeros_like
+    from numpy.fft import rfft
 
 
 from scipy.interpolate import interp1d
-from numpy.fft import rfft
 from scipy.fftpack import dst
 from scipy.integrate import quad
 from scipy.special import legendre, spherical_jn, j1, gamma, hyp2f1

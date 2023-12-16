@@ -66,82 +66,51 @@ class FFTLog(object):
         self.xmin = kwargs['xmin']
         self.xmax = kwargs['xmax']
         self.bias = kwargs['bias']
-        self.dx = log(self.xmax / self.xmin) / (self.Nmax - 1.)
-        self.setx()
-        self.setPow()
-
-    def setx(self):
-        self.x = array([self.xmin * exp(i * self.dx) for i in range(self.Nmax)])
-
-    def setPow(self):
-        self.Pow = array([self.bias + 1j * 2. * pi / (self.Nmax * self.dx) * (i - self.Nmax / 2.) for i in range(self.Nmax + 1)])
-
-    def Coef(self, xin, f, extrap='extrap', window=1):
         
-        interpfunc = InterpolatedUnivariateSpline(xin, f)
-
-        fx = empty(self.Nmax)
-        tmp = empty(int(self.Nmax / 2 + 1), dtype=complex)
-        Coef = empty(self.Nmax + 1, dtype=complex)
-
-        if extrap == 'extrap':
-            nslow, Aslow = 0, 0
-            if xin[0] > self.x[0]:
-                #print ('low extrapolation')
-                if f[0] * f[1] != 0.:
-                    nslow = (log(f[1]) - log(f[0])) / (log(xin[1]) - log(xin[0]))
-                    Aslow = f[0] / xin[0]**nslow
-            nshigh, Ashigh = 0, 0
-            if xin[-1] < self.x[-1]:
-                #print ('high extrapolation')
-                if f[-1] * f[-2] != 0.:
-                    nshigh = (log(f[-1]) - log(f[-2])) / (log(xin[-1]) - log(xin[-2]))
-                    Ashigh = f[-1] / xin[-1]**nshigh
-            
-            for i in range(self.Nmax):
-                if xin[0] > self.x[i]: fi = Aslow * self.x[i]**nslow * exp(-self.bias * i * self.dx)
-                elif xin[-1] < self.x[i]: fi = Ashigh * self.x[i]**nshigh * exp(-self.bias * i * self.dx)
-                else: fi = interpfunc(self.x[i]) * exp(-self.bias * i * self.dx)
-                if is_jax: fx = fx.at[i].set(fi)
-                else: fx[i] = fi
-
-        elif extrap == 'padding':
-            for i in range(self.Nmax):
-                if xin[0] > self.x[i] or xin[-1] < self.x[i]: fi = 0.
-                else: fi = interpfunc(self.x[i]) * exp(-self.bias * i * self.dx)
-                if is_jax: fx = fx.at[i].set(fi)
-                else: fx[i] = fi
-
-        tmp = rfft(fx)  # numpy
-        # tmp = rfft(fx, planner_effort='FFTW_ESTIMATE')() ### pyfftw
-
-        for i in range(self.Nmax + 1):
-            if (i < self.Nmax / 2):
-                c = conj(tmp[int(self.Nmax / 2 - i)]) * self.xmin**(-self.Pow[i]) / float(self.Nmax)
-                if is_jax: Coef = Coef.at[i].set(c)
-                else: Coef[i] = c
-            else:
-                c = tmp[int(i - self.Nmax / 2)] * self.xmin**(-self.Pow[i]) / float(self.Nmax)
-                if is_jax: Coef = Coef.at[i].set(c)
-                else: Coef[i] = c
-
-        if window:
-            Coef = Coef * CoefWindow(self.Nmax, window=window)
+        self.dx = log(self.xmax / self.xmin) / (self.Nmax - 1.)
+        self.x = array([self.xmin * exp(i * self.dx) for i in range(self.Nmax)])
+        self.xpb = array([exp(-self.bias * i * self.dx) for i in range(self.Nmax)])
+        self.Pow = array([self.bias + 1j * 2. * pi * i / (self.Nmax * self.dx) for i in arange(-self.Nmax//2, self.Nmax//2+1)])
+        
+        if 'window' in kwargs: 
+            self.window = kwargs['window']
+            self.W = CoefWindow(self.Nmax, window=self.window)
+        else: 
+            self.window = None
+        
+    
+    def Coef(self, xin, f, extrap='extrap'):
+        
+        if extrap == 'extrap': 
+            iloglog = InterpolatedUnivariateSpline(log(xin), log(f), k=1)
+            fx = exp(iloglog(log(self.x)))
+        
+        elif extrap == 'padding': 
+            ifunc = InterpolatedUnivariateSpline(xin, f, k=3)
+            x = self.x[(xin[0]<self.x) & (self.x<xin[-1])]
+            nl, nr = self.x[self.x<xin[0]].shape[0], self.x[xin[-1]<self.x].shape[0]
+            fx = np.pad(ifunc(x), (nl, nr), mode='constant', constant_values=0.)
+        
+        fx = fx * self.xpb
+        
+        tmp = rfft(fx)
+        
+        Coef = concatenate((conj(tmp[::-1][:-1]), tmp))
+        
+        Coef = Coef * exp(-self.Pow*log(self.xmin)) / float(self.Nmax)
+        
+        if self.window:
+            Coef = Coef * self.W
+        
         else:
             if is_jax: 
-                Coef = Coef.at[0].divide(2.)
-                Coef = Coef.at[self.Nmax].divide(2.)
+                Coef = Coef.at[0].divide(2.).at[self.Nmax].divide(2.)
             else: 
                 Coef[0] /= 2.
                 Coef[self.Nmax] /= 2.
 
         return Coef
     
-
-    def sumCoefxPow(self, xin, f, x, window=1):
-        Coef = self.Coef(xin, f, window=window)
-        # fFFT = empty_like(x)
-        # for i, xi in enumerate(x):
-        #     fFFT[i] = real(sum(Coef * xi**self.Pow))
-        # return fFFT
+    def sumCoefxPow(self, xin, f, x):
+        Coef = self.Coef(xin, f)
         return array([real(sum(Coef * xi**self.Pow)) for xi in x])
