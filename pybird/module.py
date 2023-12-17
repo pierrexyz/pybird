@@ -4,23 +4,24 @@ import os, sys
 is_jax = True
 
 if is_jax:
+    from jax import jit, vmap
     import jax.numpy as numpy
     from jax.numpy import isnan, savez, load, array, ndarray, conj, ones, tan, log, logspace, swapaxes, empty, linspace, arange, delete, where, pi, cos, sin, log, exp, sqrt, trapz, concatenate, linalg, eye, einsum, einsum_path, zeros, sum, pad, diag, block, array_equal, meshgrid, trapz, geomspace, moveaxis, ones_like, empty_like, real, zeros_like
     from jax.numpy.fft import rfft
-    
-    from jax import jit
+    from jax.scipy.linalg import block_diag
+    from pybird.jax_special import *
     
 else: 
     import numpy
     from numpy import isnan, savez, load, ndarray, conj, ones, tan, log, logspace, swapaxes, empty, array, linspace, arange, delete, where, pi, cos, sin, log, exp, sqrt, trapz, concatenate, linalg, eye, einsum, einsum_path, zeros, sum, pad, diag, block, array_equal, meshgrid, trapz, geomspace, moveaxis, ones_like, empty_like, real, zeros_like
     from numpy.fft import rfft
+    from scipy.interpolate import interp1d
+    from scipy.linalg import block_diag
+    from scipy.special import legendre
 
-
-from scipy.interpolate import interp1d
+from scipy.special import spherical_jn, j1, gamma, hyp2f1
 from scipy.fftpack import dst
 from scipy.integrate import quad
-from scipy.special import legendre, spherical_jn, j1, gamma, hyp2f1
-from scipy.linalg import block_diag
 from scipy.constants import c as c_light
     
 from copy import deepcopy
@@ -29,7 +30,7 @@ from copy import deepcopy
 
 class InterpolatedUnivariateSpline(object):
 
-    """Taken from https://github.com/DifferentiableUniverseInitiative/jax_cosmo/blob/816069f0e69d75ec83689406623839b53fbf43fc/jax_cosmo/scipy/interpolate.py#L44."""
+    """JAX-compatible interpolation up to cubic order. Taken from https://jax-cosmo.readthedocs.io/en/latest/_modules/jax_cosmo/scipy/interpolate.html"""
 
     def __init__(self, x, y, k=3, endpoints="not-a-knot", coefficients=None):
         """JAX implementation of kth-order spline interpolation.

@@ -83,17 +83,17 @@ class Resum(object):
         k2pi = array([self.kr**(2*(p+1)) for p in range(self.co.NIR)])
         self.k2p = concatenate((k2pi, k2pi))
         
-        self.fftsettings = dict(Nmax=NFFT, xmin=.1, xmax=10000., bias=-0.6)
+        self.fftsettings = dict(Nmax=NFFT, xmin=.1, xmax=10000., bias=-0.6, window=0.2)
         self.fft = FFTLog(**self.fftsettings)
         self.setM()
         self.setkPow()
 
-        self.Xfftsettings = dict(Nmax=32, xmin=1.5e-5, xmax=10., bias=-2.6)
+        self.Xfftsettings = dict(Nmax=32, xmin=1.5e-5, xmax=10., bias=-2.6, window=0.2)
         self.Xfft = FFTLog(**self.Xfftsettings)
         self.setXM()
         self.setXsPow()
 
-        self.Cfftsettings = dict(Nmax=256, xmin=1.e-3, xmax=10., bias=-0.6)
+        self.Cfftsettings = dict(Nmax=256, xmin=1.e-3, xmax=10., bias=-0.6, window=0.2)
         self.Cfft = FFTLog(**self.Cfftsettings)
         self.setMl()
         self.setsPow()
@@ -124,12 +124,12 @@ class Resum(object):
         # for l in range(2): self.XM[l] = MPC(2 * l, -0.5 * self.Xfft.Pow)
         self.XM = array([MPC(2 * l, -0.5 * self.Xfft.Pow) for l in range(2)])
 
-    def IRFilters(self, bird, soffset=1., LambdaIR=None, RescaleIR=1., window=None):
+    def IRFilters(self, bird, soffset=1., LambdaIR=None, RescaleIR=1.):
         """ Compute the IR-filters X and Y. """
         if LambdaIR is None: LambdaIR = self.LambdaIR
         if self.co.exact_time and self.co.quintessence: Pin = bird.G1**2 * bird.Pin
         else: Pin = bird.Pin
-        Coef = self.Xfft.Coef(bird.kin, Pin * exp(-bird.kin**2 / LambdaIR**2) / bird.kin**2, window=window)
+        Coef = self.Xfft.Coef(bird.kin, Pin * exp(-bird.kin**2 / LambdaIR**2) / bird.kin**2, extrap='padding')
         CoefsPow = einsum('n,ns->ns', Coef, self.XsPow)
         X02 = real(einsum('ns,ln->ls', CoefsPow, self.XM))
         X0offset = real(einsum('n,n->', einsum('n,n->n', Coef, soffset**(-self.Xfft.Pow - 3.)), self.XM[0]))
@@ -153,9 +153,9 @@ class Resum(object):
         # for l in range(Nl): self.M[l] = 8.*pi**3 * MPC(2 * l, -0.5 * self.fft.Pow)
         self.M = array([8.*pi**3 * MPC(2 * l, -0.5 * self.fft.Pow) for l in range(Nl)])
 
-    def IRn(self, XpYpC, window=None):
+    def IRn(self, XpYpC):
         """ Compute the spherical Bessel transform in the IR correction of order n given [XY]^n """
-        Coef = self.fft.Coef(self.sr, XpYpC, extrap='padding', window=window)
+        Coef = self.fft.Coef(self.sr, XpYpC, extrap='padding')
         CoefkPow = einsum('n,nk->nk', Coef, self.kPow)
         return real(einsum('nk,ln->lk', CoefkPow, self.M[:self.co.Na]))
 
@@ -181,14 +181,19 @@ class Resum(object):
 
     def makeQ(self, f):
         """ Compute the bulk coefficients Q^{ll'}_{||N-j}(n, \alpha, f) """
-        Q = empty(shape=(2, self.co.Nl, self.co.Nl, self.co.Nn))
-        for a in range(2):
-            for l in range(self.co.Nl):
-                for lpr in range(self.co.Nl):
-                    for u in range(self.co.Nn):
-                        if self.co.NIR == 8: Q[a][l][lpr][u] = Qa[1 - a][2 * l][2 * lpr][u](f)
-                        elif self.co.NIR == 16: Q[a][l][lpr][u] = Qawithhex[1 - a][2 * l][2 * lpr][u](f)
-                        elif self.co.NIR == 20: Q[a][l][lpr][u] = Qawithhex20[1 - a][2 * l][2 * lpr][u](f)
+        # Q = empty(shape=(2, self.co.Nl, self.co.Nl, self.co.Nn))
+        # for a in range(2):
+        #     for l in range(self.co.Nl):
+        #         for lpr in range(self.co.Nl):
+        #             for u in range(self.co.Nn):
+        #                 if self.co.NIR == 8: Q[a][l][lpr][u] = Qa[1 - a][2 * l][2 * lpr][u](f)
+        #                 elif self.co.NIR == 16: Q[a][l][lpr][u] = Qawithhex[1 - a][2 * l][2 * lpr][u](f)
+        #                 elif self.co.NIR == 20: Q[a][l][lpr][u] = Qawithhex20[1 - a][2 * l][2 * lpr][u](f)
+        # return Q
+        if self.co.NIR == 8: Q_ = Qa
+        elif self.co.NIR == 16: Q_ = Qawithhex
+        elif self.co.NIR == 20: Q_ = Qawithhex20
+        Q = array([[[[Q_[1 - a][2 * l][2 * lpr][u](f) for u in range(self.co.Nn)] for lpr in range(self.co.Nl)] for l in range(self.co.Nl)] for a in range(2)])
         return Q
 
     def setMl(self):
@@ -203,11 +208,11 @@ class Resum(object):
         self.sPow = exp(einsum('n,s->ns', -self.Cfft.Pow - 3., log(self.co.s)))
 
     def Ps2Cf(self, P, l=0):
-        Coef = self.Cfft.Coef(self.co.k, P * self.dampPs[l], extrap='padding', window=None)
+        Coef = self.Cfft.Coef(self.co.k, P * self.dampPs[l], extrap='padding')
         CoefsPow = einsum('n,ns->ns', Coef, self.sPow)
         return real(einsum('ns,n->s', CoefsPow, self.Ml[l])) * self.dampCf
 
-    def IRCf(self, bird, window=None):
+    def IRCf(self, bird):
         """ Compute the IR corrections in configuration space by spherical Bessel transforming the IR corrections in Fourier space.  """
 
         if bird.with_bias:
@@ -225,21 +230,21 @@ class Resum(object):
                 for j, IRlj in enumerate(IRl):
                     bird.fullIRCfloop[l,j] = self.Ps2Cf(IRlj, l=l)
 
-    def PsCf(self, bird, makeIR=True, makeQ=True, setIR=True, setPs=True, setCf=True, window=None):
+    def PsCf(self, bird, makeIR=True, makeQ=True, setIR=True, setPs=True, setCf=True):
 
-        self.Ps(bird, makeIR=makeIR, makeQ=makeQ, setIR=setIR, setPs=setPs, window=window)
+        self.Ps(bird, makeIR=makeIR, makeQ=makeQ, setIR=setIR, setPs=setPs)
         if setCf:
-            self.IRCf(bird, window=window)
+            self.IRCf(bird)
             bird.setresumCf()
 
-    def Ps(self, bird, makeIR=True, makeQ=True, setIR=True, setPs=True, window=None):
+    def Ps(self, bird, makeIR=True, makeQ=True, setIR=True, setPs=True):
 
-        if makeIR: self.IRPs(bird, window=window)
+        if makeIR: self.IRPs(bird)
         if makeQ: bird.Q = self.makeQ(bird.f)
         if setIR: bird.setIRPs()
         if setPs: bird.setresumPs()
 
-    def IRPs(self, bird, window=None):
+    def IRPs(self, bird):
         """ This is the main method of the class. Compute the IR corrections in Fourier space. """
 
         XpYp = self.setXpYp(bird)
@@ -248,7 +253,7 @@ class Resum(object):
             for a, cf in enumerate(self.extractBAO(bird.Cf[:2])): # linear, loop (but not NNLO)
                 for l, cl in enumerate(cf):
                     for j, xy in enumerate(XpYp):
-                        IRcorrUnsorted = real((-1j)**(2*l)) * self.k2p[j] * self.IRn(xy * cl, window=window)
+                        IRcorrUnsorted = real((-1j)**(2*l)) * self.k2p[j] * self.IRn(xy * cl)
                         for v in range(self.co.Na): 
                             if is_jax: bird.IRPs = bird.IRPs.at[a, l, j*self.co.Na + v, self.Nlow:].set(IRcorrUnsorted[v])
                             else: bird.IRPs[a, l, j*self.co.Na + v, self.Nlow:] = IRcorrUnsorted[v]
@@ -257,20 +262,20 @@ class Resum(object):
         else:
             for l, cl in enumerate(self.extractBAO(bird.C11)):
                 for j, xy in enumerate(XpYp):
-                    IRcorrUnsorted = real((-1j)**(2*l)) * self.k2p[j] * self.IRn(xy * cl, window=window)
+                    IRcorrUnsorted = real((-1j)**(2*l)) * self.k2p[j] * self.IRn(xy * cl)
                     for v in range(self.co.Na): 
                         if is_jax: bird.IRPs11 = bird.IRPs11.at[l, j*self.co.Na + v, self.Nlow:].set(IRcorrUnsorted[v])
                         else: bird.IRPs11[l, j*self.co.Na + v, self.Nlow:] = IRcorrUnsorted[v]
             for l, cl in enumerate(self.extractBAO(bird.Cct)):
                 for j, xy in enumerate(XpYp):
-                    IRcorrUnsorted = real((-1j)**(2*l)) * self.k2p[j] * self.IRn(xy * cl, window=window)
+                    IRcorrUnsorted = real((-1j)**(2*l)) * self.k2p[j] * self.IRn(xy * cl)
                     for v in range(self.co.Na): 
                         if is_jax: bird.IRPsct = bird.IRPsct.at[l, j*self.co.Na + v, self.Nlow:].set(IRcorrUnsorted[v])
                         else: bird.IRPsct[l, j*self.co.Na + v, self.Nlow:] = IRcorrUnsorted[v]
             for l, cl in enumerate(self.extractBAO(bird.Cloopl)):
                 for i, cli in enumerate(cl):
                     for j, xy in enumerate(XpYp):
-                        IRcorrUnsorted = real((-1j)**(2*l)) * self.k2p[j] * self.IRn(xy * cli, window=window)
+                        IRcorrUnsorted = real((-1j)**(2*l)) * self.k2p[j] * self.IRn(xy * cli)
                         for v in range(self.co.Na): 
                             if is_jax: bird.IRPsloop = bird.IRPsloop.at[l, i, j*self.co.Na + v, self.Nlow:].set(IRcorrUnsorted[v])
                             else: bird.IRPsloop[l, i, j*self.co.Na + v, self.Nlow:] = IRcorrUnsorted[v]

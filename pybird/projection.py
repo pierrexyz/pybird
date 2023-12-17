@@ -89,7 +89,7 @@ class Projection(object):
 
         if with_ap:
             self.H_fid, self.D_fid, = H_fid, D_fid
-            self.muacc = linspace(0., 1., 100)
+            self.muacc = linspace(0., 1., 40) # PZ: ask Al if 40 is good enough
             self.sgrid, self.musgrid = meshgrid(self.co.s, self.muacc, indexing='ij')
             self.kgrid, self.mukgrid = meshgrid(self.co.k, self.muacc, indexing='ij')
             self.arrayLegendremusgrid = array([(2*2*l+1)/2.*legendre(2*l)(self.musgrid) for l in range(self.co.Nl)])
@@ -323,7 +323,7 @@ class Projection(object):
                 bird.P11l = interp1d(self.co.k, bird.P11l, axis=-1, kind='cubic', bounds_error=False)(self.xout)
                 bird.Pctl = interp1d(self.co.k, bird.Pctl, axis=-1, kind='cubic', bounds_error=False)(self.xout)
                 bird.Ploopl = interp1d(self.co.k, bird.Ploopl, axis=-1, kind='cubic', bounds_error=False)(self.xout)
-                if bird.with_stoch: bird.Pstl = interp1d(self.co.k, bird.Pstl, kind='cubic', bounds_error=False)(self.xout)
+                if bird.with_stoch: bird.Pstl = interp1d(self.co.k, bird.Pstl, axis=-1, kind='cubic', bounds_error=False)(self.xout)
                 if bird.with_nnlo_counterterm: bird.Pnnlol = interp1d(self.co.k, bird.Pnnlol, axis=-1, kind='cubic', bounds_error=False)(self.xout)
 
     def integrWedges(self, P):

@@ -85,11 +85,11 @@ class FFTLog(object):
             iloglog = InterpolatedUnivariateSpline(log(xin), log(f), k=1)
             fx = exp(iloglog(log(self.x)))
         
-        elif extrap == 'padding': 
+        elif extrap == 'padding': # this is kind of slow but I don't know how to avoid dynamic tracing in order to JAX-jit
             ifunc = InterpolatedUnivariateSpline(xin, f, k=3)
-            x = self.x[(xin[0]<self.x) & (self.x<xin[-1])]
-            nl, nr = self.x[self.x<xin[0]].shape[0], self.x[xin[-1]<self.x].shape[0]
-            fx = np.pad(ifunc(x), (nl, nr), mode='constant', constant_values=0.)
+            def f(x): return where((x < xin[0]) | (xin[-1] < x), 0.0, ifunc(x))
+            if is_jax: fx = vmap(lambda x: f(x))(self.x)
+            else: fx = f(self.x)
         
         fx = fx * self.xpb
         

@@ -271,7 +271,7 @@ class Correlator(object):
         # Loading PyBird engines
         self.__load_engines(load_engines=load_engines)
 
-    def compute(self, cosmo_dict=None, cosmo_module=None, cosmo_engine=None, correlator_engine=None, do_core=True, do_survey_specific=True):
+    def compute(self, cosmo_dict=None, cosmo_module=None, cosmo_engine=None, correlator_engine=None, do_core=True, do_survey_specific=True, init_jit=False, is_jit=False):
 
         if cosmo_dict: cosmo_dict_local = cosmo_dict.copy()
         elif cosmo_module and cosmo_engine: cosmo_dict_local = {}
@@ -282,33 +282,40 @@ class Correlator(object):
 
         self.__read_cosmo(cosmo_dict_local)
         self.__is_cosmo_conflict()
+        
+        def run():
+            if do_core:            
+                self.bird = Bird(self.cosmo, with_bias=self.c["with_bias"], eft_basis=self.c["eft_basis"], with_stoch=self.c["with_stoch"], with_nnlo_counterterm=self.c["with_nnlo_counterterm"], co=self.co)
+                if self.c["with_nnlo_counterterm"]: # we use smooth power spectrum since we don't want spurious BAO signals
+                    ilogPsmooth = interp1d(log(self.bird.kin), log(self.cosmo["Psmooth"]), fill_value='extrapolate')
+                    if self.c["with_cf"]: self.nnlo_counterterm.Cf(self.bird, ilogPsmooth)
+                    else: self.nnlo_counterterm.Ps(self.bird, ilogPsmooth)
+                if not correlator_engine: self.nonlinear.PsCf(self.bird)
+                elif correlator_engine: correlator_engine.nonlinear.PsCf(self.bird, c_alpha) # emu
+                if self.c["with_uvmatch_2"]: self.matching.UVPsCf(self.bird) 
+                if self.c["with_irmatch_2"]: self.matching.IRPsCf(self.bird) 
+                if self.c["with_bias"]: self.bird.setPsCf(self.bias)
+                else: self.bird.setPsCfl()
+                if self.c["with_resum"]:
+                    if not correlator_engine: self.resum.PsCf(self.bird, makeIR=True, makeQ=False, setIR=False, setPs=False, setCf=False) # compute IR-correction pieces
+                    elif correlator_engine: correlator_engine.resum.PsCf(self.bird, c_alpha) # emu
 
-        if do_core:
-            self.bird = Bird(self.cosmo, with_bias=self.c["with_bias"], eft_basis=self.c["eft_basis"], with_stoch=self.c["with_stoch"], with_nnlo_counterterm=self.c["with_nnlo_counterterm"], co=self.co)
-            if self.c["with_nnlo_counterterm"]: # we use smooth power spectrum since we don't want spurious BAO signals
-                ilogPsmooth = interp1d(log(self.bird.kin), log(self.cosmo["Psmooth"]), fill_value='extrapolate')
-                if self.c["with_cf"]: self.nnlo_counterterm.Cf(self.bird, ilogPsmooth)
-                else: self.nnlo_counterterm.Ps(self.bird, ilogPsmooth)
-            if not correlator_engine: self.nonlinear.PsCf(self.bird)
-            elif correlator_engine: correlator_engine.nonlinear.PsCf(self.bird, c_alpha) # emu
-            if self.c["with_uvmatch_2"]: self.matching.UVPsCf(self.bird) 
-            if self.c["with_irmatch_2"]: self.matching.IRPsCf(self.bird) 
-            if self.c["with_bias"]: self.bird.setPsCf(self.bias)
-            else: self.bird.setPsCfl()
-            if self.c["with_resum"]:
-                if not correlator_engine: self.resum.PsCf(self.bird, makeIR=True, makeQ=False, setIR=False, setPs=False, setCf=False) # compute IR-correction pieces
-                elif correlator_engine: correlator_engine.resum.PsCf(self.bird, c_alpha) # emu
-
-        if do_survey_specific:
-            if not self.c["with_time"]: self.bird.settime(self.cosmo, co=self.co)
-            if self.c["with_resum"]: self.resum.PsCf(self.bird, makeIR=False, makeQ=True, setIR=True, setPs=True, setCf=self.c["with_cf"])
-            if self.c["with_redshift_bin"]: self.projection.redshift(self.bird, self.cosmo["rz"], self.cosmo["Dz"], self.cosmo["fz"], pk=self.c["output"])
-            if self.c["with_ap"]: self.projection.AP(self.bird)
-            if self.c["with_fibercol"]: self.projection.fibcolWindow(self.bird)
-            if self.c["with_survey_mask"]: self.projection.Window(self.bird)
-            elif self.c["with_binning"]: self.projection.xbinning(self.bird) # no binning if 'with_survey_mask' since the mask should account for it.
-            elif self.c["xdata"] is not None: self.projection.xdata(self.bird)
-            if self.c["with_wedge"]: self.projection.Wedges(self.bird)
+            if do_survey_specific:
+                if not self.c["with_time"]: self.bird.settime(self.cosmo, co=self.co)
+                if self.c["with_resum"]: self.resum.PsCf(self.bird, makeIR=False, makeQ=True, setIR=True, setPs=True, setCf=self.c["with_cf"])
+                if self.c["with_redshift_bin"]: self.projection.redshift(self.bird, self.cosmo["rz"], self.cosmo["Dz"], self.cosmo["fz"], pk=self.c["output"])
+                if self.c["with_ap"]: self.projection.AP(self.bird)
+                if self.c["with_fibercol"]: self.projection.fibcolWindow(self.bird)
+                if self.c["with_survey_mask"]: self.projection.Window(self.bird)
+                elif self.c["with_binning"]: self.projection.xbinning(self.bird) # no binning if 'with_survey_mask' since the mask should account for it.
+                elif self.c["xdata"] is not None: self.projection.xdata(self.bird)
+                if self.c["with_wedge"]: self.projection.Wedges(self.bird)
+            
+        if is_jax:
+            if init_jit: self.jit_run = jit(run); self.jit_run()
+            elif is_jit: self.jit_run()
+            else: run()
+        else: run()
 
     def get(self, bias=None, what="full"):
 

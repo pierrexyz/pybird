@@ -43,7 +43,7 @@ class NonLinear(object):
 
         self.co = co
 
-        self.fftsettings = dict(Nmax=NFFT, xmin=1.e-4, xmax=100., bias=fftbias) # notice that if one wants to resolve the Cf up to s ~ 1000 (which is clearly way beyond what we can analyze) use here xmin=1e-5 instead 
+        self.fftsettings = dict(Nmax=NFFT, xmin=1.e-4, xmax=100., bias=fftbias, window=0.2) # notice that if one wants to resolve the Cf up to s ~ 1000 (which is clearly way beyond what we can analyze) use here xmin=1e-5 instead 
         self.fft = FFTLog(**self.fftsettings)
         
         if self.co.halohalo:
@@ -86,6 +86,7 @@ class NonLinear(object):
         self.optipathP22 = einsum_path('nk,mk,bnm->bk', self.kPow, self.kPow, self.M22, optimize='optimal')[0]
         self.optipathC13l = einsum_path('ns,ms,blnm->bls', self.sPow, self.sPow, self.Mcf22, optimize='optimal')[0]
         self.optipathC22l = einsum_path('ns,ms,blnm->bls', self.sPow, self.sPow, self.Mcf13, optimize='optimal')[0]
+    
 
     def setM22(self):
         """ Compute the 22-loop power spectrum matrices. Called at the instantiation of the class if the matrices are not loaded. """
@@ -208,7 +209,7 @@ class NonLinear(object):
         """ Perform the 13-loop correlation function matrix multiplications """
         bird.C13l = real(einsum('ns,ms,blnm->lbs', CoefsPow, CoefsPow, self.Mcf13, optimize=self.optipathC13l))
 
-    def Coef(self, bird, window=None):
+    def Coef(self, bird):
         """ Perform the FFTLog (i.e. calculate the coefficients of the FFTLog) of the input linear power spectrum in the given a Bird().
 
         Parameters
@@ -216,12 +217,9 @@ class NonLinear(object):
         bird : class
             an object of type Bird()
         """
-        if is_jax:
-            coef_jit = jit(self.fft.Coef)
-            return coef_jit(bird.kin, bird.Pin_2, window=window)
-        else: return self.fft.Coef(bird.kin, bird.Pin_2, window=window)
+        return self.fft.Coef(bird.kin, bird.Pin_2)
 
-    def Ps(self, bird, window=None):
+    def Ps(self, bird):
         """ Compute the loop power spectrum given a Bird(). Perform the FFTLog and the matrix multiplications.
 
         Parameters
@@ -229,13 +227,13 @@ class NonLinear(object):
         bird : class
             an object of type Bird()
         """
-        coef = self.Coef(bird, window=.2)
+        coef = self.Coef(bird)
         coefkPow = self.CoefkPow(coef)
         self.makeP22(coefkPow, bird)
         self.makeP13(coefkPow, bird)
         self.clean_lowk(bird)
 
-    def Cf(self, bird, window=None):
+    def Cf(self, bird):
         """ Compute the loop correlation function given a Bird(). Perform the FFTLog and the matrix multiplications.
 
         Parameters
@@ -243,14 +241,14 @@ class NonLinear(object):
         bird : class
             an object of type Bird()
         """
-        coef = self.Coef(bird, window=.2)
+        coef = self.Coef(bird)
         coefsPow = self.CoefsPow(coef)
         self.makeC11(coefsPow, bird)
         self.makeCct(coefsPow, bird)
         self.makeC22l(coefsPow, bird)
         self.makeC13l(coefsPow, bird)
 
-    def PsCf(self, bird, window=None):
+    def PsCf(self, bird):
         """ Compute the loop power spectrum and correlation function given a Bird(). Perform the FFTLog and the matrix multiplications.
 
         Parameters
@@ -258,7 +256,7 @@ class NonLinear(object):
         bird : class
             an object of type Bird()
         """
-        coef = self.Coef(bird, window=.2)
+        coef = self.Coef(bird)
 
         coefkPow = self.CoefkPow(coef)
         self.makeP22(coefkPow, bird)
