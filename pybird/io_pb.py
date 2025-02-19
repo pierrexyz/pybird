@@ -46,6 +46,8 @@ class ReadWrite(object):
     def check(self, c, d, verbose=True):
         
         options_in_config = ['with_bao_rec', "with_ap", "with_survey_mask", "with_binning", "with_wedge", "with_redshift_bin", "with_stoch", "with_nnlo_counterterm", "with_resum"]
+        if not "with_resum" in c.keys():
+            c["with_resum"] = True
         for keys in options_in_config:
             if not keys in c: c[keys] = False
                 
