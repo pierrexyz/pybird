@@ -36,8 +36,8 @@ class ReadWrite(object):
         data = os.path.join(c['data_path'], c['data_file'])
         if not os.path.isfile(data): raise Exception("%s not found" % data)
         elif verbose: print ('reading data file: %s' % data)
-        with h5py.File(data, 'r') as hf: d = get_dict_from_hdf5(hf)
-        # d = np.load(data, allow_pickle='TRUE').item()
+        # with h5py.File(data, 'r') as hf: d = get_dict_from_hdf5(hf)
+        d = np.load(data, allow_pickle='TRUE').item()
         self.check(c, d, verbose=verbose)
         fd_sky = self.format(c, d, verbose=verbose) # skylist of formatted data dict for Likelihood
         fc_sky = self.config(c, fd_sky)             # skylist of formatted config dict for Correlator
