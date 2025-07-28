@@ -88,7 +88,7 @@ After installation, test that everything works:
 
 ```bash
 cd tests
-python run_tests.py --basic
+python run_tests.py
 ```
 
 Expected output: `🎉 All tests passed!`
