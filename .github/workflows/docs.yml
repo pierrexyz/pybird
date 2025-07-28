@@ -2,9 +2,9 @@ name: Build Documentation
 
 on:
   push:
-    branches: [ main, dist ]
+    branches: [ master ]
   pull_request:
-    branches: [ main ]
+    branches: [ master ]
 
 # Add permissions for GitHub Pages deployment
 permissions:
