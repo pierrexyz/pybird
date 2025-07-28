@@ -6,7 +6,7 @@
 
 [![](https://img.shields.io/badge/arXiv-2003.07956%20-red.svg)](https://arxiv.org/abs/2003.07956)
 [![](http://img.shields.io/badge/license-MIT-blue.svg?style=flat)](https://github.com/pierrexyz/pybird/blob/master/LICENSE)
-[![](https://readthedocs.org/projects/pybird/badge/?version=latest)](https://pybird.readthedocs.io/en/latest/?badge=latest)
+[![](https://img.shields.io/badge/docs-GitHub%20Pages-blue.svg)](https://pierrexyz.github.io/pybird/)
 
 ## General info
 #### Fast correlator computation
@@ -32,7 +32,7 @@ Soon available:
 > [BOSS DR12 LRG 3pt full-shape]
 
 ## Documentation
-Read the docs at [https://pybird.readthedocs.io](https://pybird.readthedocs.io).
+Read the docs at [https://pierrexyz.github.io/pybird](https://pierrexyz.github.io/pybird).
 
 ## Installation
 
