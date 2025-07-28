@@ -1,5 +1,5 @@
 data_path: 'data/efteboss/'
-data_file: 'eboss_dr16_2pt.npy'
+data_file: 'eboss_dr16_2pt.h5'
 
 output: 'bPk'
 multipole: 2

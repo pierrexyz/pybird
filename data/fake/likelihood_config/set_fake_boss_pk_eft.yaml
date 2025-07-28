@@ -1,0 +1,98 @@
+data_path: 'data/eftboss/'
+data_file: 'boss_dr12_2pt.h5'
+
+with_emu: True
+
+output: 'bPk'
+multipole: 3
+
+with_wedge: False
+wedge_type: 'PA-w1-w2'
+
+with_ap: True
+with_survey_mask: False
+
+sky:
+     cmass_ngc: # PA,    w1,    w2
+          min: [0.01, 0.01, 0.01]
+          max: [0.20, 0.20, 0.20] 
+     cmass_sgc:
+          min: [0.01, 0.01, 0.01]
+          max: [0.20, 0.20, 0.20] 
+     lowz_ngc:
+          min: [0.01, 0.01, 0.01]
+          max: [0.20, 0.20, 0.20] 
+     lowz_sgc:
+          min: [0.01, 0.01, 0.01]
+          max: [0.20, 0.20, 0.20] 
+
+
+write:
+    save: False
+    fake: False
+    plot: False
+    show: False
+    out_path: 'data/fakeboss/'
+    out_name: 'fake_boss_pk' 
+
+km: 0.7
+kr: 0.25
+nd: 3.e-4
+
+eft_basis: 'eftoflss' # b1, b2, b4, b3 (biased parameters) & cct, cr1, cr2 (counterterms)
+with_stoch: True # ce0, ce1, ce2 
+with_nnlo_counterterm: True # cr4, cr6
+with_loop_prior: False
+
+eft_prior:
+     b1:
+          type: flat #lognormal
+          mean: [0.8, 0.8, 0.8, 0.8] # PZ: change this to b1_mean = 2, such that log b1 ~ 0.8
+          range: [0.8944, 0.8944, 0.8944, 0.8944]
+     b2:
+          type: gauss
+          mean: [0., 0., 0., 0.] 
+          range: [2., 2., 2., 2.]  
+     b4:
+          type: gauss
+          mean: [0., 0., 0., 0.] 
+          range: [2., 2., 2., 2.] 
+     b3:
+          type: marg_gauss
+          mean: [0., 0., 0., 0.] 
+          range: [2., 2., 2., 2.]  
+     cct: # mu^0 k^2 P11
+          type: marg_gauss
+          mean: [0., 0., 0., 0.] 
+          range: [2., 2., 2., 2.]  
+     cr1: # mu^2 k^2 P11
+          type: marg_gauss
+          mean: [0., 0., 0., 0.] 
+          range: [2., 2., 2., 2.] 
+     cr2: # mu^4 k^2 P11
+          type: marg_gauss
+          mean: [0., 0., 0., 0.] 
+          range: [2., 2., 2., 2.] 
+     ce0: # k^0 monopole
+          type: marg_gauss
+          mean: [0., 0., 0., 0.] 
+          range: [2., 2., 2., 2.] 
+     ce1: # mu^0 k^2 / km^2
+          type: marg_gauss
+          mean: [0., 0., 0., 0.] 
+          range: [2., 2., 2., 2.] 
+     ce2: # f mu^2 k^2 / kr^2
+          type: marg_gauss
+          mean: [0., 0., 0., 0.] 
+          range: [2., 2., 2., 2.] 
+     cr4: # mu^4 k^4 P11 (nnlo)
+          type: marg_gauss
+          mean: [0., 0., 0., 0.] 
+          range: [2., 2., 2., 2.] 
+     cr6: # # mu^6 k^4 P11 (nnlo)
+          type: marg_gauss
+          mean: [0., 0., 0., 0.] 
+          range: [2., 2., 2., 2.] 
+
+
+

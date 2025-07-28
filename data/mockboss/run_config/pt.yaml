@@ -1,0 +1,11 @@
+free_cosmo_name: ['omega_cdm', 'h', 'ln10^{10}A_s'] #, 'n_s']
+fiducial_cosmo: {'omega_b': 0.02, 'omega_cdm': 0.12, 'h': 0.7, 'ln10^{10}A_s': 3., 'n_s': 0.9649} # blinded
+
+jax_jit: True
+taylor: True
+vectorize: True
+measure: False # 
+
+boltzmann: 'Symbolic'
+minimizers: ['adam']
+samplers: ['nuts']

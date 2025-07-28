@@ -4,10 +4,11 @@ dist
 # Files to ignore
 pyegg*.npz
 pyegg*.npy
-montepython/chains/*/*.txt
+montepython/chains/
 
 # tmp
 tmp/
+*out/
 
 # General
 .DS_Store

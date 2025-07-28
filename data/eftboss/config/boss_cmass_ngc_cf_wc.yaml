@@ -1,5 +1,5 @@
 data_path: 'data/eftboss/'
-data_file: 'boss_dr12_2pt.npy'
+data_file: 'boss_dr12_2pt.h5'
 
 output: 'bCf'
 multipole: 2

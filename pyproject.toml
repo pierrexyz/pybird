@@ -10,7 +10,7 @@ authors = [
 maintainers = [
     {name = "Pierre Zhang"},
     {name = "Guido D'Amico"},
-    {name = "Johannes U. Lange", email = "jlange@american.edu"}]
+    {name = "Alexander Reeves"}]
 readme = "README.md"
 license = {file = "LICENSE"}
 classifiers = ["License :: OSI Approved :: MIT License"]
@@ -22,7 +22,7 @@ dependencies = ["numpy", "scipy"]
 Home = "https://pybird.readthedocs.io"
 
 [tool.flit.sdist]
-exclude = ["data", "docs", "montepython", "notebooks", ".gitignore"]
+exclude = ["data", "docs", "workflows", "montepython", "demo", "tests", ".gitignore"]
 
 [tool.flit.module]
 name = "pybird"

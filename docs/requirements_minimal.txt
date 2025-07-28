@@ -1,0 +1,12 @@
+# Minimal Sphinx dependencies (no notebook rendering)
+sphinx>=4.0.0
+sphinx-rtd-theme>=1.0.0
+
+# Scientific computing dependencies
+numpy>=1.19.0
+scipy>=1.5.0
+h5py>=3.0.0
+matplotlib>=3.3.0
+
+# Note: This minimal setup excludes nbsphinx and related packages
+# to avoid Pandoc dependency issues. Use requirements.txt for full functionality. 

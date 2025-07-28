@@ -1,5 +1,3 @@
-
-
 # PyBird
 **The Python code for Biased tracers in redshift space**  
 
@@ -9,7 +7,6 @@
 [![](https://img.shields.io/badge/arXiv-2003.07956%20-red.svg)](https://arxiv.org/abs/2003.07956)
 [![](http://img.shields.io/badge/license-MIT-blue.svg?style=flat)](https://github.com/pierrexyz/pybird/blob/master/LICENSE)
 [![](https://readthedocs.org/projects/pybird/badge/?version=latest)](https://pybird.readthedocs.io/en/latest/?badge=latest)
-
 
 ## General info
 #### Fast correlator computation
@@ -28,61 +25,98 @@
 #### Likelihoods with EFT predictions
 Currently available: 
 > [BOSS DR12 LRG 2pt full-shape + rec. bao](montepython/likelihoods/eftboss)  
+> [BOSS-like simulations - PT|ABFG-D|patchy](montepython/likelihoods/mockboss)  
 > [eBOSS DR16 QSO 2pt full-shape](montepython/likelihoods/efteboss)
 
 Soon available: 
 > [BOSS DR12 LRG 3pt full-shape]
 
-## Dependencies
-PyBird depends on the numerical libraries [NumPy](https://numpy.org/) and [SciPy](http://scipy.org/).  
-
-The following packages are not strictly neccessary but recommended to run the cookbooks:
-* PyBird has extra compatibility with **[CLASS](https://lesgourg.github.io/class_public/class.html)**.  
-* PyBird likelihoods are integrated within **[MontePython 3](https://github.com/brinckmann/montepython_public)**. 
-* PyBird likelihoods are showcased with **[iminuit](https://iminuit.readthedocs.io/)** and **[emcee](https://emcee.readthedocs.io/)**. 
-
-## Installation
-Clone the repo, and install it as a Python package using `pip`:
-```
-git clone https://github.com/pierrexyz/pybird.git
-cd pybird
-pip install .
-```
-That's it, now you can simply `import pybird` from wherever in your projects.
-
-## Getting Started -- likelihood
-If you are a **[MontePython 3](https://github.com/brinckmann/montepython_public)** user, likelihoods can be installed 'with less than a cup of coffee'.
-* Clone and install PyBird as above
-* Copy the likelihood folder [montepython/likelihoods/eftboss](montepython/likelihoods/eftboss) to your working MontePython repository: montepython_public/montepython/likelihoods/ 
-* Copy the data folder [data/eftboss](data/eftboss) to your working MontePython data folder: montepython_public/data/
-* Try to run the likelihood of BOSS DR12 with the input param file [montepython/eftboss.param](montepython/eftboss.param)
-
-*** Note (23/03/08): MontePython v3.5 seems to have some incompatibilities with the PyBird likelihood related to the function `data.need_cosmo_arguments()`. To resolve it, see this [pull-request](https://github.com/brinckmann/montepython_public/pull/276). 
-
-That's it, you are all set!
-
-* If any doubt, benchmark $\Lambda$CDM posteriors are shown [here](notebooks/potatoes.ipynb).
-* Posterior covariances for Metropolis-Hasting Gaussian proposal (in MontePython format) can be found [here](montepython/chains). 
-
-## Cookbooks
-Alternatively, if you are curious, here are three cookbooks that should answer the following questions: 
-* [Correlator](notebooks/correlator.ipynb): How to ask PyBird to compute EFT predictions? 
-* [Likelihood](notebooks/likelihood.ipynb): How does the PyBird likelihood work? 
-* [Data](notebooks/datastruct.ipynb): What are the data read by PyBird likelihood?
-* [cbird](notebooks/cbird.nb): What is the algebra of the EFT predictions PyBird is based on?
-
 ## Documentation
 Read the docs at [https://pybird.readthedocs.io](https://pybird.readthedocs.io).
 
+## Installation
+
+PyBird supports multiple installation modes for different use cases:
+
+### Repository Installation
+
+**For the up-to-date master version**, install directly from the GitHub repository:
+
+```bash
+git clone https://github.com/pierrexyz/pybird.git
+cd pybird
+```
+
+Choose your installation mode:
+
+**Core PyBird**
+```bash
+pip install -e .
+```
+- **Includes**: NumPy, SciPy, H5PY, emcee, iminuit, pyyaml, fftlog + documentation + development tools
+
+**PyBird-JAX**
+```bash
+pip install -e .[jax]
+```
+- **Includes**: Everything in Core + JAX ecosystem (jax, jaxlib, flax, optax, numpyro, blackjax, nautilus-sampler)
+
+**Backend Control**
+
+Regardless of installation mode, you control which backend PyBird uses:
+
+```python
+from pybird.config import set_jax_enabled
+
+# Use NumPy backend (works with both installation modes)
+set_jax_enabled(False)
+
+# Use JAX backend (works if JAX dependencies are available)
+set_jax_enabled(True)
+```
+
+### PyPi installation 
+Pybird is also hosted on PyPi. Installing here is as simple as:
+```bash
+pip install pybird-lss
+```
+currently this will get you the core functionalities of pybird without JAX acceleration but we plan to update this in the near future.
+
+### Testing Your Installation
+
+After installation, test that everything works:
+
+```bash
+cd tests
+python run_tests.py --basic
+```
+
+Expected output: `🎉 All tests passed!`
+
+For detailed installation instructions, troubleshooting, and testing options, see the [documentation](https://pybird.readthedocs.io).
+
+
+## Getting started
+Checkout our full list of tuturials [here](https://github.com/pierrexyz/pybird/tree/master/demo). 
+
+The algebra on which PyBird is based is computed in the mathematica notebook [cbird.nb](demo/cbird). 
+
+
 ## Attribution
-* Written by [Pierre Zhang](mailto:pierrexyz@protonmail.com) and [Guido D'Amico](mailto:damico.guido@gmail.com)
+* Devs:
+    * [Pierre Zhang](mailto:pierrexyz@protonmail.com) [main author]
+    * [Guido D'Amico](mailto:damico.guido@gmail.com) [main author], 
+    * [Alexander Reeves](alexcharlesreeves@gmail.com) [JAX/emulators]
 * License: MIT
-* Special thanks to: Arnaud de Mattia, Thomas Colas, Théo Simon, Luis Ureña
+* Special thanks to: Marco Bonici, Thomas Colas, Yan Lai, Zhiyu Lu, Arnaud de Mattia, Théo Simon, Luis Ureña, Henry Zheng
 
 When using PyBird in a publication, please acknowledge the code by citing the following paper:  
-> G. D’Amico, L. Senatore and P. Zhang, "Limits on wCDM from the EFTofLSS with the PyBird code", JCAP 01 (2021) 006, [2003.07956](https://arxiv.org/abs/2003.07956)
+> G. D’Amico, L. Senatore, and P. Zhang, "Limits on wCDM from the EFTofLSS with the PyBird code", JCAP 01 (2021) 006, [2003.07956](https://arxiv.org/abs/2003.07956)
 
-The BibTeX entry for it is:
+For PyBird-JAX: 
+> A. Reeves, P. Zhang, and H. Zheng, "PyBird-JAX: Accelerated inference in large-scale structure with model-independent emulation of one-loop galaxy power spectra", [2507.XXXXX](https://arxiv.org/abs/2507.XXXXX)
+
+The BibTeX entry are:
 ```
 @article{DAmico:2020kxu,
     author = "D'Amico, Guido and Senatore, Leonardo and Zhang, Pierre",
@@ -97,6 +131,8 @@ The BibTeX entry for it is:
     year = "2021"
 }
 ```
+
+
 
 We would be grateful if you also cite the theory papers when relevant:  
 > The Effective-Field Theory of Large-Scale Structure: [1004.2488](https://arxiv.org/abs/1004.2488), [1206.2926](https://arxiv.org/abs/1206.2926)  
@@ -120,6 +156,8 @@ When using the likelihoods, here are some relevant references:
 
 > BOSS EFT likelihood: besides the PyBird paper, see also: [1909.05271](https://arxiv.org/abs/1909.05271), [1909.07951](https://arxiv.org/abs/1909.07951), [2110.07539](https://arxiv.org/abs/2110.07539)
 
+> PT challenge blind simulations: [2003.08277](https://arxiv.org/abs/2003.08277), with description and submitted results [here](https://www2.yukawa.kyoto-u.ac.jp/~takahiro.nishimichi/data/PTchallenge/)
+
 > eBOSS DR16 data: [2007.08991](https://arxiv.org/abs/2007.08991), catalogs: [2007.09000](https://arxiv.org/abs/2007.09000), EZmocks (for covariance estimation): [1409.1124](https://arxiv.org/abs/1409.1124)
 
 > eBOSS DR16 QSO power spectrum + survey mask measurements: from [2106.06324](https://arxiv.org/abs/2106.06324)
@@ -127,3 +165,5 @@ When using the likelihoods, here are some relevant references:
 > eBOSS EFT likelihood: [2210.14931](https://arxiv.org/abs/2210.14931)
  
 *** Disclaimer: due to updates in the data and the prior definition, it is possible that results obtained with up-to-date likelihoods differ slightly with the ones presented in the articles. 
+
+

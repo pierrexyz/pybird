@@ -1,0 +1,98 @@
+data_file: fake_fast_pk_eft.h5
+data_path: /Users/pierre/Documents/github/pybird_emu/data/fake
+eft_basis: eastcoast
+eft_prior:
+  b1:
+    mean:
+    - 1.9557467359978227
+    range:
+    - 2.0
+    type: flat
+  bG2:
+    mean:
+    - -0.4117247005482117
+    range:
+    - 5.0
+    type: gauss
+  bGamma3:
+    mean:
+    - 0.6166859712427617
+    range:
+    - 5.0
+    type: marg_gauss
+  bt2:
+    mean:
+    - -2.1908170741784545
+    range:
+    - 5.0
+    type: gauss
+  c0:
+    mean:
+    - 17.356144555251674
+    range:
+    - 100.0
+    type: marg_gauss
+  c2:
+    mean:
+    - 84.91227836163856
+    range:
+    - 100.0
+    type: marg_gauss
+  c4:
+    mean:
+    - 85.6755575838983
+    range:
+    - 100.0
+    type: marg_gauss
+  ce0:
+    mean:
+    - -0.035199342894959476
+    range:
+    - 5.0
+    type: marg_gauss
+  ce1:
+    mean:
+    - 0.007617285200264185
+    range:
+    - 5.0
+    type: marg_gauss
+  ce2:
+    mean:
+    - -1.7481357761781684
+    range:
+    - 5.0
+    type: marg_gauss
+  ct:
+    mean:
+    - -0.7060779316961129
+    range:
+    - 1000.0
+    type: marg_gauss
+km: 0.7
+kr: 0.25
+multipole: 3
+nd: 0.0003
+output: bPk
+sky:
+  sky_1:
+    max:
+    - 0.2
+    - 0.2
+    - 0.2
+    min:
+    - 0.01
+    - 0.01
+    - 0.01
+with_ap: false
+with_emu: true
+with_loop_prior: false
+with_nnlo_counterterm: true
+with_resum: false
+with_stoch: true
+with_survey_mask: false
+with_wedge: false
+write:
+  fake: false
+  plot: false
+  save: false
+  show: false

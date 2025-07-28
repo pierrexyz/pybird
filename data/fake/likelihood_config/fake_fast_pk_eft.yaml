@@ -1,0 +1,106 @@
+data_file: fake_fast_pk_eft.h5
+data_path: /Users/pierre/Documents/github/pybird_emu/data/fake
+eft_basis: eftoflss
+eft_prior:
+  b1:
+    mean:
+    - 1.9542
+    range:
+    - 0.8944
+    type: flat
+  b2:
+    mean:
+    - 0.4173
+    range:
+    - 5.0
+    type: gauss
+  b3:
+    mean:
+    - -0.3686
+    range:
+    - 5.0
+    type: marg_gauss
+  b4:
+    mean:
+    - 0.4173
+    range:
+    - 5.0
+    type: gauss
+  cct:
+    mean:
+    - 0.1843
+    range:
+    - 5.0
+    type: marg_gauss
+  ce0:
+    mean:
+    - 0.0
+    range:
+    - 5.0
+    type: marg_gauss
+  ce1:
+    mean:
+    - 0.0
+    range:
+    - 5.0
+    type: marg_gauss
+  ce2:
+    mean:
+    - -1.6279
+    range:
+    - 5.0
+    type: marg_gauss
+  cr1:
+    mean:
+    - -0.8477
+    range:
+    - 5.0
+    type: marg_gauss
+  cr2:
+    mean:
+    - -0.8141
+    range:
+    - 5.0
+    type: marg_gauss
+  cr4:
+    mean:
+    - 0.0
+    range:
+    - 5.0
+    type: marg_gauss
+  cr6:
+    mean:
+    - 0.0
+    range:
+    - 5.0
+    type: marg_gauss
+km: 0.7
+kr: 0.25
+multipole: 3
+output: bPk
+sky:
+  sky_1:
+    max:
+    - 0.2
+    - 0.2
+    - 0.2
+    min:
+    - 0.01
+    - 0.01
+    - 0.01
+    nd: 0.00020537138166444772
+with_ap: false
+with_binning: false
+with_emu: true
+with_loop_prior: false
+with_nnlo_counterterm: true
+with_redshift_bin: false
+with_resum: false
+with_stoch: true
+with_survey_mask: false
+with_wedge: false
+write:
+  fake: false
+  plot: false
+  save: false
+  show: false
