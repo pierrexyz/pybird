@@ -2,9 +2,9 @@ name: Build Documentation
 
 on:
   push:
-    branches: [ main, dist ]
+    branches: [ master ]
   pull_request:
-    branches: [ main ]
+    branches: [ master ]
 
 # Add permissions for GitHub Pages deployment
 permissions:
@@ -63,7 +63,7 @@ jobs:
   deploy:
     needs: build-docs
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/dist'
+    if: github.ref == 'refs/heads/master'
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
