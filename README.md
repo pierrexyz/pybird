@@ -21,6 +21,7 @@
       - exact-time dependence  
       - wedges / ~~P~~-statistics  
       - and more...  
+- JAX acceleration with model-independent neural network emulators
 
 #### Likelihoods with EFT predictions
 Currently available: 
@@ -114,7 +115,7 @@ When using PyBird in a publication, please acknowledge the code by citing the fo
 > G. D’Amico, L. Senatore, and P. Zhang, "Limits on wCDM from the EFTofLSS with the PyBird code", JCAP 01 (2021) 006, [2003.07956](https://arxiv.org/abs/2003.07956)
 
 For PyBird-JAX: 
-> A. Reeves, P. Zhang, and H. Zheng, "PyBird-JAX: Accelerated inference in large-scale structure with model-independent emulation of one-loop galaxy power spectra", [2507.XXXXX](https://arxiv.org/abs/2507.XXXXX)
+> A. Reeves, P. Zhang, and H. Zheng, "PyBird-JAX: Accelerated inference in large-scale structure with model-independent emulation of one-loop galaxy power spectra", [2507.20990](https://arxiv.org/abs/2507.20990)
 
 The BibTeX entry are:
 ```
@@ -129,6 +130,16 @@ The BibTeX entry are:
     volume = "01",
     pages = "006",
     year = "2021"
+}
+
+@article{Reeves:2025bxn,
+    author = "Reeves, Alexander and Zhang, Pierre and Zheng, Henry",
+    title = "{PyBird-JAX: Accelerated inference in large-scale structure with model-independent emulation of one-loop galaxy power spectra}",
+    eprint = "2507.20990",
+    archivePrefix = "arXiv",
+    primaryClass = "astro-ph.CO",
+    month = "7",
+    year = "2025"
 }
 ```
 

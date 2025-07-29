@@ -13,7 +13,7 @@ PyBird provides fast and accurate predictions for:
 * **One-loop EFT predictions** for two-point functions of dark matter or biased tracers
 * **Real and redshift space** calculations
 * **Fourier space (power spectrum)** and **configuration space (correlation function)** outputs
-* **JAX acceleration** for high-performance computing with neural network emulators
+* **JAX acceleration** for high-performance computing with model-independent neural-network emulators (no pretraining)
 * **Additional modeling** including geometrical distortion, survey effects, and exact-time dependence
 
 Getting Started
@@ -51,7 +51,7 @@ Key Features
 ------------
 
 * **Fast correlator computation** with optimized algorithms
-* **Neural network emulator** for 1000x speedup in parameter inference
+* **Neural network emulator** for 1000x speedup in parameter inference (with no pretraining)
 * **JAX acceleration** with JIT compilation, vectorization, and automatic differentiation
 * **MontePython integration** for cosmological parameter inference
 * **BOSS and eBOSS likelihoods** for real data analysis
@@ -68,8 +68,9 @@ Additional Resources
 --------------------
 
 * `GitHub Repository <https://github.com/pierrexyz/pybird>`_
-* `arXiv Paper <https://arxiv.org/abs/2003.07956>`_
-* `MontePython Integration <https://github.com/brinckmann/montepython_public>`_
+* `PyBird arXiv Paper <https://arxiv.org/abs/2003.07956>`_
+* `PyBird-JAX arXiv Paper <https://arxiv.org/abs/2507.20990>`_
+* `MontePython Integration <https://pierrexyz.github.io/pybird/installation.html#running-with-montepython>`_
 
 Indices and tables
 ==================
@@ -83,9 +84,9 @@ Special Thanks For Contributions
 
 * Marco Bonici
 * Thomas Colas
-* Yan Lai
 * Arnaud de Mattia
+* Yan Lai
+* Zhiyu Lu
 * Théo Simon
 * Luis Ureña
 * Henry Zheng
-* Zhiyu Lu
