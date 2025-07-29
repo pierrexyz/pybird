@@ -5,6 +5,7 @@
 - Likelihoods of galaxy-clustering data with EFT predictions  
 
 [![](https://img.shields.io/badge/arXiv-2003.07956%20-red.svg)](https://arxiv.org/abs/2003.07956)
+[![](https://img.shields.io/badge/arXiv-2507.20990%20-red.svg)](https://arxiv.org/abs/2507.20990
 [![](http://img.shields.io/badge/license-MIT-blue.svg?style=flat)](https://github.com/pierrexyz/pybird/blob/master/LICENSE)
 [![](https://img.shields.io/badge/docs-GitHub%20Pages-blue.svg)](https://pierrexyz.github.io/pybird/)
 
