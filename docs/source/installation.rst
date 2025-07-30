@@ -93,7 +93,7 @@ If JAX installation fails, try platform-specific installations:
 Testing Your Installation
 --------------------------
 
-Verify your PyBird installation works correctly by running the test suite. These may take a few minutes but we recommend running tests after an install as these will also automatically build cached loop matrices for the default configuration that can be used in future computations.
+Verify your PyBird installation works correctly by running the test suite (available if you clone the repository). These may take a few minutes but we recommend running tests after an install as these will also automatically build cached loop matrices for the default configuration that can be used in future computations.
 
 .. code-block:: bash
 
