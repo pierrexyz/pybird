@@ -4,8 +4,6 @@ on:
   push:
     tags:
       - 'v*'  # Trigger on version tags like v0.3.0, v1.0.0, etc.
-    branches:
-      - master  # Only run from master branch
 
 jobs:
   pypi:
@@ -54,5 +52,5 @@ jobs:
         TWINE_USERNAME: __token__
         TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
       run: |
-        # Force upload to replace existing version with PEP 625 compliant filename
-        twine upload --verbose dist/* 
+        # Upload with skip-existing to handle file replacement gracefully
+        twine upload --verbose --skip-existing dist/* 
