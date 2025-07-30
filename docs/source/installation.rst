@@ -30,7 +30,7 @@ PyBird-JAX
 
 .. code-block:: bash
 
-   pip install -e .[jax]
+   pip install -e ".[jax]"
 
 **Includes**: Everything in Core + JAX ecosystem (jax, jaxlib, flax, optax, numpyro, blackjax, nautilus-sampler)
 
@@ -67,15 +67,15 @@ If JAX installation fails, try platform-specific installations:
 .. code-block:: bash
 
    # CPU-only JAX (most compatible)
-   pip install -e .[jax] --extra-index-url https://storage.googleapis.com/jax-releases/jax_cpu_releases.html
-   
+   pip install -e ".[jax]" --extra-index-url https://storage.googleapis.com/jax-releases/jax_cpu_releases.html
+
    # CUDA support (NVIDIA GPUs)
-   pip install -e .[jax] --extra-index-url https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
+   pip install -e ".[jax]" --extra-index-url https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
 
 Testing Your Installation
 --------------------------
 
-Verify your PyBird installation works correctly by running the test suite. These may take a few minutes but we recommend running tests after an install as these will also automatically build cached loop matrices for the default configuration that can be used in future computations. 
+Verify your PyBird installation works correctly by running the test suite. These may take a few minutes but we recommend running tests after an install as these will also automatically build cached loop matrices for the default configuration that can be used in future computations.
 
 .. code-block:: bash
 

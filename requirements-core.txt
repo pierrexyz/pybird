@@ -1,8 +1,0 @@
-# Core dependencies for PyBird (NumPy backend)
-numpy>=1.19.0
-scipy>=1.5.0
-h5py>=3.0.0
-pyyaml>=5.0.0
-emcee>=3.0.0
-iminuit>=2.0.0
-fftlog @ git+https://github.com/pierrexyz/fftlog 

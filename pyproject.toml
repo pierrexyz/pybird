@@ -1,28 +1,76 @@
 [build-system]
-requires = ["flit_core >=3.2,<4"]
-build-backend = "flit_core.buildapi"
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "pybird-lss"
+version = "0.3.0"
+description = "EFT predictions for biased tracers in redshift space."
 authors = [
-    {name = "Pierre Zhang"},
-    {name = "Guido D'Amico"}]
+    {name = "Pierre Zhang, Guido D'Amico and Alexander Reeves"}
+]
 maintainers = [
     {name = "Pierre Zhang"},
     {name = "Guido D'Amico"},
-    {name = "Alexander Reeves"}]
+    {name = "Alexander Reeves"}
+]
 readme = "README.md"
 license = {file = "LICENSE"}
-classifiers = ["License :: OSI Approved :: MIT License"]
-dynamic = ["version", "description"]
-requires-python = ">= 3.7"
-dependencies = ["numpy", "scipy"]
+requires-python = ">=3.8"
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Environment :: Console",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+]
+
+# Core dependencies (NumPy, SciPy, H5PY, emcee, iminuit, pyyaml, fftlog + documentation + development tools)
+dependencies = [
+    "numpy>=1.19.0",
+    "scipy>=1.5.0",
+    "h5py>=3.0.0",
+    "pyyaml>=5.0.0",
+    "emcee>=3.0.0",
+    "iminuit>=2.0.0",
+    "platformdirs>=3.0.0",
+    "fftlog @ git+https://github.com/pierrexyz/fftlog",
+    "sphinx>=4.0.0",
+    "sphinx-rtd-theme>=1.0.0",
+    "nbsphinx>=0.8.0",
+    "jupyter>=1.0.0",
+    "ipython>=7.0.0",
+    "matplotlib>=3.3.0",
+    "pytest>=6.0.0",
+    "pytest-cov>=2.0.0",
+    "black>=21.0.0",
+    "isort>=5.0.0"
+]
+
+[project.optional-dependencies]
+# JAX ecosystem dependencies (jax, jaxlib, flax, optax, numpyro, blackjax, nautilus-sampler)
+jax = [
+    "jax>=0.4.0",
+    "jaxlib>=0.4.0",
+    "interpax>=0.2.0",
+    "optax>=0.1.0",
+    "flax>=0.6.0",
+    "numpyro>=0.12.0",
+    "blackjax>=0.9.0",
+    "nautilus-sampler>=0.5.0"
+]
 
 [project.urls]
 Home = "https://pybird.readthedocs.io"
 
-[tool.flit.sdist]
-exclude = ["data", "docs", "workflows", "montepython", "demo", "tests", ".gitignore"]
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["pybird*"]
 
-[tool.flit.module]
-name = "pybird"
+[tool.setuptools.package-dir]
+pybird = "pybird"

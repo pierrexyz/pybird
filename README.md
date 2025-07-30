@@ -59,7 +59,7 @@ pip install -e .
 
 **PyBird-JAX**
 ```bash
-pip install -e .[jax]
+pip install -e ".[jax]"
 ```
 - **Includes**: Everything in Core + JAX ecosystem (jax, jaxlib, flax, optax, numpyro, blackjax, nautilus-sampler)
 
