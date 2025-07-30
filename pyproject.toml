@@ -15,7 +15,7 @@ maintainers = [
     {name = "Alexander Reeves"}
 ]
 readme = "README.md"
-license = {file = "LICENSE"}
+license = {text = "MIT"}
 requires-python = ">=3.8"
 classifiers = [
     "Development Status :: 3 - Alpha",
