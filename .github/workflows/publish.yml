@@ -33,22 +33,22 @@ jobs:
         echo ""
         echo "Package metadata:"
         python -c "
-import tarfile
-import os
-for file in os.listdir('dist'):
-    if file.endswith('.tar.gz'):
-        print(f'Examining: {file}')
-        with tarfile.open(f'dist/{file}', 'r:gz') as tar:
-            for member in tar.getmembers():
-                if member.name.endswith('PKG-INFO'):
-                    with tar.extractfile(member) as f:
-                        content = f.read().decode()
-                        print('PKG-INFO content:')
-                        print(content)
-                        break
-        break
-"
-    
+        import tarfile
+        import os
+        for file in os.listdir('dist'):
+            if file.endswith('.tar.gz'):
+                print(f'Examining: {file}')
+                with tarfile.open(f'dist/{file}', 'r:gz') as tar:
+                    for member in tar.getmembers():
+                        if member.name.endswith('PKG-INFO'):
+                            with tar.extractfile(member) as f:
+                                content = f.read().decode()
+                                print('PKG-INFO content:')
+                                print(content)
+                                break
+                break
+        "
+
     - name: Publish to Test PyPI
       env:
         TWINE_USERNAME: __token__
@@ -86,21 +86,21 @@ for file in os.listdir('dist'):
         echo ""
         echo "Package metadata:"
         python -c "
-import tarfile
-import os
-for file in os.listdir('dist'):
-    if file.endswith('.tar.gz'):
-        print(f'Examining: {file}')
-        with tarfile.open(f'dist/{file}', 'r:gz') as tar:
-            for member in tar.getmembers():
-                if member.name.endswith('PKG-INFO'):
-                    with tar.extractfile(member) as f:
-                        content = f.read().decode()
-                        print('PKG-INFO content:')
-                        print(content)
-                        break
-        break
-"
+        import tarfile
+        import os
+        for file in os.listdir('dist'):
+            if file.endswith('.tar.gz'):
+                print(f'Examining: {file}')
+                with tarfile.open(f'dist/{file}', 'r:gz') as tar:
+                    for member in tar.getmembers():
+                        if member.name.endswith('PKG-INFO'):
+                            with tar.extractfile(member) as f:
+                                content = f.read().decode()
+                                print('PKG-INFO content:')
+                                print(content)
+                                break
+                break
+        "
     
     - name: Publish to PyPI
       env:
