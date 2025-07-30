@@ -26,11 +26,6 @@ jobs:
     - name: Build package
       run: python -m build
     
-    - name: Check built package
-      run: |
-        ls -la dist/
-        python -c "import tarfile; t = tarfile.open('dist/pybird_lss-0.3.0.tar.gz'); f = t.extractfile('pybird_lss-0.3.0/PKG-INFO'); print('PKG-INFO content:'); print(f.read().decode()[:500])"
-    
     - name: Publish to Test PyPI
       env:
         TWINE_USERNAME: __token__
@@ -60,11 +55,6 @@ jobs:
     
     - name: Build package
       run: python -m build
-    
-    - name: Check built package
-      run: |
-        ls -la dist/
-        python -c "import tarfile; t = tarfile.open('dist/pybird_lss-0.3.0.tar.gz'); f = t.extractfile('pybird_lss-0.3.0/PKG-INFO'); print('PKG-INFO content:'); print(f.read().decode()[:500])"
     
     - name: Publish to PyPI
       env:
