@@ -30,7 +30,7 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
 ]
 
-# Core dependencies (NumPy, SciPy, H5PY, emcee, iminuit, pyyaml, fftlog + documentation + development tools)
+# Core dependencies (NumPy, SciPy, H5PY, emcee, iminuit, pyyaml, fftlog-lss + documentation + development tools)
 dependencies = [
     "numpy>=1.19.0",
     "scipy>=1.5.0",
@@ -39,7 +39,7 @@ dependencies = [
     "emcee>=3.0.0",
     "iminuit>=2.0.0",
     "platformdirs>=3.0.0",
-    "fftlog @ git+https://github.com/pierrexyz/fftlog",
+    "fftlog-lss",
     "sphinx>=4.0.0",
     "sphinx-rtd-theme>=1.0.0",
     "nbsphinx>=0.8.0",
