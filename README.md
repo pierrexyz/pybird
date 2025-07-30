@@ -77,16 +77,25 @@ set_jax_enabled(False)
 set_jax_enabled(True)
 ```
 
-### PyPi installation 
-Pybird is also hosted on PyPi. Installing here is as simple as:
+### PyPI Installation
+
+PyBird is available on PyPI with both core and JAX installation modes:
+
+**Core PyBird (NumPy backend)**
 ```bash
 pip install pybird-lss
 ```
-currently this will get you the core functionalities of pybird without JAX acceleration but we plan to update this in the near future.
+- **Includes**: NumPy, SciPy, H5PY, emcee, iminuit, pyyaml, fftlog-lss + documentation + development tools
+
+**PyBird-JAX (JAX acceleration)**
+```bash
+pip install "pybird-lss[jax]"
+```
+- **Includes**: Everything in Core + JAX ecosystem (jax, jaxlib, flax, optax, numpyro, blackjax, nautilus-sampler)
 
 ### Testing Your Installation
 
-After installation, test that everything works:
+After installation, if you used the repo install you can test that everything works:
 
 ```bash
 cd tests

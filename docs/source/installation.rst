@@ -34,8 +34,10 @@ PyBird-JAX
 
 **Includes**: Everything in Core + JAX ecosystem (jax, jaxlib, flax, optax, numpyro, blackjax, nautilus-sampler)
 
-PyPi Installation
+PyPI Installation
 ----------------------------------
+
+PyBird is available on PyPI with both core and JAX installation modes:
 
 Core Installation (NumPy Backend)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -46,14 +48,30 @@ For basic functionality with NumPy backend:
 
    pip install pybird-lss
 
-This installs essential dependencies only:
+This installs essential dependencies:
 
 * numpy, scipy, h5py
 * emcee, iminuit  
 * pyyaml
-* fftlog
+* fftlog-lss
+* documentation and development tools
 
-We plan to update the PyPi installation to include an option for the JAX ecosystem in the near future.
+JAX Installation (Accelerated Computing)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+For JAX-accelerated functionality:
+
+.. code-block:: bash
+
+   pip install "pybird-lss[jax]"
+
+This includes everything in Core plus the JAX ecosystem:
+
+* jax, jaxlib
+* flax, optax
+* numpyro, blackjax
+* nautilus-sampler
+* interpax
 
 
 Troubleshooting
@@ -110,7 +128,7 @@ Core PyBird
 * `SciPy <https://scipy.org/>`_ - Scientific computing library  
 * `h5py <https://www.h5py.org/>`_ - HDF5 file format support  
 * `PyYAML <https://pyyaml.org/>`_ - YAML configuration file support  
-* `fftlog <https://github.com/pierrexyz/fftlog>`_ - FFTLog routines
+* `fftlog-lss <https://pypi.org/project/fftlog-lss/>`_ - FFTLog routines
 
 Optional but recommended
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
