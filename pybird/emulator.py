@@ -77,13 +77,13 @@ class Emulator():
 
     def load_models(self):
         """Load all pre-trained emulator models from disk.
-        
+
         Notes
         -----
         This method loads neural network models for:
         - Loop corrections (monopole, quadrupole, hexadecapole)
         - IR resummation terms (P11, counterterms, loop terms)
-        
+
         Models are stored as HDF5 files and compiled for JAX execution.
         """
         self.emu_ploopl_mono = integrated_model.IntegratedModel(None, None, None)
@@ -96,24 +96,20 @@ class Emulator():
         self.emu_ploopl_hex.restore(self.emu_path + '/ploopl_hex_80knots_jax_model.h5')
         
         self.emu_IRPs11 = integrated_model.IntegratedModel(None, None, None)
-        # self.emu_IRPs11.restore(self.emu_path + '/irps11_80knots_jax_model.h5')
-        self.emu_IRPs11.restore('/cluster/work/refregier/alexree/local_packages/train_pybird_emulators/src/train_pybird_emulators/data/saved_models/irps11_80knots_irps11_lognormz_irresum_fixed_17_06_2025_1pgc_256pca_jax_model.h5')
+        self.emu_IRPs11.restore(self.emu_path + '/irps11_80knots_jax_model.h5')
 
         self.emu_IRPsct = integrated_model.IntegratedModel(None, None, None)
-        # self.emu_IRPsct.restore(self.emu_path + '/irpsct_80knots_jax_model.h5')
-        self.emu_IRPsct.restore('/cluster/work/refregier/alexree/local_packages/train_pybird_emulators/src/train_pybird_emulators/data/saved_models/irpsct_80knots_full_ct_lognormz_irresum_fixed_17_06_25_jax_model.h5')
+        self.emu_IRPsct.restore(self.emu_path + '/irpsct_80knots_jax_model.h5')
 
         self.emu_IRPsloop_mono = integrated_model.IntegratedModel(None, None, None)
-        # self.emu_IRPsloop_mono.restore(self.emu_path + '/irpsloop_mono_80knots_jax_model.h5')
-        self.emu_IRPsloop_mono.restore('/cluster/work/refregier/alexree/local_packages/train_pybird_emulators/src/train_pybird_emulators/data/saved_models/irpsloop_mono_80knots_full_mono_lognormz_irresum_fixed_18_06_25_ircutoff_rework_moredata_jax_model.h5')
+        self.emu_IRPsloop_mono.restore(self.emu_path + '/irpsloop_mono_80knots_jax_model.h5')
 
         self.emu_IRPsloop_quad = integrated_model.IntegratedModel(None, None, None)
-        # self.emu_IRPsloop_quad.restore(self.emu_path + '/irpsloop_quad_80knots_jax_model.h5')
-        self.emu_IRPsloop_quad.restore('/cluster/work/refregier/alexree/local_packages/train_pybird_emulators/src/train_pybird_emulators/data/saved_models/irpsloop_quad_80knots_full_quad_lognormz_irresumfixed_20_06_25_ircutoff_more_data_jax_model.h5')
+        self.emu_IRPsloop_quad.restore(self.emu_path + '/irpsloop_quad_80knots_jax_model.h5')
 
         self.emu_IRPsloop_hex = integrated_model.IntegratedModel(None, None, None)
-        # self.emu_IRPsloop_hex.restore(self.emu_path + '/irpsloop_hex_80knots_jax_model.h5')
-        self.emu_IRPsloop_hex.restore('/cluster/work/refregier/alexree/local_packages/train_pybird_emulators/src/train_pybird_emulators/data/saved_models/irpsloop_hex_80knots_full_hex_lognormz_irresumfixed_19_06_25_ircutoff1_more_data_jax_model.h5')
+        self.emu_IRPsloop_hex.restore(self.emu_path + '/irpsloop_hex_80knots_jax_model.h5')
+
 
 
     def make_params(self, kk, pk, f=1.0, time=False, ir=False, pca=False):
