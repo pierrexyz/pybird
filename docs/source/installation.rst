@@ -46,7 +46,7 @@ For basic functionality with NumPy backend:
 
 .. code-block:: bash
 
-   pip install pybird-lss
+   pip install --no-binary pybird-lss pybird-lss
 
 This installs essential dependencies:
 
@@ -63,7 +63,7 @@ For JAX-accelerated functionality:
 
 .. code-block:: bash
 
-   pip install "pybird-lss[jax]"
+   pip install --no-binary pybird-lss "pybird-lss[jax]"
 
 This includes everything in Core plus the JAX ecosystem:
 
@@ -72,6 +72,8 @@ This includes everything in Core plus the JAX ecosystem:
 * numpyro, blackjax
 * nautilus-sampler
 * interpax
+
+**Note**: The `--no-binary` flag is required to ensure data files are included in the installation.
 
 
 Troubleshooting

@@ -74,3 +74,9 @@ include = ["pybird*"]
 
 [tool.setuptools.package-dir]
 pybird = "pybird"
+
+[tool.setuptools.package-data]
+pybird = ["emu_data/**/*"]
+
+[tool.setuptools]
+include-package-data = true

@@ -1,0 +1,2 @@
+include pybird/emu_data/**/*
+recursive-include pybird/emu_data *
