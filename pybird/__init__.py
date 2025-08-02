@@ -4,6 +4,6 @@ try:
     from importlib.metadata import version
     __version__ = version("pybird-lss")
 except ImportError:
-    __version__ = "0.3.1"
+    __version__ = "0.3.2"
 
 __author__ = "Pierre Zhang, Guido D'Amico and Alexander Reeves"
