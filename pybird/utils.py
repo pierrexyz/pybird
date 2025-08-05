@@ -1,5 +1,7 @@
 import numpy as np
 from itertools import permutations, combinations_with_replacement
+from pathlib import Path
+import os
 
 
 def diff_all(f, x, max_order=4, epsilon=2.e-3):
@@ -92,13 +94,32 @@ def diff_all(f, x, max_order=4, epsilon=2.e-3):
               + d(s(-ei, ej, -ek, el)) - d(s(-ei, ej, -ek, -el))
               + d(s(-ei, -ej, ek, el)) - d(s(-ei, -ej, ek, -el))
               - d(s(-ei, -ej, -ek, el)) + d(s(-ei, -ej, -ek, -el))
-            ) / (16 * epsilon[i] * epsilon[j] * epsilon[k] * epsilon[l])
+                        ) / (16 * epsilon[i] * epsilon[j] * epsilon[k] * epsilon[l])
 
             for a, b, c, d_ in set(permutations((i, j, k, l))):
                 Q[:, a, b, c, d_] = val
         results.append(Q)
 
     return results
+
+
+def get_data_path():
+    """
+    Get the path to the emulator data directory, works for both development and PyPI installation.
+    
+    Returns:
+        Path: Path to the emulator data directory
+    """
+    # Emulator data directory is now included in the package
+    package_dir = Path(__file__).parent
+    emu_data_path = package_dir / "emu_data"
+    
+    if emu_data_path.exists():
+        return emu_data_path
+    
+    # Fallback to development layout if package data not found
+    dev_data_path = package_dir.parent / "data"
+    return dev_data_path
 
 
 

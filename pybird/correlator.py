@@ -9,6 +9,7 @@ from pybird.greenfunction import GreenFunction
 from pybird.fourier import FourierTransform
 from pybird.matching import Matching
 from pybird.cosmo import Cosmo
+from pybird.utils import get_data_path
 
 
 class Correlator(object):
@@ -252,10 +253,10 @@ class Correlator(object):
                 default=False) ,
             "emu_path": Option("emu_path", str,
                 description="Path to emulators",
-                default=str((path_script / "../data/emu").resolve())),
+                default=str((get_data_path()).resolve())),
             "knots_path": Option("knots_path", str,
                 description="Path to emulator knots",
-                default=str((path_script / "../data/emu/knots.npy").resolve())),
+                default=str((get_data_path() / "knots.npy").resolve())),
         }
 
         if config_dict is not None: self.set(config_dict, load_engines=load_engines)

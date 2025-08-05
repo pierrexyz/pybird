@@ -83,15 +83,17 @@ PyBird is available on PyPI with both core and JAX installation modes:
 
 **Core PyBird (NumPy backend)**
 ```bash
-pip install pybird-lss
+pip install --no-binary pybird-lss pybird-lss
 ```
 - **Includes**: NumPy, SciPy, H5PY, emcee, iminuit, pyyaml, fftlog-lss + documentation + development tools
 
 **PyBird-JAX (JAX acceleration)**
 ```bash
-pip install "pybird-lss[jax]"
+pip install --no-binary pybird-lss "pybird-lss[jax]"
 ```
 - **Includes**: Everything in Core + JAX ecosystem (jax, jaxlib, flax, optax, numpyro, blackjax, nautilus-sampler)
+
+**Note**: The `--no-binary` flag is required to ensure data files are included in the installation.
 
 ### Testing Your Installation
 

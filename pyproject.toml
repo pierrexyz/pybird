@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pybird-lss"
-version = "0.3.0"
+version = "0.3.1"
 description = "EFT predictions for biased tracers in redshift space."
 authors = [
     {name = "Pierre Zhang, Guido D'Amico and Alexander Reeves"}
@@ -74,3 +74,9 @@ include = ["pybird*"]
 
 [tool.setuptools.package-dir]
 pybird = "pybird"
+
+[tool.setuptools.package-data]
+pybird = ["emu_data/**/*"]
+
+[tool.setuptools]
+include-package-data = true
