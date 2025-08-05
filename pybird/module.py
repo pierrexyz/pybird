@@ -20,7 +20,7 @@ if is_jax:
     from jax.numpy.fft import rfft
     from jax.numpy.linalg import slogdet
     from jax.scipy.linalg import block_diag, det
-    from pybird.jax_special import *
+    from pybird.jax_special import legendre, interp1d
     
 
     def array_equal(data, none_flag):
@@ -36,9 +36,10 @@ if is_jax:
 else:
     from numpy import isnan, savez, load, ndarray, conj, ones, tan, log, logspace, swapaxes, empty, array, linspace, arange, delete, where, pi, cos, sin, log, exp, sqrt, trapz, concatenate, linalg, eye, einsum, einsum_path, zeros, sum, pad, diag, block, array_equal, meshgrid, trapz, geomspace, moveaxis, ones_like, empty_like, real, zeros_like, float32, float64, dot, multiply, add, subtract, unique, hstack, isin, newaxis, max, ix_, transpose, interp, rollaxis, atleast_1d, digitize, diff, clip, stack, printoptions, vstack, power, array_equal, heaviside, prod, inf, nan_to_num, sort, isfinite, mean
     from numpy.fft import rfft
-    from scipy.interpolate import interp1d
-    from scipy.linalg import block_diag
+    from scipy.linalg import block_diag, det
     from scipy.special import legendre
+    from scipy.interpolate import interp1d
+
 
 import h5py, yaml
 import numpy as np

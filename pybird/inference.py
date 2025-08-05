@@ -135,11 +135,12 @@ class Inference():
                 self.l['pos'] = {key: val for key, val in zip(name, pos)} # can be useful for another run (without tracing leakage from jitting over self.l['cosmo'] / self.l['nuisance'])
         return name, pos
 
-    def init(self, minimize=False, cosmo_prior=False, ext_probe=False, ext_loglkl=None, jax_jit=False, measure=False, taylor_measure=False, debiasing=False, hessian_type=None, vectorize=False, taylor=False, order=3, verbose=True):
-        if vectorize or measure or taylor: jax_jit = True
+    def init(self, minimize=False, cosmo_prior=False, ext_probe=False, ext_loglkl=None, jax_jit=False, measure=False, taylor_measure=False, debiasing=False, hessian_type=None, vectorize=False, emulate: bool | None = None, taylor=False, order=3, verbose=True):
+        if vectorize or measure or taylor or emulate: jax_jit = True
         if not is_jax and jax_jit: raise Exception('To jit, switch to jax-mode!')
         if measure and debiasing: raise Exception('Can\'t apply measure and debiasing at the same time, choose one!')
         if (measure or debiasing) and hessian_type is None: raise Exception('Asking \'measure\' or \'debiasing\', please choose between \'hessian_type\' = \'H\', \'F\', or \'FH\'')
+        if emulate is not None: self.set_emu(emulate, verbose=verbose) # if emulate = None (left unspecified), emulator option is set by likelihood_config['with_emu']; else (if specified), re-set correlator classes accordingly
         if taylor: self.set_taylor(self._get_bird_correlator, bird_correlator=True, log_measure=False, order=order, verbose=verbose)
         if self.L.marg_lkl and (minimize or measure or debiasing): self.L.c["get_maxlkl"] = True # equivalent as dropping the logdet on the nuisance subspace, however simplifying the implementation of the residual measure / debiasing on the nuisance-projected cosmo subspace
         free_param_name, initial_pos = self.get_param_name_and_pos(verbose=verbose)
@@ -152,7 +153,7 @@ class Inference():
             self.set_taylor(_logm, bird_correlator=False, log_measure=True, order=1, verbose=verbose)
         return get_logp, initial_pos, free_param_name 
 
-    def set_sampler(self, sampler='emcee', cosmo_prior=False, ext_probe=False, ext_loglkl=None, jax_jit=False, measure=False, taylor_measure=False, debiasing=False, hessian_type=None, vectorize=False, taylor=False, return_extras=False, options={}, verbose=True):
+    def set_sampler(self, sampler='emcee', cosmo_prior=False, ext_probe=False, ext_loglkl=None, jax_jit=False, measure=False, taylor_measure=False, debiasing=False, hessian_type=None, vectorize=False, emulate: bool | None = None, taylor=False, order=3, return_extras=False, options={}, verbose=True):
         
         if verbose: print("----- sampling with %s -----" % sampler)
         if vectorize and sampler not in ['emcee', 'zeus']: 
@@ -168,9 +169,9 @@ class Inference():
             if taylor_measure and not hasattr(self, 'T_logm'):
                 if verbose: print ('warning: taylor_measure irrelevant in fisher; switching off')
                 taylor_measure = False
-            if taylor and self.l['boltzmann'] in ['Symbolic', 'CPJ'] and not hasattr(self, 'T'): # no need to Taylor expand for Fisher, so let's switch off - except if Taylor already exists (the results will be anyway the same, this is only for timing consideration)
-                if verbose: print ('warning: %s Boltzmann solver is JAX-differentiable --- switching off Taylor' % self.l['boltzmann'])
-                taylor = False
+            # if taylor and self.l['boltzmann'] in ['Symbolic', 'CPJ'] and not hasattr(self, 'T'): # no need to Taylor expand for Fisher, so let's switch off - except if Taylor already exists (the results will be anyway the same, this is only for timing consideration)
+            #    if verbose: print ('warning: %s Boltzmann solver is JAX-differentiable --- switching off Taylor' % self.l['boltzmann'])
+            #    taylor = False
             if not taylor and self.l['boltzmann'] in ['class']: # if Boltzmann is not differentiable, we need to switch to Taylor expansion to perform Fisher
                 if verbose: print ('warning: %s Boltzmann solver not JAX-differentiable --- switching on Taylor' % self.l['boltzmann'])
                 taylor = True
@@ -178,7 +179,7 @@ class Inference():
                 if verbose: print ('warning: debiasing irrelevant in fisher; switching off')
                 debiasing = False
 
-        get_logp, _initial_pos, free_param_name = self.init(minimize=False, cosmo_prior=cosmo_prior, ext_probe=ext_probe, ext_loglkl=ext_loglkl, jax_jit=jax_jit, measure=measure, taylor_measure=taylor_measure, debiasing=debiasing, hessian_type=hessian_type, vectorize=vectorize, taylor=taylor, verbose=verbose)
+        get_logp, _initial_pos, free_param_name = self.init(minimize=False, cosmo_prior=cosmo_prior, ext_probe=ext_probe, ext_loglkl=ext_loglkl, jax_jit=jax_jit, measure=measure, taylor_measure=taylor_measure, debiasing=debiasing, hessian_type=hessian_type, vectorize=vectorize, emulate=emulate, taylor=taylor, order=order, verbose=verbose)
         n = len(free_param_name)
 
         if sampler == 'fisher':
@@ -206,13 +207,10 @@ class Inference():
                 sampler = emcee.EnsembleSampler(self.nwalkers, self.ndim, get_logp, vectorize=vectorize)
                 sampler.run_mcmc(self.pos, num_samples, progress = verbose)
                 extras = {'emcee_sampler': sampler}
-                try: 
-                    tau = array(sampler.get_autocorr_time())
-                    if verbose: 
-                        with printoptions(precision=0): print('autocorr time: ', tau)
-                    extras['tau'] = tau 
-                except: 
-                    if verbose: print ('autocorr might be too short, beware...')
+                tau = array(sampler.get_autocorr_time(c=thin, quiet=True))
+                if verbose: 
+                    with printoptions(precision=0): print('autocorr time: ', tau)
+                extras['tau'] = tau 
                 flat_samples = sampler.get_chain(discard = discard, thin = thin, flat = True)
                 
                 return flat_samples, extras
@@ -497,7 +495,7 @@ class Inference():
 
         return
 
-    def set_minimizer(self, minimizer='', cosmo_prior=False, ext_probe=False, ext_loglkl=None, jax_jit=False, taylor=False, options={},  order=3, verbose=True):
+    def set_minimizer(self, minimizer='', cosmo_prior=False, ext_probe=False, ext_loglkl=None, jax_jit=False, emulate: bool | None = None, taylor=False, order=3, options={}, verbose=True):
         # currently we are not jitting the minimizer itself. could eventually also consider that. 
         
         if verbose: print("----- minimisation with %s -----" % minimizer)
@@ -505,7 +503,7 @@ class Inference():
             if verbose: print ('warning: fix cosmo: taylor irrelevant; switching off')
             taylor = False
 
-        get_logp, _initial_pos, free_param_name = self.init(minimize=True, cosmo_prior=cosmo_prior, ext_probe=ext_probe, ext_loglkl=ext_loglkl, jax_jit=jax_jit, taylor=taylor, order=order, verbose=verbose)
+        get_logp, _initial_pos, free_param_name = self.init(minimize=True, cosmo_prior=cosmo_prior, ext_probe=ext_probe, ext_loglkl=ext_loglkl, jax_jit=jax_jit, emulate=emulate, taylor=taylor, order=order, verbose=verbose)
         n = len(free_param_name)
 
         def chi2(params): return -2. * get_logp(params)
@@ -598,6 +596,18 @@ class Inference():
         _ = get_logp(array(list(self.l['maxp_pos'].values()))) # setting Likelihood on the mode
         self.L.set_model_cache() # storing the theory model evaluated on the mode for potential future usage
         self.L.c['cache'] = False # turning off in future calls of self.L
+        return 
+
+    def set_emu(self, emulate: bool, verbose=True):
+        for i in range(self.L.nsky): 
+            if self.L.correlator_sky[i].c['with_emu'] == emulate: # no need to reload_engines if already well setup
+                pass
+            else: 
+                self.L.correlator_sky[i].c['with_emu'] = emulate
+                self.L.correlator_sky[i].load_engines()
+                if verbose and i == 0: 
+                    if emulate: print ('Emulator: on')
+                    else: print ('Emulator: off')
         return 
 
     def set_fake(self, sample_fake=False, options={}, verbose=True):

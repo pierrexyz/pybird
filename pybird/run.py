@@ -95,6 +95,7 @@ class Run():
         set_args('debiasing', False)
         set_args('hessian_type', None)
         set_args('vectorize', False)
+        set_args('emulate', None)
         set_args('taylor', False)
         set_args('jax_jit', False)
         set_args('order', 3)
@@ -123,7 +124,7 @@ class Run():
         if minimizers is not None: 
             if type(minimizers) == str: minimizers = [minimizers]
             for minimizer in minimizers: 
-                self.I.set_minimizer(minimizer=minimizer, cosmo_prior=self.c['cosmo_prior'], ext_probe=self.c['ext_probe'], ext_loglkl=self.c['ext_loglkl'], jax_jit=self.c['jax_jit'], taylor=self.c['taylor'], order=self.c['order'], verbose=verbose)
+                self.I.set_minimizer(minimizer=minimizer, cosmo_prior=self.c['cosmo_prior'], ext_probe=self.c['ext_probe'], ext_loglkl=self.c['ext_loglkl'], jax_jit=self.c['jax_jit'], emulate=self.c['emulate'], taylor=self.c['taylor'], order=self.c['order'], verbose=verbose)
                 if verbose: print('minimisation starts...')
                 toc = tic()                 # timing starts...
                 chi2, bestfit, free_param_name = self.I.get_maxp(initial_pos=initial_pos)
@@ -152,7 +153,7 @@ class Run():
             if samplers_options is None: samplers_options = len(samplers) * [{}]
             if type(samplers_options) == dict: samplers_options = [samplers_options]
             for sampler, options in zip(samplers, samplers_options):
-                self.I.set_sampler(sampler=sampler, cosmo_prior=self.c['cosmo_prior'], ext_probe=self.c['ext_probe'], ext_loglkl=self.c['ext_loglkl'], measure=self.c['measure'], taylor_measure=self.c['taylor_measure'], debiasing=self.c['debiasing'], hessian_type=self.c['hessian_type'], jax_jit=self.c['jax_jit'], vectorize=self.c['vectorize'], taylor=self.c['taylor'], return_extras=return_extras, options=options, verbose=verbose)
+                self.I.set_sampler(sampler=sampler, cosmo_prior=self.c['cosmo_prior'], ext_probe=self.c['ext_probe'], ext_loglkl=self.c['ext_loglkl'], measure=self.c['measure'], taylor_measure=self.c['taylor_measure'], debiasing=self.c['debiasing'], hessian_type=self.c['hessian_type'], jax_jit=self.c['jax_jit'], vectorize=self.c['vectorize'], emulate=self.c['emulate'], taylor=self.c['taylor'], return_extras=return_extras, options=options, verbose=verbose)
                 if verbose: print('sampling starts...')
                 toc = tic()                 # timing starts...
                 if return_extras: samples, free_param_name, extras = self.I.get_p(initial_pos=initial_pos, verbose=verbose)

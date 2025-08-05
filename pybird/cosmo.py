@@ -23,9 +23,11 @@ class Cosmo():
     def __init__(self, config):
         self.c = config
 
+    def _is(self, module, module_name): 
+        return module.casefold() == module_name.casefold()
 
     def set_cosmo(self, cosmo_dict, module='class', engine=None):
-
+        
         # Handle None cosmo_dict
         if cosmo_dict is None:
             cosmo_dict = {}
@@ -47,7 +49,7 @@ class Cosmo():
         #if self.c["with_nnlo_counterterm"]: log10kmax = 1 # slower, but required for the wiggle-no-wiggle split scheme
         cosmo["kk"] = logspace(-5, log10kmax, 512)  # k in h/Mpc
 
-        if module == 'class':
+        if self._is(module, 'class') or self._is(module, 'classy'):
 
             if not engine:
                 from classy import Class
@@ -129,7 +131,7 @@ class Cosmo():
 
             return cosmo
 
-        elif module == 'Symbolic':
+        elif self._is(module, 'Symbolic'):
 
             if not engine: 
                 from pybird.symbolic import Symbolic
@@ -145,7 +147,7 @@ class Cosmo():
 
             return cosmo
 
-        elif module == 'CPJ':
+        elif self._is(module, 'CPJ'):
 
             def to_Mpc_per_h_jax(_pk, _kk, h):
                 ilogpk_ = interp1d(log(_kk), log(_pk), fill_value='extrapolate')

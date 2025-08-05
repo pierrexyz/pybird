@@ -145,3 +145,61 @@ def reshape_bird(array, L):
         original_arrays.append((f, H, DA, P11l, Pctl, Ploopl, Pstl))
     
     return original_arrays
+
+
+def gauss_lobatto(n):
+    """
+    Compute the Gauss–Lobatto nodes and weights on the interval [-1, 1].
+
+    Parameters
+    ----------
+    n : int
+        Number of quadrature points (must be ≥ 2)
+    
+    Returns
+    -------
+    x : ndarray
+        Nodes (abscissas) in [-1, 1]
+    w : ndarray
+        Corresponding weights
+    """
+    if n < 2:
+        raise ValueError("Gauss-Lobatto rule requires at least 2 nodes")
+
+    
+
+    # Endpoints are always -1 and 1
+    x = zeros(n)
+    x[0], x[-1] = -1.0, 1.0
+
+    # Interior nodes are the roots of the derivative of P_{n-1}(x)
+    if n > 2:
+        Pn1 = legendre(n - 1)
+        dPn1 = polyder(Pn1)
+        x[1:-1] = legroots(dPn1)
+
+    # Compute weights
+    w = zeros(n)
+    w[0] = w[-1] = 2 / (n * (n - 1))
+    for i in range(1, n - 1):
+        xi = x[i]
+        L = legval(xi, Pn1)
+        w[i] = 2 / (n * (n - 1) * (L ** 2))
+
+    return x, w
+
+def gauss_lobatto(n):
+    if n < 2:
+        raise ValueError("Need at least 2 points")
+        
+    from numpy import array, concatenate
+    from numpy.polynomial.legendre import Legendre
+
+    # Interior nodes: roots of the derivative of P_{n-1}(x)
+    Pn1 = Legendre.basis(n - 1)
+    dPn1 = Pn1.deriv()
+    x = concatenate(([-1.], dPn1.roots(), [-1.]))
+
+    w = array([2 / (n * (n - 1) * Pn1(xi)**2) for xi in x])
+    
+    return x, w

@@ -233,7 +233,7 @@ class Correlator(object):
                 description="Sampling accuracy boost factor. Default k sampling: dk ~ 0.005 (k<0.3), dk ~ 0.01 (k>0.3). ",
                 default=1) ,
             "fftaccboost": Option("fftaccboost", int, [1, 2, 3],
-                description="FFTLog accuracy boost factor. Default FFTLog sampling : NFFT ~ 256. ",
+                description="FFTLog accuracy boost factor. Default FFTLog sampling : NFFT ~ 512. ",
                 default=2) ,
             "fftbias": Option("fftbias", float,
                 description="real power bias for fftlog decomposition of pk_lin (usually to keep to default value)",
@@ -399,7 +399,7 @@ class Correlator(object):
                 if self.c["with_irmatch_2"]: self.matching.IRPsCf(self.bird) 
 
             if self.c["with_resum"]:
-                if not self.c["with_emu"]: self.resum.PsCf(self.bird, setCf=self.c["with_cf"]) # PZ: setCf should be only for Cf no?
+                if not self.c["with_emu"]: self.resum.PsCf(self.bird, setCf=self.c["with_cf"]) 
                 else: self.emulator.PsCf_resum(self.bird, self.cosmo["kk"], self.cosmo["pk_lin"], f=self.cosmo["f"], time=False, make_params=True) # emu resum
 
         if do_survey_specific:

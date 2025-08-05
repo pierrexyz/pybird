@@ -140,21 +140,16 @@ class Resum(object):
         self.setMl()
         self.setsPow()
 
-        #self.damping = CoefWindow(self.co.Nk-1, window=.2, left=False, right=True)
-        self.kl2 = self.co.k[self.co.k < 0.5]
-        Nkl2 = len(self.kl2)
-
-        self.kl4 = self.co.k[self.co.k < 0.4]
-        Nkl4 = len(self.kl4)
-
+        ### Numerical safety cuts
+        Nkl0, Nkl2, Nkl4 = self.co.k[self.co.k < 0.6].shape[0], self.co.k[self.co.k < 0.5].shape[0], self.co.k[self.co.k < 0.4].shape[0]
         self.dampPs = array([
-            CoefWindow(self.co.Nk-1, window=.25, left=False, right=True),
-            pad(CoefWindow(Nkl2-1, window=.25, left=False, right=True), (0,self.co.Nk-Nkl2), mode='constant'),
-            pad(CoefWindow(Nkl4-1, window=.25, left=False, right=True), (0,self.co.Nk-Nkl4), mode='constant')
+            pad(CoefWindow(Nkl0, window=.25, left=False, right=True), (0,self.co.Nk-Nkl0), mode='constant'),
+            pad(CoefWindow(Nkl2, window=.25, left=False, right=True), (0,self.co.Nk-Nkl2), mode='constant'),
+            pad(CoefWindow(Nkl4, window=.25, left=False, right=True), (0,self.co.Nk-Nkl4), mode='constant')
             ])
 
-        self.scut = self.co.s[self.co.s < 70.]
-        self.dampCf = pad(CoefWindow(self.co.Ns-len(self.scut)-1, window=.25, left=True, right=True), (len(self.scut),0), mode='constant')
+        self.scut = self.co.s[self.co.s < 70.] 
+        self.dampCf = pad(CoefWindow(self.co.Ns-len(self.scut), window=.25, left=True, right=True), (len(self.scut),0), mode='constant')
 
         self.sign_ellp = array([real((-1j)**(2*l)) for l in range(self.co.Nl)]) # for eq. (8) of 2003.07956
 
@@ -273,28 +268,18 @@ class Resum(object):
         """ Multiply the coefficients with the s's to the powers of the FFTLog to evaluate the IR corrections in configuration space. """
         self.sPow = exp(einsum('n,s->ns', -self.Cfft.Pow - 3., log(self.co.s)))
 
-    def Ps2Cf(self, P, l=0):
-        Coef = self.Cfft.Coef(self.co.k, P * self.dampPs[l], extrap='padding')
-        CoefsPow = einsum('n,ns->ns', Coef, self.sPow)
-        return real(einsum('ns,n->s', CoefsPow, self.Ml[l])) * self.dampCf
+    def Ps2Cf(self, P, contractions=['lik,lk->lik','lin,ns,ln->lis']):
+        Coef = self.Cfft.Coef(self.co.k, einsum(contractions[0], P, self.dampPs), extrap='padding')
+        return real(einsum(contractions[1], Coef, self.sPow, self.Ml)) * self.dampCf
 
     def IRCf(self, bird):
         """ Compute the IR corrections in configuration space by spherical Bessel transforming the IR corrections in Fourier space.  """
-
-        if bird.with_bias:
-            for a, IRa in enumerate(bird.fullIRPs): # this can be speedup x2 by doing FFTLog[lin+loop] instead of separately
-                for l, IRal in enumerate(IRa):
-                    bird.fullIRCf[a,l] = self.Ps2Cf(IRal, l=l)
-        else:
-            for l, IRl in enumerate(bird.fullIRPs11):
-                for j, IRlj in enumerate(IRl):
-                    bird.fullIRCf11[l,j] = self.Ps2Cf(IRlj, l=l)
-            for l, IRl in enumerate(bird.fullIRPsct):
-                for j, IRlj in enumerate(IRl):
-                    bird.fullIRCfct[l,j] = self.Ps2Cf(IRlj, l=l)
-            for l, IRl in enumerate(bird.fullIRPsloop):
-                for j, IRlj in enumerate(IRl):
-                    bird.fullIRCfloop[l,j] = self.Ps2Cf(IRlj, l=l)
+        # see bird.setIRPs() for shapes
+        if bird.with_bias: bird.fullIRCf = self.Ps2Cf(bird.fullIRPs, contractions=['alk,lk->alk','aln,ns,ln->als'])
+        else: 
+            bird.fullIRCf11 = self.Ps2Cf(bird.fullIRPs11)
+            bird.fullIRCfct = self.Ps2Cf(bird.fullIRPsct)
+            bird.fullIRCfloop = self.Ps2Cf(bird.fullIRPsloop)
 
     def PsCf(self, bird, makeIR=True, makeQ=True, setIR=True, setPs=True, setCf=True):
         """Perform IR-resummation for both power spectrum and correlation function.

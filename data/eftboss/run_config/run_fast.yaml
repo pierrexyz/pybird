@@ -1,12 +1,9 @@
-free_cosmo_name: ['omega_cdm', 'h', 'ln10^{10}A_s', 'n_s']
+free_cosmo_name: ['omega_cdm', 'h', 'ln10^{10}A_s']
 fiducial_cosmo: {'omega_b': 0.02235, 'omega_cdm': 0.120, 'h': 0.675, 'ln10^{10}A_s': 3.044, 'n_s': 0.965} # used for unvaried (fixed) cosmological parameters, otherwise as initial positions 
 
-jax_jit: True # make sure that jax and related libraries installed
-taylor: False
-
-
+jax_jit: True
+taylor: True
 vectorize: True # if True, vectorize only when possible
-measure: False # 
 
 boltzmann: 'Symbolic'
 minimizers: ['minuit', 'adam']

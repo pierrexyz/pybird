@@ -2,6 +2,7 @@ from pybird.module import *
 from pybird.common import co
 from pybird.greenfunction import GreenFunction
 from pybird.fourier import FourierTransform
+from pybird.utils import gauss_lobatto
 
 def cH(Om, a):
     """ LCDM growth rate auxiliary function """
@@ -138,7 +139,7 @@ class Projection(object):
         redshift(): Apply redshift evolution across the survey volume.
     """
     def __init__(self, xout,
-        with_ap=False, H_fid=None, D_fid=None,
+        with_ap=False, H_fid=None, D_fid=None, ap_GL=True, n_GL=8,
         with_survey_mask=False, survey_mask_arr_p=None, survey_mask_mat_kp=None,
         with_binning=False, binsize=None,
         fibcol=False,
@@ -152,11 +153,19 @@ class Projection(object):
 
         if with_ap:
             self.H_fid, self.D_fid, = H_fid, D_fid
-            self.muacc = linspace(0., 1., 30) # 30 points is probably ok for accuracy (as checked against 10000 points) # PZ: but to check again on (extra) large volume data! 
-            self.sgrid, self.musgrid = meshgrid(self.co.s, self.muacc, indexing='ij')
-            self.kgrid, self.mukgrid = meshgrid(self.co.k, self.muacc, indexing='ij')
-            self.arrayLegendremusgrid = array([(2*2*l+1)/2.*legendre(2*l)(self.musgrid) for l in range(self.co.Nl)])
-            self.arrayLegendremukgrid = array([(2*2*l+1)/2.*legendre(2*l)(self.mukgrid) for l in range(self.co.Nl)])
+
+            self.ap_GL = ap_GL
+            if ap_GL: 
+                ells = arange(0, 2*self.co.Nl, 2) # ℓ = 0, 2, ..., ell_max
+                nodes, weights = gauss_lobatto(n_GL * 2)
+                self.mu_nodes, mu_weights = nodes[n_GL:], weights[n_GL:] # μ ∈ [0,1]
+                self.L_ell_obs = 2. * mu_weights * array([(2*ell+1)/2. * legendre(ell)(self.mu_nodes) for ell in ells])  # shape (n_ell, n_mu = n_GL//2)
+            else: 
+                self.muacc = linspace(0., 1., 10000) # maximal accuracy for benchmarking 
+                self.sgrid, self.musgrid = meshgrid(self.co.s, self.muacc, indexing='ij')
+                self.kgrid, self.mukgrid = meshgrid(self.co.k, self.muacc, indexing='ij')
+                self.arrayLegendremusgrid = array([(2*2*l+1)/2.*legendre(2*l)(self.musgrid) for l in range(self.co.Nl)])
+                self.arrayLegendremukgrid = array([(2*2*l+1)/2.*legendre(2*l)(self.mukgrid) for l in range(self.co.Nl)])
 
         if with_survey_mask: self.arr_p, self.mat_kp = survey_mask_arr_p, survey_mask_mat_kp
         if with_binning: self.loadBinning(self.xout, binsize)
@@ -179,6 +188,72 @@ class Projection(object):
         if bird is not None: qpar, qperp = self.H_fid / bird.H, bird.DA / self.D_fid
         elif DA is not None and H is not None: qpar, qperp = self.H_fid / H, DA / self.D_fid
         return qperp, qpar
+    
+    def AP(self, bird=None, q=None):
+        if self.ap_GL: return self._AP_GL(bird=bird, q=q)
+        else: return self._AP_legacy(bird=bird, q=q)
+    
+    def set_AP(self, qperp, qpar, x_output=None, cf=False):
+        """
+        AP integral using Gauss-Lobatto à la Marco Effort.jl
+        """
+        if cf: 
+            s_output = x_output if x_output else self.co.s
+            def _G(mu_o, qperp, qpar): return (mu_o**2 * qpar**2 + (1-mu_o**2) * qperp**2)**.5
+            G = _G(self.mu_nodes, qperp, qpar)
+            s_true = s_output[:, None] * G
+            mu_true = self.mu_nodes * qpar / G
+            L_ell_true = array([legendre(2*l)(mu_true) for l in range(self.co.Nl)]) # shape (n_ell, n_mu)
+            fac_AP = 1.
+            x_true = s_true
+        else: 
+            k_output = x_output if x_output else self.co.k
+            def _k_true(k_o, mu_o, qperp, F): return k_o / qperp * (1 + mu_o**2 * (F**-2 - 1))**.5
+            def _mu_true(mu_o, F): return mu_o / F / (1 + mu_o**2 * (F**-2 - 1))**.5
+            F = qpar / qperp
+            k_true = _k_true(k_output[:, None], self.mu_nodes[None, :], qperp, F)
+            mu_true = _mu_true(self.mu_nodes, F)
+            L_ell_true = array([legendre(2*l)(mu_true) for l in range(self.co.Nl)]) # shape (n_ell, n_mu)
+            fac_AP = (qperp**2 * qpar)**-1
+            x_true = k_true
+
+        return x_true, self.L_ell_obs, L_ell_true, fac_AP 
+
+    def apply_AP(self, k_input, pk_ell, k_true, L_ell_obs, L_ell_true, fac_AP): 
+        pk_interp = interp1d(k_input, pk_ell, axis=-1, kind='cubic', bounds_error=False, fill_value='extrapolate')(k_true)
+        # pk_mu = einsum('l...km,lm->...km', pk_interp, L_ell_true) 
+        # pk_ell_obs = fac_AP * einsum('...km,lm->l...k', pk_mu, L_ell_obs) 
+        pk_ell_obs = fac_AP * einsum('p...km,pm,lm->l...k', pk_interp, L_ell_true, L_ell_obs)
+        return pk_ell_obs
+    
+    def _AP_GL(self, bird=None, q=None): 
+        if q is None: qperp, qpar = self.get_AP_param(bird)
+        else: qperp, qpar = q
+
+        if self.cf:
+            s_true, L_ell_obs, L_ell_true, fac_AP = self.set_AP(qperp, qpar, cf=True)
+
+            if bird.with_bias:
+                bird.fullCf = self.apply_AP(self.co.s, bird.fullCf, s_true, L_ell_obs, L_ell_true, fac_AP)
+            else:
+                bird.C11l = self.apply_AP(self.co.s, bird.C11l, s_true, L_ell_obs, L_ell_true, fac_AP)
+                bird.Cctl = self.apply_AP(self.co.s, bird.Cctl, s_true, L_ell_obs, L_ell_true, fac_AP)
+                bird.Cloopl = self.apply_AP(self.co.s, bird.Cloopl, s_true, L_ell_obs, L_ell_true, fac_AP)
+                if bird.with_nnlo_counterterm: bird.Cnnlol = self.apply_AP(self.co.s, bird.Cnnlol, s_true, L_ell_obs, L_ell_true, fac_AP)
+
+        else:
+            k_true, L_ell_obs, L_ell_true, fac_AP = self.set_AP(qperp, qpar, cf=False)
+
+            if bird.with_bias:
+                bird.fullPs = self.apply_AP(self.co.k, bird.fullPs, k_true, L_ell_obs, L_ell_true, fac_AP)
+            else:
+                bird.P11l = self.apply_AP(self.co.k, bird.P11l, k_true, L_ell_obs, L_ell_true, fac_AP)
+                bird.Pctl = self.apply_AP(self.co.k, bird.Pctl, k_true, L_ell_obs, L_ell_true, fac_AP)
+                bird.Ploopl = self.apply_AP(self.co.k, bird.Ploopl, k_true, L_ell_obs, L_ell_true, fac_AP)
+                if bird.with_stoch: bird.Pstl = self.apply_AP(self.co.k, bird.Pstl, k_true, L_ell_obs, L_ell_true, fac_AP)
+                if bird.with_nnlo_counterterm: bird.Pnnlol = self.apply_AP(self.co.k, bird.Pnnlol, k_true, L_ell_obs, L_ell_true, fac_AP)
+        return 
+    
 
     def integrAP(self, k, Pk, kp, arrayLegendremup):
         """
@@ -198,14 +273,13 @@ class Projection(object):
 
         return 2 * trapz(Integrandmu, x=mugrid, axis=-1)
 
-    def AP(self, bird=None, q=None):
+    def _AP_legacy(self, bird=None, q=None):
         """
         Apply the AP effect to the bird power spectrum or correlation function
         Credit: Jerome Gleyzes
             """
         if q is None: qperp, qpar = self.get_AP_param(bird)
         else: qperp, qpar = q
-
 
         if self.cf:
             G = (self.musgrid**2 * qpar**2 + (1-self.musgrid**2) * qperp**2)**0.5
@@ -222,7 +296,6 @@ class Projection(object):
                 if bird.with_nnlo_counterterm: bird.Cnnlol = self.integrAP(self.co.s, bird.Cnnlol, sp, arrayLegendremup)
 
         else:
-
             F = qpar / qperp
             kp = self.kgrid / qperp * (1 + self.mukgrid**2 * (F**-2 - 1))**0.5
             mup = self.mukgrid / F * (1 + self.mukgrid**2 * (F**-2 - 1))**-0.5

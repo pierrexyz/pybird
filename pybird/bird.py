@@ -1086,17 +1086,13 @@ class Bird(object):
             An array of 7 EFT parameters: b_1, b_2, b_3, b_4, c_{ct}/k_{nl}^2, c_{r,1}/k_{m}^2, c_{r,2}/k_{m}^2
         """
         self.setBias(bs)
-        self.Cf = [None] * 3
+        self.Cf = [None] * 2
         self.Cf[0] = einsum('b,lbx->lx', self.b11, self.C11l)
         self.Cf[1] = einsum('b,lbx->lx', self.bloop, self.Cloopl) + einsum('b,lbx->lx', self.bct, self.Cctl)
         if self.with_stoch: self.Cf[1] += einsum('b,lbx->lx', self.bst, self.Cstl)
-        if self.with_nnlo_counterterm: self.Cf[2] = einsum('b,lbx->lx', self.cnnlo, self.Cnnlol)
-        if self.Cf[2] is None:
-            self.Cf[2] = zeros_like(self.Cf[0])
+        if self.with_nnlo_counterterm: self.Cf[1] = einsum('b,lbx->lx', self.cnnlo, self.Cnnlol)
         self.Cf = array(self.Cf)
         self.setfullCf()
-
-        self.setreducePslb(bs) # PZ NNLO
 
     def subtractShotNoise(self):
         """ For option: which='all'. Subtract the constant stochastic term from the (22-)loop """
@@ -1120,24 +1116,35 @@ class Bird(object):
     #     return Plin, Ploop
 
     def concatenate(self):
-        bird_1D = concatenate((array([self.f or 0., self.H or 0., self.DA or 0.]), self.P11l.reshape(-1), self.Pctl.reshape(-1), self.Ploopl.reshape(-1)))
-        if self.with_stoch: bird_1D = concatenate((bird_1D, self.Pstl.reshape(-1)))
-        if self.with_nnlo_counterterm: bird_1D = concatenate((bird_1D, self.Pnnlol.reshape(-1)))
+        """For Taylor expansion of the theory prediction: concatenate in 1D vector"""
+        if self.co.with_cf: 
+            bird_1D = concatenate((array([self.f or 0., self.H or 0., self.DA or 0.]), self.C11l.reshape(-1), self.Cctl.reshape(-1), self.Cloopl.reshape(-1)))
+            if self.with_nnlo_counterterm: bird_1D = concatenate((bird_1D, self.Cnnlol.reshape(-1)))
+        else:
+            bird_1D = concatenate((array([self.f or 0., self.H or 0., self.DA or 0.]), self.P11l.reshape(-1), self.Pctl.reshape(-1), self.Ploopl.reshape(-1)))
+            if self.with_stoch: bird_1D = concatenate((bird_1D, self.Pstl.reshape(-1)))
+            if self.with_nnlo_counterterm: bird_1D = concatenate((bird_1D, self.Pnnlol.reshape(-1)))
         return bird_1D
 
+    def _unpack_fields(self, bird_1D, idx, fields):
+        for name in fields:
+            attr = getattr(self, name)
+            size = np.prod(attr.shape)
+            setattr(self, name, bird_1D[idx:idx + size].reshape(attr.shape))
+            idx += size
+        return idx
+    
     def unravel(self, bird_1D):
+        """For Taylor expansion of the theory prediction: unravel in attributes with native shapes"""
         idx = 0
-        size_cosmo, size_P11l, size_Pctl, size_Ploopl = 3, np.prod(self.P11l.shape), np.prod(self.Pctl.shape), np.prod(self.Ploopl.shape), 
-        self.f, self.H, self.DA = bird_1D[idx:idx + size_cosmo]; idx += size_cosmo
-        self.P11l = bird_1D[idx:idx + size_P11l].reshape(self.P11l.shape); idx += size_P11l
-        self.Pctl = bird_1D[idx:idx + size_Pctl].reshape(self.Pctl.shape); idx += size_Pctl
-        self.Ploopl = bird_1D[idx:idx + size_Ploopl].reshape(self.Ploopl.shape); idx += size_Ploopl
-        if self.with_stoch:
-            size_Pstl = np.prod(self.Pstl.shape)
-            self.Pstl = bird_1D[idx:idx + size_Pstl].reshape(self.Pstl.shape); idx += size_Pstl
-        if self.with_nnlo_counterterm:
-            size_Pnnlol = np.prod(self.Pnnlol.shape)
-            self.Pnnlol = bird_1D[idx:idx + size_Pnnlol].reshape(self.Pnnlol.shape); idx += size_Pnnlol
+        size_cosmo = 3; self.f, self.H, self.DA = bird_1D[idx:idx + size_cosmo]; idx += size_cosmo
+        if self.co.with_cf:
+            idx = self._unpack_fields(bird_1D, idx, ['C11l', 'Cctl', 'Cloopl'])
+            if self.with_nnlo_counterterm: idx = self._unpack_fields(bird_1D, idx, ['Cnnlol'])
+        else:
+            idx = self._unpack_fields(bird_1D, idx, ['P11l', 'Pctl', 'Ploopl'])
+            if self.with_stoch: idx = self._unpack_fields(bird_1D, idx, ['Pstl'])
+            if self.with_nnlo_counterterm: idx = self._unpack_fields(bird_1D, idx, ['Pnnlol'])
         return
 
     def setIRPs(self, Q=None):
