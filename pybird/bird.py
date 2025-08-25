@@ -254,31 +254,30 @@ class Bird(object):
             if self.with_tidal_alignments: bq = bias["bq"]
 
             if self.with_bias: # evaluation with biases specified
-                for i in range(self.co.Nl):
-                    l = 2 * i
-                    if self.with_nnlo_counterterm:
-                        if self.eft_basis in ["eftoflss", "westcoast"]: self.cnnlo[i] = 0.25 * ( b1**2 * bias["cr4"] * mu[4][l] + b1 * bias["cr6"] * mu[6][l] ) / self.co.kr**4
-                        elif self.eft_basis == "eastcoast": self.cnnlo[i] = - bias["ct"] * f**4 * ( b1**2 * mu[4][l] + 2. * b1 * f * mu[6][l] + f**2 * mu[8][l] )  # these are not divided by kr^4 according to eastcoast definition; the prior is adjusted accordingly
-                    if self.with_tidal_alignments: self.b11[i] = (b1-bq/3.)**2 * mu[0][l] + 2. * (b1-bq/3.) * (f+bq) * mu[2][l] + (f+bq)**2 * mu[4][l]
-                    else: self.b11[i] = b1**2 * mu[0][l] + 2. * b1 * f * mu[2][l] + f**2 * mu[4][l]
-                    if self.eft_basis in ["eftoflss", "westcoast"]: self.bct[i] = 2. * b1 * (b5 * mu[0][l] + b6 * mu[2][l] + b7 * mu[4][l]) + 2. * f * (b5 * mu[2][l] + b6 * mu[4][l] + b7 * mu[6][l])
-                    elif self.eft_basis == "eastcoast": self.bct[i] = - 2. * (ct0 * mu[0][l] + ct2 * f * mu[2][l] + ct4 * f**2 * mu[4][l])  # these are not divided by km^2 or kr^2 according to eastcoast definition; the prior is adjusted accordingly
-                    if self.co.exact_time:
-                        self.b22[i] = array([ b1**2*G1**2*mu[0][l], b1*b2*G1*mu[0][l], b1*b4*G1*mu[0][l], b2**2*mu[0][l], b2*b4*mu[0][l], b4**2*mu[0][l], b1**2*f*G1*mu[2][l], b1*b2*f*mu[2][l], b1*b4*f*mu[2][l], b1*f*G1**2*mu[2][l], b2*f*G1*mu[2][l], b4*f*G1*mu[2][l], b1**2*f**2*mu[2][l], b1**2*f**2*mu[4][l], b1*f**2*G1*mu[2][l], b1*f**2*G1*mu[4][l], b2*f**2*mu[2][l], b2*f**2*mu[4][l], b4*f**2*mu[2][l], b4*f**2*mu[4][l], f**2*G1**2*mu[4][l], b1*f**3*mu[4][l], b1*f**3*mu[6][l], f**3*G1*mu[4][l], f**3*G1*mu[6][l], f**4*mu[4][l], f**4*mu[6][l], f**4*mu[8][l], b1*f*G1*G1t*mu[2][l], b2*f*G1t*mu[2][l], b4*f*G1t*mu[2][l], b1*f**2*G1t*mu[4][l], f**2*G1*G1t*mu[4][l], f**3*G1t*mu[4][l], f**3*G1t*mu[6][l], f**2*G1t**2*mu[4][l] ])
-                        if self.co.with_uvmatch: self.b13[i] = array([ b1**2*G1**2*mu[0][l], b1*b3*mu[0][l], b1*f*G1**2*mu[2][l], b3*f*mu[2][l], f**2*G1**2*mu[4][l], b1**2*Y1*mu[0][l], b1*f*mu[2][l]*Y1, f**2*mu[4][l]*Y1, b1**2*f*G1t*mu[2][l], b1*f**2*G1t*mu[2][l], b1*f**2*G1t*mu[4][l], f**3*G1t*mu[4][l], f**3*G1t*mu[6][l], b1*f*mu[2][l]*V12t, f**2*mu[4][l]*V12t,
-                             b1**2 * f * mu[2][l], b1**2 * f**2 * mu[2][l], b1 * f**2 * mu[4][l], b1 * f**3 * mu[4][l], f**3 * mu[6][l], f**4 * mu[6][l] ])
-                        else: self.b13[i] = array([ b1**2*G1**2*mu[0][l], b1*b3*mu[0][l], b1*f*G1**2*mu[2][l], b3*f*mu[2][l], f**2*G1**2*mu[4][l], b1**2*Y1*mu[0][l], b1*f*mu[2][l]*Y1, f**2*mu[4][l]*Y1, b1**2*f*G1t*mu[2][l], b1*f**2*G1t*mu[2][l], b1*f**2*G1t*mu[4][l], f**3*G1t*mu[4][l], f**3*G1t*mu[6][l], b1*f*mu[2][l]*V12t, f**2*mu[4][l]*V12t ])
-                        # similar to above but with G1 = 1
-                        # self.b22[i] = array([b1**2*mu[0][l], b1*b2*mu[0][l], b1*b4*mu[0][l], b2**2*mu[0][l], b2*b4*mu[0][l], b4**2*mu[0][l], b1**2*f*mu[2][l], b1*b2*f*mu[2][l], b1*b4*f*mu[2][l], b1*f*mu[2][l], b2*f*mu[2][l], b4*f*mu[2][l], b1**2*f**2*mu[2][l], b1**2*f**2*mu[4][l], b1*f**2*mu[2][l], b1*f**2*mu[4][l], b2*f**2*mu[2][l], b2*f**2*mu[4][l], b4*f**2*mu[2][l], b4*f**2*mu[4][l], f**2*mu[4][l], b1*f**3*mu[4][l], b1*f**3*mu[6][l], f**3*mu[4][l], f**3*mu[6][l], f**4*mu[4][l], f**4*mu[6][l], f**4*mu[8][l], b1*f*G1t*mu[2][l], b2*f*G1t*mu[2][l], b4*f*G1t*mu[2][l], b1*f**2*G1t*mu[4][l], f**2*G1t*mu[4][l], f**3*G1t*mu[4][l], f**3*G1t*mu[6][l], f**2*G1t**2*mu[4][l] ])
-                        # self.b13[i] = array([b1**2*mu[0][l], b1*b3*mu[0][l], b1*f*mu[2][l], b3*f*mu[2][l], f**2*mu[4][l], b1**2*Y1*mu[0][l], b1*f*mu[2][l]*Y1, f**2*mu[4][l]*Y1, b1**2*f*G1t*mu[2][l], b1*f**2*G1t*mu[2][l], b1*f**2*G1t*mu[4][l], f**3*G1t*mu[4][l], f**3*G1t*mu[6][l], b1*f*mu[2][l]*V12t, f**2*mu[4][l]*V12t])
-                    elif self.with_tidal_alignments: # tidal alignments with exact time not coded up
-                        self.b22[i] = array([ b1*bq*mu[2][l], b2*bq*mu[2][l], b4*bq*mu[2][l], bq**2*mu[2][l], bq**2*mu[4][l], b1**2*mu[0][l], b1*b2*mu[0][l], b1*b4*mu[0][l], b1*bq*mu[0][l], b2**2*mu[0][l], b2*b4*mu[0][l], b2*bq*mu[0][l], b4**2*mu[0][l], b4*bq*mu[0][l], bq**2*mu[0][l], b1**2*f*mu[2][l], b1*b2*f*mu[2][l], b1*b4*f*mu[2][l], b1*bq*f*mu[2][l], b1*bq*f*mu[4][l], b1*f*mu[2][l], b2*f*mu[2][l], b4*f*mu[2][l], bq*f*mu[2][l], bq*f*mu[4][l], b1**2*f**2*mu[2][l], b1**2*f**2*mu[4][l], b1*f**2*mu[2][l], b1*f**2*mu[4][l], b2*f**2*mu[2][l], b2*f**2*mu[4][l], b4*f**2*mu[2][l], b4*f**2*mu[4][l], bq*f**2*mu[2][l], bq*f**2*mu[4][l], bq*f**2*mu[6][l], f**2*mu[4][l], b1*f**3*mu[4][l], b1*f**3*mu[6][l], f**3*mu[4][l], f**3*mu[6][l], f**4*mu[4][l], f**4*mu[6][l], f**4*mu[8][l] ])
-                        self.b13[i] = array([ b1*bq*mu[2][l], b3*bq*mu[2][l], bq**2*mu[2][l], bq**2*mu[4][l], b1**2*mu[0][l], b1*b3*mu[0][l], b1*bq*mu[0][l], b3*bq*mu[0][l], bq**2*mu[0][l], b1**2*f*mu[2][l], b1*bq*f*mu[2][l], b1*bq*f*mu[4][l], b1*f*mu[2][l], b3*f*mu[2][l], bq*f*mu[2][l], bq*f*mu[4][l], b1*f**2*mu[2][l], b1*f**2*mu[4][l], bq*f**2*mu[2][l], bq*f**2*mu[4][l], bq*f**2*mu[6][l], f**2*mu[4][l], f**3*mu[4][l], f**3*mu[6][l] ])
-                    else: # EdS time approximation, no tidal alignments
-                        self.b22[i] = array([b1**2 * mu[0][l], b1 * b2 * mu[0][l], b1 * b4 * mu[0][l], b2**2 * mu[0][l], b2 * b4 * mu[0][l], b4**2 * mu[0][l], b1**2 * f * mu[2][l], b1 * b2 * f * mu[2][l], b1 * b4 * f * mu[2][l], b1 * f * mu[2][l], b2 * f * mu[2][l], b4 * f * mu[2][l], b1**2 * f**2 * mu[2][l], b1**2 * f**2 * mu[4][l], b1 * f**2 * mu[2][l], b1 * f**2 * mu[4][l], b2 * f**2 * mu[2][l], b2 * f**2 * mu[4][l], b4 * f**2 * mu[2][l], b4 * f**2 * mu[4][l], f**2 * mu[4][l], b1 * f**3 * mu[4][l], b1 * f**3 * mu[6][l], f**3 * mu[4][l], f**3 * mu[6][l], f**4 * mu[4][l], f**4 * mu[6][l], f**4 * mu[8][l]])
-                        if self.co.with_uvmatch: self.b13[i] = array([ b1**2 * mu[0][l], b1 * b3 * mu[0][l], b1**2 * f * mu[2][l], b1 * f * mu[2][l], b3 * f * mu[2][l], b1 * f**2 * mu[2][l], b1 * f**2 * mu[4][l], f**2 * mu[4][l], f**3 * mu[4][l], f**3 * mu[6][l],
-                            b1**2 * f**2 * mu[2][l], b1 * f**3 * mu[4][l], f**4 * mu[6][l] ])
-                        else: self.b13[i] = array([b1**2 * mu[0][l], b1 * b3 * mu[0][l], b1**2 * f * mu[2][l], b1 * f * mu[2][l], b3 * f * mu[2][l], b1 * f**2 * mu[2][l], b1 * f**2 * mu[4][l], f**2 * mu[4][l], f**3 * mu[4][l], f**3 * mu[6][l]])
+                # cnnlo
+                if self.with_nnlo_counterterm: 
+                    if self.eft_basis in ["eftoflss", "westcoast"]: self.cnnlo = array([0.25 * (b1**2 * bias["cr4"] * mu[4][2*i] + b1 * bias["cr6"] * mu[6][2*i]) / self.co.kr**4 for i in range(self.co.Nl)])
+                    elif self.eft_basis == "eastcoast": self.cnnlo = array([- bias["ct"] * f**4 * (b1**2 * mu[4][2*i] + 2. * b1 * f * mu[6][2*i] + f**2 * mu[8][2*i]) for i in range(self.co.Nl)])
+                # b11
+                if self.with_tidal_alignments: self.b11 = array([(b1-bq/3.)**2 * mu[0][2*i] + 2. * (b1-bq/3.) * (f+bq) * mu[2][2*i] + (f+bq)**2 * mu[4][2*i] for i in range(self.co.Nl)])
+                else: self.b11 = array([b1**2 * mu[0][2*i] + 2. * b1 * f * mu[2][2*i] + f**2 * mu[4][2*i] for i in range(self.co.Nl)])
+                # bct
+                if self.eft_basis in ["eftoflss", "westcoast"]: self.bct = array([2. * b1 * (b5 * mu[0][2*i] + b6 * mu[2][2*i] + b7 * mu[4][2*i]) + 2. * f * (b5 * mu[2][2*i] + b6 * mu[4][2*i] + b7 * mu[6][2*i]) for i in range(self.co.Nl)])
+                elif self.eft_basis == "eastcoast": self.bct = array([- 2. * (ct0 * mu[0][2*i] + ct2 * f * mu[2][2*i] + ct4 * f**2 * mu[4][2*i]) for i in range(self.co.Nl)])
+                # loop, exact_time
+                if self.co.exact_time:
+                    self.b22 = array([array([b1**2*G1**2*mu[0][2*i], b1*b2*G1*mu[0][2*i], b1*b4*G1*mu[0][2*i], b2**2*mu[0][2*i], b2*b4*mu[0][2*i], b4**2*mu[0][2*i], b1**2*f*G1*mu[2][2*i], b1*b2*f*mu[2][2*i], b1*b4*f*mu[2][2*i], b1*f*G1**2*mu[2][2*i], b2*f*G1*mu[2][2*i], b4*f*G1*mu[2][2*i], b1**2*f**2*mu[2][2*i], b1**2*f**2*mu[4][2*i], b1*f**2*G1*mu[2][2*i], b1*f**2*G1*mu[4][2*i], b2*f**2*mu[2][2*i], b2*f**2*mu[4][2*i], b4*f**2*mu[2][2*i], b4*f**2*mu[4][2*i], f**2*G1**2*mu[4][2*i], b1*f**3*mu[4][2*i], b1*f**3*mu[6][2*i], f**3*G1*mu[4][2*i], f**3*G1*mu[6][2*i], f**4*mu[4][2*i], f**4*mu[6][2*i], f**4*mu[8][2*i], b1*f*G1*G1t*mu[2][2*i], b2*f*G1t*mu[2][2*i], b4*f*G1t*mu[2][2*i], b1*f**2*G1t*mu[4][2*i], f**2*G1*G1t*mu[4][2*i], f**3*G1t*mu[4][2*i], f**3*G1t*mu[6][2*i], f**2*G1t**2*mu[4][2*i]]) for i in range(self.co.Nl)])
+                    if self.co.with_uvmatch: self.b13 = array([array([b1**2*G1**2*mu[0][2*i], b1*b3*mu[0][2*i], b1*f*G1**2*mu[2][2*i], b3*f*mu[2][2*i], f**2*G1**2*mu[4][2*i], b1**2*Y1*mu[0][2*i], b1*f*mu[2][2*i]*Y1, f**2*mu[4][2*i]*Y1, b1**2*f*G1t*mu[2][2*i], b1*f**2*G1t*mu[2][2*i], b1*f**2*G1t*mu[4][2*i], f**3*G1t*mu[4][2*i], f**3*G1t*mu[6][2*i], b1*f*mu[2][2*i]*V12t, f**2*mu[4][2*i]*V12t, b1**2 * f * mu[2][2*i], b1**2 * f**2 * mu[2][2*i], b1 * f**2 * mu[4][2*i], b1 * f**3 * mu[4][2*i], f**3 * mu[6][2*i], f**4 * mu[6][2*i]]) for i in range(self.co.Nl)])
+                    else: self.b13 = array([array([b1**2*G1**2*mu[0][2*i], b1*b3*mu[0][2*i], b1*f*G1**2*mu[2][2*i], b3*f*mu[2][2*i], f**2*G1**2*mu[4][2*i], b1**2*Y1*mu[0][2*i], b1*f*mu[2][2*i]*Y1, f**2*mu[4][2*i]*Y1, b1**2*f*G1t*mu[2][2*i], b1*f**2*G1t*mu[2][2*i], b1*f**2*G1t*mu[4][2*i], f**3*G1t*mu[4][2*i], f**3*G1t*mu[6][2*i], b1*f*mu[2][2*i]*V12t, f**2*mu[4][2*i]*V12t]) for i in range(self.co.Nl)])
+                # loop, tidal_alignments (when not exact_time)
+                elif self.with_tidal_alignments:
+                    self.b22 = array([array([b1*bq*mu[2][2*i], b2*bq*mu[2][2*i], b4*bq*mu[2][2*i], bq**2*mu[2][2*i], bq**2*mu[4][2*i], b1**2*mu[0][2*i], b1*b2*mu[0][2*i], b1*b4*mu[0][2*i], b1*bq*mu[0][2*i], b2**2*mu[0][2*i], b2*b4*mu[0][2*i], b2*bq*mu[0][2*i], b4**2*mu[0][2*i], b4*bq*mu[0][2*i], bq**2*mu[0][2*i], b1**2*f*mu[2][2*i], b1*b2*f*mu[2][2*i], b1*b4*f*mu[2][2*i], b1*bq*f*mu[2][2*i], b1*bq*f*mu[4][2*i], b1*f*mu[2][2*i], b2*f*mu[2][2*i], b4*f*mu[2][2*i], bq*f*mu[2][2*i], bq*f*mu[4][2*i], b1**2*f**2*mu[2][2*i], b1**2*f**2*mu[4][2*i], b1*f**2*mu[2][2*i], b1*f**2*mu[4][2*i], b2*f**2*mu[2][2*i], b2*f**2*mu[4][2*i], b4*f**2*mu[2][2*i], b4*f**2*mu[4][2*i], bq*f**2*mu[2][2*i], bq*f**2*mu[4][2*i], bq*f**2*mu[6][2*i], f**2*mu[4][2*i], b1*f**3*mu[4][2*i], b1*f**3*mu[6][2*i], f**3*mu[4][2*i], f**3*mu[6][2*i], f**4*mu[4][2*i], f**4*mu[6][2*i], f**4*mu[8][2*i]]) for i in range(self.co.Nl)])
+                    self.b13 = array([array([b1*bq*mu[2][2*i], b3*bq*mu[2][2*i], bq**2*mu[2][2*i], bq**2*mu[4][2*i], b1**2*mu[0][2*i], b1*b3*mu[0][2*i], b1*bq*mu[0][2*i], b3*bq*mu[0][2*i], bq**2*mu[0][2*i], b1**2*f*mu[2][2*i], b1*bq*f*mu[2][2*i], b1*bq*f*mu[4][2*i], b1*f*mu[2][2*i], b3*f*mu[2][2*i], bq*f*mu[2][2*i], bq*f*mu[4][2*i], b1*f**2*mu[2][2*i], b1*f**2*mu[4][2*i], bq*f**2*mu[2][2*i], bq*f**2*mu[4][2*i], bq*f**2*mu[6][2*i], f**2*mu[4][2*i], f**3*mu[4][2*i], f**3*mu[6][2*i]]) for i in range(self.co.Nl)])
+                # loop, EdS (no tidal_alignments, not exact_time)
+                else:
+                    self.b22 = array([array([b1**2 * mu[0][2*i], b1 * b2 * mu[0][2*i], b1 * b4 * mu[0][2*i], b2**2 * mu[0][2*i], b2 * b4 * mu[0][2*i], b4**2 * mu[0][2*i], b1**2 * f * mu[2][2*i], b1 * b2 * f * mu[2][2*i], b1 * b4 * f * mu[2][2*i], b1 * f * mu[2][2*i], b2 * f * mu[2][2*i], b4 * f * mu[2][2*i], b1**2 * f**2 * mu[2][2*i], b1**2 * f**2 * mu[4][2*i], b1 * f**2 * mu[2][2*i], b1 * f**2 * mu[4][2*i], b2 * f**2 * mu[2][2*i], b2 * f**2 * mu[4][2*i], b4 * f**2 * mu[2][2*i], b4 * f**2 * mu[4][2*i], f**2 * mu[4][2*i], b1 * f**3 * mu[4][2*i], b1 * f**3 * mu[6][2*i], f**3 * mu[4][2*i], f**3 * mu[6][2*i], f**4 * mu[4][2*i], f**4 * mu[6][2*i], f**4 * mu[8][2*i]]) for i in range(self.co.Nl)])
+                    if self.co.with_uvmatch: self.b13 = array([array([b1**2 * mu[0][2*i], b1 * b3 * mu[0][2*i], b1**2 * f * mu[2][2*i], b1 * f * mu[2][2*i], b3 * f * mu[2][2*i], b1 * f**2 * mu[2][2*i], b1 * f**2 * mu[4][2*i], f**2 * mu[4][2*i], f**3 * mu[4][2*i], f**3 * mu[6][2*i], b1**2 * f**2 * mu[2][2*i], b1 * f**3 * mu[4][2*i], f**4 * mu[6][2*i]]) for i in range(self.co.Nl)])
+                    else: self.b13 = array([array([b1**2 * mu[0][2*i], b1 * b3 * mu[0][2*i], b1**2 * f * mu[2][2*i], b1 * f * mu[2][2*i], b3 * f * mu[2][2*i], b1 * f**2 * mu[2][2*i], b1 * f**2 * mu[4][2*i], f**2 * mu[4][2*i], f**3 * mu[4][2*i], f**3 * mu[6][2*i]]) for i in range(self.co.Nl)])
             else: # evaluation with biases unspecified
                 if self.with_nnlo_counterterm:
                     if self.eft_basis in ["eftoflss", "westcoast"]: self.cnnlo = 0.25 * array([b1**2 * bias["cr4"], b1 * bias["cr6"]]) / self.co.kr**4
@@ -327,14 +326,13 @@ class Bird(object):
         if bs is not None: self.setBias(bs)
         self.Ps = [None] * 2
         self.Ps[0] = einsum('l,x->lx', self.b11, self.P11)
-        # self.Ps[1] = einsum('lb,bx->lx', self.b22, self.P22) + einsum('lb,bx->lx', self.b13, self.P13) + einsum('l,x,x->lx', self.bct, self.co.k**2, self.P11)
-        self.Ps[1] = einsum('lb,bx->lx', self.b22, self.P22)
-        self.Ps[1] += einsum('lb,bx->lx', self.b13, self.P13) + einsum('l,x,x->lx', self.bct, self.co.k**2, self.P11)
-        self.Ps = array(self.Ps)
-        for l in range(self.co.Nl): self.Ps[1, l] -= self.Ps[1, l, self.co.id_kstable] # self.co.id_kstable = 0 if kmin = 0.001 (default), = 1 if kmin < 0.001 (option)
-        
+        self.Ps[1] = einsum('lb,bx->lx', self.b22, self.P22) + einsum('lb,bx->lx', self.b13, self.P13) + einsum('l,x,x->lx', self.bct, self.co.k**2, self.P11) 
+        Ps1_k_at_0 = einsum('lb,b->l', self.b22, self.P22[:, self.co.id_kstable]) + einsum('lb,b->l', self.b13, self.P13[:, self.co.id_kstable]) + self.bct * self.co.k[self.co.id_kstable]**2 * self.P11[self.co.id_kstable] # self.co.id_kstable = 0 if kmin = 0.001 (default), = 1 if kmin < 0.001 (option)
+        Ps1_k_at_0 = tile(Ps1_k_at_0, (self.co.Nk,1)).T
+        self.Ps[1] -= Ps1_k_at_0 # setting loop = 0 at k ~ 0 
         if self.with_stoch: self.Ps[1] += einsum('b,lbx->lx', self.bst, self.Pstl)
-        if self.with_nnlo_counterterm: self.Ps[2] = einsum('l,x->lx', self.cnnlo, self.Pnnlo)
+        if self.with_nnlo_counterterm: self.Ps[1] += einsum('l,x->lx', self.cnnlo, self.Pnnlo)
+        self.Ps = array(self.Ps)
         if setfull: self.setfullPs()
 
     def setCf(self, bs=None, setfull=True):
@@ -350,7 +348,7 @@ class Bird(object):
         self.Cf[0] = einsum('l,lx->lx', self.b11, self.C11)
         self.Cf[1] = einsum('lb,lbx->lx', self.b22, self.C22l) + einsum('lb,lbx->lx', self.b13, self.C13l) + einsum('l,lx->lx', self.bct, self.Cct)
         # if self.with_stoch: self.Cf[1] += einsum('b,lbx->lx', self.bst, self.Cstl) # no stochastic term for Cf
-        if self.with_nnlo_counterterm: self.Cf[2] = einsum('l,lx->lx', self.cnnlo, self.Cnnlo)
+        if self.with_nnlo_counterterm: self.Cf[1] += einsum('l,lx->lx', self.cnnlo, self.Cnnlo)
         self.Cf = array(self.Cf)
         if setfull: self.setfullCf()
 

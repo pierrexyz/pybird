@@ -113,8 +113,6 @@ class Common(object):
                 if self.exact_time: self.N13 += 6
                 else: self.N13 += 3
 
-
-
             if self.keep_loop_pieces_independent:
                 self.Nloop = self.N13+self.N22
             elif self.with_time: # giving f (and other time functions e.g. Y if != EdS)

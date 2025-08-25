@@ -14,7 +14,7 @@ if is_jax:
     from jax.experimental.jet import jet
     from jax.lax import stop_gradient, cond, scan
     jax.config.update("jax_enable_x64", True)
-    from jax.numpy import isnan, savez, load, array, ndarray, conj, ones, tan, log, logspace, swapaxes, empty, linspace, arange, delete, where, pi, cos, sin, log, exp, sqrt, concatenate, linalg, eye, einsum, einsum_path, zeros, sum, pad, diag, block, meshgrid, geomspace, moveaxis, ones_like, empty_like, real, zeros_like, float32, float64, dot, multiply, add, subtract, unique, hstack, isin, newaxis, max, ix_, transpose, interp, moveaxis, rollaxis, logical_or, atleast_1d, digitize, diff, clip, stack, printoptions, vstack, power, array_equal, heaviside, prod, inf, nan_to_num, sort, isfinite, mean
+    from jax.numpy import isnan, savez, load, array, ndarray, conj, ones, tan, log, logspace, swapaxes, empty, linspace, arange, delete, where, pi, cos, sin, log, exp, sqrt, concatenate, linalg, eye, einsum, einsum_path, zeros, sum, pad, diag, block, meshgrid, geomspace, moveaxis, ones_like, empty_like, real, zeros_like, float32, float64, dot, multiply, add, subtract, unique, hstack, isin, newaxis, max, ix_, transpose, interp, moveaxis, rollaxis, logical_or, atleast_1d, digitize, diff, clip, stack, printoptions, vstack, power, array_equal, heaviside, prod, inf, nan_to_num, sort, isfinite, mean, tile
     from jax.numpy import e as euler_constant
     from jax.scipy.integrate import trapezoid as trapz
     from jax.numpy.fft import rfft
@@ -34,7 +34,7 @@ if is_jax:
             return False
 
 else:
-    from numpy import isnan, savez, load, ndarray, conj, ones, tan, log, logspace, swapaxes, empty, array, linspace, arange, delete, where, pi, cos, sin, log, exp, sqrt, trapz, concatenate, linalg, eye, einsum, einsum_path, zeros, sum, pad, diag, block, array_equal, meshgrid, trapz, geomspace, moveaxis, ones_like, empty_like, real, zeros_like, float32, float64, dot, multiply, add, subtract, unique, hstack, isin, newaxis, max, ix_, transpose, interp, rollaxis, atleast_1d, digitize, diff, clip, stack, printoptions, vstack, power, array_equal, heaviside, prod, inf, nan_to_num, sort, isfinite, mean
+    from numpy import isnan, savez, load, ndarray, conj, ones, tan, log, logspace, swapaxes, empty, array, linspace, arange, delete, where, pi, cos, sin, log, exp, sqrt, trapz, concatenate, linalg, eye, einsum, einsum_path, zeros, sum, pad, diag, block, array_equal, meshgrid, trapz, geomspace, moveaxis, ones_like, empty_like, real, zeros_like, float32, float64, dot, multiply, add, subtract, unique, hstack, isin, newaxis, max, ix_, transpose, interp, rollaxis, atleast_1d, digitize, diff, clip, stack, printoptions, vstack, power, array_equal, heaviside, prod, inf, nan_to_num, sort, isfinite, mean, tile
     from numpy.fft import rfft
     from scipy.linalg import block_diag, det
     from scipy.special import legendre
