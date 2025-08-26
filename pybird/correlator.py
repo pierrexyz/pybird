@@ -357,52 +357,43 @@ class Correlator(object):
         The method handles cosmological parameter processing, validates inputs,
         and performs the main EFT calculations for power spectra or correlation functions.
         """
-
         if cosmo_dict:
             if not cosmo_module: cosmo_dict_local = cosmo_dict.copy()
             else: # cosmo parameters to be passed to cosmo_module called internally 
                 cosmo_class = Cosmo(config = self.c)
                 cosmo_dict_local = cosmo_class.set_cosmo(cosmo_dict, module=cosmo_module, engine=cosmo_engine)
-
+        
         elif cosmo_module and cosmo_engine: 
             cosmo_dict_local = {}
             cosmo_class = Cosmo(config = self.c)
             cosmo_dict_class = cosmo_class.set_cosmo(cosmo_dict, module=cosmo_module, engine=cosmo_engine)
             cosmo_dict_local.update(cosmo_dict_class)
-
+        
         else: raise Exception('provide \'cosmo_dict\' of PyBird inputs or \'cosmo_dict\' of cosmological parameters to be passed either to a \'cosmo_module\' (name of the Boltzmann solver) to be called internally, or to an external \'cosmo_engine\' (Boltzmann solver)')
+        
         self.__read_cosmo(cosmo_dict_local)
         self.__is_cosmo_conflict()
-
-        if self.c["with_bias"]: self.__is_bias_conflict()
+        
+        if self.c["with_bias"]: 
+            self.__is_bias_conflict()
+            if self.c['with_emu']: self.c['with_bias'] = False # no such option when emulator is on since there is no speed gain (resummation is already emulated)
 
         if do_core:
             self.bird = Bird(self.cosmo, with_bias=self.c["with_bias"], eft_basis=self.c["eft_basis"], with_stoch=self.c["with_stoch"], with_nnlo_counterterm=self.c["with_nnlo_counterterm"], co=self.co)
-            if self.c["with_nnlo_counterterm"]: # we used to use a smooth power spectrum since we don't want spurious BAO signals
-                # ilogPsmooth = interp1d(log(self.bird.kin), log(self.cosmo["Psmooth"]), fill_value='extrapolate')
-                # if self.c["with_cf"]: self.nnlo_counterterm.Cf(self.bird, ilogPsmooth)
-                # else: self.nnlo_counterterm.Ps(self.bird, ilogPsmooth)
-                self.bird.Pnnlo = self.co.k**4 * self.bird.P11 # good approximation in the end
-            if not self.c["with_emu"]:
+            if self.c["with_nnlo_counterterm"]: self.bird.Pnnlo = self.co.k**4 * self.bird.P11 
+            if not self.c["with_emu"]: 
                 self.nonlinear.PsCf(self.bird)
-
-            if self.c["with_bias"]:
-                self.bird.setPsCf(self.bias)
-            else:
-                if not self.c["with_emu"]:
+                if self.c["with_bias"]: self.bird.setPsCf(self.bias)
+                else: 
                     self.bird.setPsCfl()
-                else:
-                    self.bird.setPsCfl(with_loop_and_cf=False)
-                    if not self.c["with_resum"]: # if we are doing resum we capture this part anyway 
-                        self.emulator.setPsCfl(bird=self.bird, kk=self.cosmo["kk"], pk=self.cosmo["pk_lin"], time=False, make_params=True)
-
-                if self.c["with_uvmatch_2"]: self.matching.UVPsCf(self.bird) 
-                if self.c["with_irmatch_2"]: self.matching.IRPsCf(self.bird) 
-
-            if self.c["with_resum"]:
-                if not self.c["with_emu"]: self.resum.PsCf(self.bird, setCf=self.c["with_cf"]) 
-                else: self.emulator.PsCf_resum(self.bird, self.cosmo["kk"], self.cosmo["pk_lin"], f=self.cosmo["f"], time=False, make_params=True) # emu resum
-
+                    if self.c["with_uvmatch_2"]: self.matching.UVPsCf(self.bird) 
+                    if self.c["with_irmatch_2"]: self.matching.IRPsCf(self.bird) 
+                if self.c["with_resum"]: self.resum.PsCf(self.bird, setCf=self.c["with_cf"]) 
+            else: # with emulator
+                self.bird.setPsCfl(with_loop_and_cf=False) # tree-level and counterterms (no emulator, fast)
+                if not self.c["with_resum"]: self.emulator.setPsCfl(bird=self.bird, kk=self.cosmo["kk"], pk=self.cosmo["pk_lin"], time=False, make_params=True) # emulated unresummed loops
+                else: self.emulator.PsCf_resum(self.bird, self.cosmo["kk"], self.cosmo["pk_lin"], f=self.cosmo["f"], time=False, make_params=True) # emulated resummed loops
+        
         if do_survey_specific:
             if self.c["with_redshift_bin"]: self.projection.redshift(self.bird, self.cosmo["rz"], self.cosmo["Dz"], self.cosmo["fz"], pk=self.c["output"])
             if self.c["with_ap"]: self.projection.AP(self.bird)
