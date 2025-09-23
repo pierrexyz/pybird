@@ -119,7 +119,7 @@ class Run():
         from pybird.inference import Inference
         self.I = Inference(self.c['free_cosmo_name'], self.c['fiducial_cosmo'], self.likelihood_config, **self.kwargs, verbose=verbose)
 
-    def run(self, minimizers=None, samplers=None, initial_pos=None, samplers_options=None, return_extras=False, set_fake=False, sample_fake=False, output=True, save_to_file=False, hash_file='runs_output', verbose=True):
+    def run(self, minimizers=None, samplers=None, initial_pos=None, samplers_options=None, return_extras=False, plot_bestfit=False, set_fake=False, sample_fake=False, output=True, save_to_file=False, hash_file='runs_output', verbose=True):
         outdict = {}
         if minimizers is not None: 
             if type(minimizers) == str: minimizers = [minimizers]
@@ -145,6 +145,8 @@ class Run():
                 outdict[minimizer] = {'min chi2': chi2, 'ndata': ndata, 'dof': dof, 'p-value': pval, 'bestfit': bestfit, 'free parameters': free_param_name, 'elapse time (sec.)': elapse_time}
                 initial_pos = bestfit # useful to start the sampling at a good place (although in principle also done internally in Inference())
             if self.c['measure'] or self.c['debiasing']: self.I.set_model_cache(verbose=verbose)
+            if plot_bestfit:
+                self.I.plot_bestfit(verbose=verbose)
             if set_fake: 
                 self.I.set_fake(sample_fake=sample_fake, verbose=verbose)
                 outdict[minimizer]['eft parameters'] = self.I.L.get_eft_parameters()
@@ -169,6 +171,7 @@ class Run():
                 if return_extras: outdict[sampler]['extras'] = extras
         if save_to_file: 
             with h5py.File(os.path.join(self.path_to_output, '%s.h5') % hash_file, 'w') as hf: save_dict_to_hdf5(hf, outdict)
+        if verbose: print ('-' * 32)
         if output: return outdict
         else: return
 

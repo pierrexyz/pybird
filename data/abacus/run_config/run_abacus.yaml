@@ -1,0 +1,10 @@
+free_cosmo_name: ['omega_cdm', 'h', 'ln10^{10}A_s']
+fiducial_cosmo: {'omega_b': 0.02237, 'omega_cdm': 0.120, 'h': 0.6736, 'ln10^{10}A_s': 3.0364, 'n_s': 0.9649} # used for unvaried (fixed) cosmological parameters, otherwise as initial positions 
+
+jax_jit: True
+taylor: True
+vectorize: True # if True, vectorize only when possible
+
+boltzmann: 'Symbolic'
+minimizers: ['minuit', 'minuit']
+samplers: ['fisher', 'emcee']

@@ -107,6 +107,11 @@ class Inference():
             self.M.CPJ = CPJ(probe='mpk_lin')
             self.M.growth = IntegratedModel(None, None, None)
             if "emu_path" in self.L.c: self.M.growth.restore(self.L.c["emu_path"] + "/growth_model_new.h5") # change path only if provided otherwise use default
+        elif self.l['boltzmann'] == 'CPJ_custom':
+            class CosmoModule():
+                def __init__(self, cosmo):
+                    self.cosmo = cosmo # dictionary of cosmological parameters
+            self.M = CosmoModule(self.l['cosmo'])
         else:
             raise Exception('Boltzmann %s not recognized, please choose between class, Symbolic, or CPJ' % self.l['boltzmann'])
 
@@ -626,6 +631,18 @@ class Inference():
             self.L = Likelihood(self.likelihood_config, verbose=verbose) # resetting likelihood
             if not self.need_cosmo_update: self.set_need_cosmo_update() # when not varying the cosmology, computing at least once the cosmology-dependent pieces 
         return
+    
+    def plot_bestfit(self, verbose=True):
+        if verbose: print ('Creating best-fit plot')
+        if 'maxp_pos' not in self.l: raise Exception('No best-fit values found to generate best-fit plot. Please first perform a minimization. ')
+        if self.L.marg_lkl: self.L.c["get_maxlkl"] = True
+        self.L.c['write'].update({'save': True, 'plot': True}) # to write the best-fit plot to file
+        if verbose: self.L.c['write']['show'] = True 
+        get_logp = self.set_logp(jax_jit=False, measure=False, vectorize=False, taylor=False, verbose=False) # important to reset the likelihood in no-jax to avoid tracing issue
+        _ = get_logp(array(list(self.l['maxp_pos'].values()))) # setting Likelihood on the mode
+        self.L.write() # writing the best-fit plot to file
+        self.L.c['write'].update({'save': False, 'plot': False, 'show': False}) # turning off in future calls of self.L
+        return
 
     def set_taylor(self, f, bird_correlator=True, log_measure=False, order=3, verbose=True): 
         to_set = False
@@ -664,7 +681,7 @@ class Inference():
 
         toc = tic() 
         if bird_correlator: _, size_per_sky = f(x0, return_size_per_sky=True)
-        if self.l['boltzmann'] in ['Symbolic', 'CPJ']: # JAX-differentiable Boltzmann code
+        if self.l['boltzmann'] in ['Symbolic', 'CPJ', 'CPJ_custom']: # JAX-differentiable Boltzmann code
             def make_jacfwd_chain(f, max_order):
                 chain = [f]
                 for _ in range(max_order): chain.append(jacfwd(chain[-1]))
@@ -746,6 +763,8 @@ class Inference():
         elif self.l['boltzmann'] == 'Symbolic':
             self.M.set(cosmo)
         elif self.l['boltzmann'] == 'CPJ': 
+            self.M.cosmo = cosmo 
+        elif self.l['boltzmann'] == 'CPJ_custom': 
             self.M.cosmo = cosmo 
         else: 
             pass

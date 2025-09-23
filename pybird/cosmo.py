@@ -163,9 +163,10 @@ class Cosmo():
                 M_growth.restore(self.c["emu_path"] + "/growth_model.h5") 
 
                 if self.c["with_bias"] and "bias" in cosmo_dict: del cosmo_dict_local["bias"] # remove to not pass it to classy that otherwise complains
-                if not self.c["with_time"] and "A" in cosmo_dict: del cosmo_dict_local["A"] # same as above
-                if self.c["with_redshift_bin"]: zmax = max(self.c["redshift_bin_zz"])
-                else: zmax = self.c["z"]  
+                # if not self.c["with_time"] and "A" in cosmo_dict: del cosmo_dict_local["A"] # same as above
+                # if self.c["with_redshift_bin"]: zmax = max(self.c["redshift_bin_zz"])
+                # else: zmax = self.c["z"]
+                zmax = self.c["z"]  
 
             else:
                 M, M_growth, cosmo_dict_local = engine.CPJ, engine.growth, engine.cosmo
@@ -182,25 +183,91 @@ class Cosmo():
             cosmo["pk_lin"] = array(to_Mpc_per_h_jax(M.predict(input_dict_pk), M.modes, cosmo_dict_local["h"]))
             cosmo["kk"] = array(M.modes)
 
-            if self.c["multipole"] > 0: 
-                sigma_8s = array([0.8]) # this has no impact on growth- I mistakenly included in training so this is a dummy value
-                emulator_growth_input = stack([
-                    input_dict_pk["omega_b"],
-                    input_dict_pk["omega_cdm"],
-                    input_dict_pk["n_s"],
-                    sigma_8s,
-                    input_dict_pk["h"],
-                    array([self.c["z"]])
-                ], axis=1)
+            ### using LCDM growths and distances for now (until growth emulator is debugged)
+            from pybird.symbolic import DA, Hubble, f
 
-                D, f, H, DA = M_growth.predict(emulator_growth_input)[0]
-                cosmo["f"] = f
-            if not self.c["with_time"]:
-                cosmo["D"] = D
-            if self.c["with_ap"]:
-                cosmo["H"], cosmo["DA"] = H, DA
+            Omega_m = (cosmo_dict_local["omega_cdm"] + cosmo_dict_local["omega_b"]) / cosmo_dict_local["h"]**2
 
+            cosmo["f"] = f(Omega_m, self.c["z"])
+            cosmo["H"], cosmo["DA"] = Hubble(Omega_m, self.c["z"]), DA(Omega_m, self.c["z"])
 
+            # if self.c["multipole"] > 0: 
+            #     sigma_8s = array([0.8]) # this has no impact on growth- I mistakenly included in training so this is a dummy value
+            #     emulator_growth_input = stack([
+            #         input_dict_pk["omega_b"],
+            #         input_dict_pk["omega_cdm"],
+            #         input_dict_pk["n_s"],
+            #         sigma_8s,
+            #         input_dict_pk["h"],
+            #         array([self.c["z"]])
+            #     ], axis=1)
+
+            #     D, f, H, DA = M_growth.predict(emulator_growth_input)[0]
+            #     cosmo["f"] = f
+            # if not self.c["with_time"]: cosmo["D"] = D
+            # if self.c["with_ap"]: cosmo["H"], cosmo["DA"] = H, DA
+
+            
+        elif self._is(module, 'CPJ_custom'):
+
+            # cd cosmopower_jax/cosmopower_jax/trained_models; git clone https://github.com/cosmopower-organization/mnu.git
+            # might need to first: pip install tensorflow
+            # make sure that you have CPJ in editable mode: pip install -e .  
+
+            from cosmopower_jax.cosmopower_jax import CosmoPowerJAX as CPJ
+            
+            def to_Mpc_per_h_jax(_pk, _kk, h):
+                ilogpk_ = interp1d(log(_kk), log(_pk), fill_value='extrapolate')
+                return exp(ilogpk_(log(_kk*h))) * h**3
+
+            def get_pk_lin_from_cpj_custom(cosmo, kk, z):
+                _cosmo = {key: array([cosmo[key]]) for key in ["omega_b", "omega_cdm", "n_s", "ln10^{10}A_s", "m_ncdm"]}
+                _cosmo['H0'] = array([cosmo['h'] * 100.])
+                _cosmo['z_pk_save_nonclass'] = array([z])
+                
+                M = CPJ(probe='custom', filename=os.path.join('mnu', 'PK', 'PKL_mnu_v1.npz'))
+                pk = M.predict(_cosmo)
+                ndspl = 10
+                k_arr = np.geomspace(1e-4,50.,5000)[::ndspl]
+                ls = np.arange(2,5000+2)[::ndspl]
+                dls = ls*(ls+1.)/2./np.pi
+                pk = 10.**array(pk)
+                pk =  ((dls)**-1*pk)
+                pk = array(to_Mpc_per_h_jax(pk, k_arr, cosmo['h']))
+                ipk = interp1d(log(k_arr), log(pk), kind='linear', fill_value='extrapolate')
+                pk = exp(ipk(log(kk)))
+                return pk
+            
+            def get_growth(cosmo, z):
+                _cosmo = {key: array([cosmo[key]]) for key in ["omega_b", "omega_cdm", "n_s", "ln10^{10}A_s", "m_ncdm"]}
+                _cosmo['H0'] = array([cosmo['h'] * 100.])
+
+                z_arr = linspace(0., 20., 5000)
+                dz = z_arr[-1] - z_arr[-2]
+                idx = abs(z_arr - z).argmin()
+
+                M = CPJ(probe='custom_log', filename=os.path.join('mnu', 'growth-and-distances', 'HZ_mnu_v1.npz'))
+                Hz = M.predict(_cosmo)
+                H = Hz[idx] / Hz[0]
+                
+                M = CPJ(probe='custom', filename=os.path.join('mnu', 'growth-and-distances', 'DAZ_mnu_v1.pkl'))
+                DAz = M.predict(_cosmo)
+                DA = DAz[idx] * Hz[0]
+
+                M = CPJ(probe='custom', filename=os.path.join('mnu', 'growth-and-distances', 'S8Z_mnu_v1.npz'))
+                s8z = M.predict(_cosmo)
+                
+                fs8z = - (s8z[idx+1]-s8z[idx-1]) / (2.*dz) * (1.+z) # f sigma8 = d sigma8/d ln a = - (d sigma8/dz)*(1+z)
+                f = fs8z / s8z[idx]
+                
+                return H, DA, f
+
+            cosmo['kk'] = geomspace(2e-4, 1, 500)
+            kk, z = cosmo['kk'], self.c['z']
+            cosmo['pk_lin'] = get_pk_lin_from_cpj_custom(engine.cosmo, kk, z)
+            H, DA, f = get_growth(engine.cosmo, z)
+            cosmo["H"], cosmo["DA"], cosmo["f"] = H, DA, f
+        
         elif module is None: 
             # no cosmo module -assume you have already input your required pk_lin 
             cosmo = cosmo_dict

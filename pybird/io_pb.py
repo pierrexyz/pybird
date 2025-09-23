@@ -264,16 +264,17 @@ class ReadWrite(object):
             if c['write']['save']:
                 header = self.set_header(o)
                 for i, l in enumerate(range(0,2*c['multipole'],2)):
+                    header_ell = deepcopy(header)
                     to_save = vstack([ fdata['x_arr'][i], fdata['y_arr'][i], fdata['y_err'][i] ])
-                    if c['output'] == 'bPk': header += "k [h/Mpc], P_data_l%s [Mpc/h]^3, sigma_data_l%s [Mpc/h]^3" % (l, l)
-                    elif c['output'] == 'bCf': header += 's [Mpc/h], C_data_l%s, sigma_data_l%s' % (l, l)
+                    if c['output'] == 'bPk': header_ell += "k [h/Mpc], P_data_l%s [Mpc/h]^3, sigma_data_l%s [Mpc/h]^3" % (l, l)
+                    elif c['output'] == 'bCf': header_ell += 's [Mpc/h], C_data_l%s, sigma_data_l%s' % (l, l)
                     fmt = "%.4f %.6e %.6e"
                     if fit: 
                         to_save =  vstack([ to_save, o['y_arr'][i] ]) 
-                        if c['output'] == 'bPk': header += ", P_theo_l%s [Mpc/h]^3" % l
-                        elif c['output'] == 'bCf': header += ", C_theo_l%s" % l
+                        if c['output'] == 'bPk': header_ell += ", P_theo_l%s [Mpc/h]^3" % l
+                        elif c['output'] == 'bCf': header_ell += ", C_theo_l%s" % l
                         fmt += " %.6e"
-                    savetxt(os.path.join(c['write']['out_path'], 'fit_%s_%s_l%s.dat') % (c['write']['out_name'], sky, l), to_save.T, header=header, fmt=fmt)
+                    savetxt(os.path.join(c['write']['out_path'], 'fit_%s_%s_l%s.dat') % (c['write']['out_name'], sky, l), to_save.T, header=header_ell, fmt=fmt)
                 print ('data files with best fit saved to %s.' % c['write']['out_path'])
             if c['write']['plot']: 
                 import matplotlib.pyplot as plt
