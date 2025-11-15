@@ -147,7 +147,9 @@ class Inference():
         if (measure or debiasing) and hessian_type is None: raise Exception('Asking \'measure\' or \'debiasing\', please choose between \'hessian_type\' = \'H\', \'F\', or \'FH\'')
         if emulate is not None: self.set_emu(emulate, verbose=verbose) # if emulate = None (left unspecified), emulator option is set by likelihood_config['with_emu']; else (if specified), re-set correlator classes accordingly
         if taylor: self.set_taylor(self._get_bird_correlator, bird_correlator=True, log_measure=False, order=order, verbose=verbose)
-        if self.L.marg_lkl and (minimize or measure or debiasing): self.L.c["get_maxlkl"] = True # equivalent as dropping the logdet on the nuisance subspace, however simplifying the implementation of the residual measure / debiasing on the nuisance-projected cosmo subspace
+        if self.L.marg_lkl: 
+            if (minimize or measure or debiasing): self.L.c["get_maxlkl"] = True # equivalent as dropping the logdet on the nuisance subspace, however simplifying the implementation of the residual measure / debiasing on the nuisance-projected cosmo subspace
+            else: self.L.c["get_maxlkl"] = False # flat measure
         free_param_name, initial_pos = self.get_param_name_and_pos(verbose=verbose)
         get_logp = self.set_logp(cosmo_prior=cosmo_prior, ext_probe=ext_probe, ext_loglkl=ext_loglkl, jax_jit=jax_jit, measure=measure, hessian_type=hessian_type, taylor_measure=taylor_measure, vectorize=vectorize, taylor=taylor)
         if jax_jit and not vectorize: get_logp(initial_pos) # jitting except if vectorize for which the jit is performed by the sampler
@@ -463,19 +465,22 @@ class Inference():
             from random import choices
             def _get_p(initial_pos=None, max_calls=None, prior_dict=None, verbose=verbose):
                 if initial_pos is None: initial_pos = _initial_pos
-                prior_flat = Prior()
-                for name in free_param_name:
-                    if prior_dict is not None:
-                        prior_flat.add_parameter(name, dist=prior_dict[name])
-                    else:
-                        print("Warning: using default prior of [-5, 5] for all parameters - note for Nautilus this is not recommended and will likely lead to NaNs")
-                        prior_flat.add_parameter(name, dist=(-5,5))
+                prior = Prior()
+                if prior_dict is not None:
+                    for name in free_param_name: prior.add_parameter(name, dist=prior_dict[name])
+                elif self.is_fisher: 
+                    if verbose: print ('Fisher matrix found: setting Nautilus prior to Gaussians with width F^{-1/2} x 3')
+                    from scipy.stats import norm
+                    for i, name in enumerate(free_param_name): prior.add_parameter(name, dist=norm(loc=initial_pos[i], scale=3 * self.C_fisher[i,i]**.5))
+                else:
+                    if verbose: print("Warning: using default prior of [-5, 5] for all parameters - note for Nautilus this is not recommended and will likely lead to NaNs")
+                    for name in free_param_name: prior.add_parameter(name, dist=(-5,5))
 
                 def loglkl_wrapper(param_dict):
                     param_pos = [param_dict[key] for key in free_param_name]
                     return get_logp(param_pos)
             
-                sampler = Sampler(prior_flat, loglkl_wrapper)
+                sampler = Sampler(prior, loglkl_wrapper)
                 if max_calls:
                     sampler.run(verbose=verbose, n_like_max = max_calls)
                 else:
@@ -487,7 +492,7 @@ class Inference():
                 
                 return samples, sampler
         else:
-            raise Exception('sampler %s not recognized, please choose between emcee, nuts, mclmc, fisher or nautilus' % sampler)
+            raise Exception('sampler %s not recognized, please choose between emcee, zeus, nuts, mclmc, fisher, or nautilus' % sampler)
 
         def get_p(**kwargs):
             samples, extras = _get_p(**kwargs, **options)

@@ -182,6 +182,9 @@ class Correlator(object):
             "with_resum": Option("with_resum", bool,
                 description="Apply IR-resummation.",
                 default=True) ,
+            "resum_rescaled_damping_factor": Option("wresum_rescaled_damping", float,
+                description="Rescaling factor for the resummation damping exponent (only for exercise)",
+                default=1.) ,
             "optiresum": Option("optiresum", bool,
                 description="[depreciated: keep on default False] True: Resumming only with the BAO peak. False: Resummation on the full correlation function.",
                 default=False) ,
@@ -587,7 +590,7 @@ class Correlator(object):
                 self.emulator = Emulator(self.c["emu_path"], self.c["knots_path"], co=self.co)
             else: 
                 self.nonlinear = NonLinear(load_matrix=True, save_matrix=True, NFFT=256*self.c["fftaccboost"], fftbias=self.c["fftbias"], co=self.co) 
-                self.resum = Resum(co=self.co)
+                self.resum = Resum(RescaleIR=self.c['resum_rescaled_damping_factor'], co=self.co)
             if self.c["with_uvmatch_2"] or self.c["with_irmatch_2"]: 
                 self.matching = Matching(self.nonlinear, co=self.co)
             self.projection = Projection(self.c["xdata"],

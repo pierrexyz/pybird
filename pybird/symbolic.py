@@ -7,11 +7,10 @@ def _D(Om,a,w0=-1.,wa=0.):
     return 5/2. * Om * cH(Om,a,w0,wa)/a * trapz(cH(Om, aa, w0, wa)**-3, x=aa)
 def D(Om,z,w0=-1.,wa=0.): return _D(Om,1/(1+z),w0,wa)/_D(Om,1,w0,wa)
 
-def f(Om,z,w0=-1.,wa=0.): 
+def f(Om,z,w0=-1.,wa=0.,lcdm=False): 
     a = 1/(1+z)
-    def _logD(a):
-        return log(_D(Om, a, w0, wa))
-    if is_jax and (w0 !=-1. or wa != 0.): return a*grad(_logD)(a)
+    def _logD(a): return log(_D(Om, a, w0, wa))
+    if is_jax and not lcdm: return a*grad(_logD)(a)
     else: return (Om*(5*a - 3*_D(Om,a,-1,0)))/(2.*(a**3*(1 - Om) + Om)*_D(Om,a,-1,0)) # LCDM only!
 
 def Hubble(Om,z,w0=-1.,wa=0.): return ((Om)*(1+z)**3.+(1-Om)*(1+z)**(3.*(1.+w0+wa))*exp(-3.*wa*z/(1.+z)))**0.5
@@ -26,7 +25,10 @@ class Symbolic():
 
     def set(self, cosmo):
         self.c = {k: v for k, v in cosmo.items() if k in self.cosmo_name}
-        if 'w0_fld' in self.c and not is_jax: sys.exit("Need to turn on jax to do dynamical dark energy with Symbolic!")
+        self.lcdm = True
+        if 'w0_fld' in self.c: 
+            if not is_jax: sys.exit("Need to turn on jax to do dynamical dark energy with Symbolic!")
+            else: self.lcdm = False
         if 'm_ncdm' not in self.c: self.c['m_ncdm'] = 0.
         if 'w0_fld' not in self.c: self.c['w0_fld'] = -1.
         if 'wa_fld' not in self.c: self.c['wa_fld'] = 0.
@@ -39,7 +41,7 @@ class Symbolic():
 
     def compute(self, k, z, emulator='fiducial'): 
         self.k, self.z = k, z
-        self.D, self.f = D(self.c['Omega_m'], self.z, self.c['w0_fld'], self.c['wa_fld']), f(self.c['Omega_m'], self.z, self.c['w0_fld'], self.c['wa_fld']) # for RSD
+        self.D, self.f = D(self.c['Omega_m'], self.z, self.c['w0_fld'], self.c['wa_fld']), f(self.c['Omega_m'], self.z, self.c['w0_fld'], self.c['wa_fld'], lcdm=self.lcdm) # for RSD
         self.H, self.DA = Hubble(self.c['Omega_m'], self.z, self.c['w0_fld'], self.c['wa_fld']), DA(self.c['Omega_m'], self.z, self.c['w0_fld'], self.c['wa_fld']) # for AP effect
         if self.smooth_de: # we evolve the power spectrum from LCDM deep inside matter domination with the growth factor in w0waCDM
             zmd = 3. # redshift in matter domination (currently max redshift supported by Symbolic)

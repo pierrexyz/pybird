@@ -10,7 +10,8 @@ path_script = Path(__file__).parent
 if is_jax:
     print("jax: on")
     import jax
-    from jax import jit, vmap, disable_jit, clear_caches, grad, hessian, value_and_grad, jacfwd, jacrev
+    from jax import vmap, disable_jit, clear_caches, grad, hessian, value_and_grad, jacfwd, jacrev
+    from equinox import filter_jit as jit # https://docs.kidger.site/equinox/api/transformations/
     from jax.experimental.jet import jet
     from jax.lax import stop_gradient, cond, scan
     jax.config.update("jax_enable_x64", True)

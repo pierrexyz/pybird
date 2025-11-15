@@ -1,4 +1,4 @@
-data_file: fake_desi_pk_wc.h5
+data_file: fake_desi_pk_wc_no_resum.h5
 data_path: ../data/fake
 eft_basis: westcoast
 eft_prior:
@@ -285,7 +285,7 @@ with_emu: true
 with_loop_prior: false
 with_nnlo_counterterm: false
 with_redshift_bin: false
-with_resum: false
+with_resum: true
 with_stoch: true
 with_survey_mask: false
 with_wedge: false

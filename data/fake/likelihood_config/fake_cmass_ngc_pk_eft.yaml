@@ -1,5 +1,5 @@
 data_file: fake_cmass_ngc_pk_eft.h5
-data_path: /cluster/work/refregier/alexree/local_packages/pybird_emu/data/fake
+data_path: ../data/fake
 eft_basis: eftoflss
 eft_prior:
   b1:

@@ -2,7 +2,7 @@ output: 'bPk'
 multipole: 3
 
 with_emu: True
-with_resum: True
+with_resum: False
 with_wedge: False
 with_ap: False
 with_survey_mask: False

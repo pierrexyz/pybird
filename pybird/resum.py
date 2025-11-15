@@ -81,7 +81,7 @@ class Resum(object):
         Ps(): Compute power spectrum with IR-resummation.
     """
 
-    def __init__(self, LambdaIR=.1, NFFT=192, fft=False, co=co):
+    def __init__(self, LambdaIR=.1, RescaleIR=1., NFFT=192, fft=False, co=co):
         """Initialize the Resum engine for IR-resummation calculations.
         
         Parameters
@@ -94,16 +94,11 @@ class Resum(object):
             Whether to use O(NFFT logNFFT) FFT instead of O(NFFT x Nk) sum, by default False
         co : Common, optional
             Common parameters object, by default co
-            
-        Notes
-        -----
-        The choice of LambdaIR depends on the resummation scheme:
-        - fullresum: LambdaIR = 0.2 (default for complete treatment)
-        - optiresum: LambdaIR = 1.0 (faster, works for either scheme)
         """
 
         self.co = co
         self.LambdaIR = LambdaIR
+        self.RescaleIR = RescaleIR
 
         self.is_fft = fft # spherical bessel transform using O(NFFT logNFFT)-FFT instead of O(NFFT x Nk)-sum; not neccessarily faster because of the large-dimension arrays involved here
 
@@ -184,9 +179,10 @@ class Resum(object):
         # for l in range(2): self.XM[l] = MPC(2 * l, -0.5 * self.Xfft.Pow)
         self.XM = array([MPC(2 * l, -0.5 * self.Xfft.Pow) for l in range(2)])
 
-    def IRFilters(self, bird, soffset=1., LambdaIR=None, RescaleIR=1.):
+    def IRFilters(self, bird, soffset=1., LambdaIR=None, RescaleIR=None):
         """ Compute the IR-filters X and Y. """
         if LambdaIR is None: LambdaIR = self.LambdaIR
+        if RescaleIR is None: RescaleIR = self.RescaleIR
         if self.co.exact_time and self.co.quintessence: Pin = bird.G1**2 * bird.Pin
         else: Pin = bird.Pin
         Coef = self.Xfft.Coef(bird.kin, Pin * exp(-bird.kin**2 / LambdaIR**2) / bird.kin**2, extrap='padding')
@@ -200,7 +196,7 @@ class Resum(object):
         #     Y = 2. * bird.D1*bird.D2/bird.D**2 * X02[1]
         # else:
         X = RescaleIR * 2. / 3. * (X02[0] - X02[1])
-        Y = 2. * X02[1]
+        Y = RescaleIR * 2. * X02[1]
         return X, Y
 
     def setkPow(self):
