@@ -53,6 +53,28 @@ High-level PyBird workflow:
 
 **View:** `run.ipynb on GitHub <https://github.com/pierrexyz/pybird/blob/master/demo/run.ipynb>`_ | `NBViewer <https://nbviewer.org/github/pierrexyz/pybird/blob/master/demo/run.ipynb>`_
 
+**BOSS DR12 Analysis**
+~~~~~~~~~~~~~~~~~~~~~~
+
+Full inference pipeline with BOSS DR12 LRG data:
+
+* Loading and configuring BOSS likelihood
+* Running MCMC with real data
+* Posterior analysis and visualization
+
+**View:** `run_boss.ipynb on GitHub <https://github.com/pierrexyz/pybird/blob/master/demo/run_boss.ipynb>`_ | `NBViewer <https://nbviewer.org/github/pierrexyz/pybird/blob/master/demo/run_boss.ipynb>`_
+
+**Abacus Simulations**
+~~~~~~~~~~~~~~~~~~~~~~
+
+Running PyBird with Abacus mock data:
+
+* Configuring Abacus likelihood
+* ELG, LRG, and QSO tracers
+* Validation against simulations
+
+**View:** `run_abacus.ipynb on GitHub <https://github.com/pierrexyz/pybird/blob/master/demo/run_abacus.ipynb>`_ | `NBViewer <https://nbviewer.org/github/pierrexyz/pybird/blob/master/demo/run_abacus.ipynb>`_
+
 **JAX Benchmarking**
 ~~~~~~~~~~~~~~~~~~~~
 
@@ -107,8 +129,10 @@ Learning Path
 1. **Start:** `correlator.ipynb` - Learn PyBird basics and JAX features
 2. **Data Analysis:** `likelihood.ipynb` - Understand data fitting  
 3. **Complete Workflow:** `run.ipynb` - Master parameter inference
-4. **Custom Analysis:** `inference.ipynb` + `fake.ipynb` - Build custom solutions
-5. **Performance (optional):** `jaxbird_benchmarking.ipynb` - Test the speed of PyBird on your local machine 
+4. **Real Data:** `run_boss.ipynb` - BOSS DR12 analysis
+5. **Simulations:** `run_abacus.ipynb` - Abacus mock data
+6. **Custom Analysis:** `inference.ipynb` + `fake.ipynb` - Build custom solutions
+7. **Performance (optional):** `jaxbird_benchmarking.ipynb` - Test the speed of PyBird on your local machine 
 
 Getting Help
 ------------
