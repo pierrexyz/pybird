@@ -16,7 +16,7 @@ maintainers = [
 ]
 readme = "README.md"
 license = {file = "LICENSE"}
-requires-python = ">=3.8"
+requires-python = ">=3.10"
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Science/Research",
@@ -24,10 +24,9 @@ classifiers = [
     "Operating System :: OS Independent",
     "Environment :: Console",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
 ]
 
 # Core dependencies (NumPy, SciPy, H5PY, emcee, iminuit, pyyaml, fftlog-lss + documentation + development tools)
