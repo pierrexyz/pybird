@@ -2,6 +2,87 @@ from pybird.module import *
 import numpy as np
 import jax
 
+# ──────────────────── cache modelli ────────────────────
+from functools import lru_cache
+
+@lru_cache(maxsize=4) # number of CPJ model expected to be loaded, change if you modify cosmo.py to load more than 4 models
+def _get_cpj_model(probe, filepath):
+    # the first call for every (probe, filepath) pair loads the model; subsequent calls return the cached model
+    from cosmopower_jax.cosmopower_jax import CosmoPowerJAX as CPJ
+    return CPJ(probe=probe, filepath=filepath)
+
+def _cpj_path(models_dir, *parts):
+    return os.path.join(models_dir, *parts)
+
+def clear_cpj_model_cache():
+    """Free the cache of all models and force garbage collection."""
+    import gc
+    _get_cpj_model.cache_clear()
+    gc.collect() # forced garbage collection to free up memory space
+
+def cpj_cache_info():
+    """Show how many and what models are actually in the cache."""
+    print(_get_cpj_model.cache_info())
+
+# ──────────────── Helper functions defined at module level to avoid re-instantiation on every call to set_cosmo, we do so to optimize frequent calls in MCMC chains ────────────────
+
+# ────── no funct from the CLASS branch ──────
+# ────── no funct from the Symbolic branch ──────
+
+# ────── CPJ branch ──────
+def to_Mpc_per_h_jax(_pk, _kk, h):
+                ilogpk_ = interp1d(log(_kk), log(_pk), fill_value='extrapolate')
+                return exp(ilogpk_(log(_kk*h))) * h**3
+    
+# ────── CPJ_custom branch ──────
+
+def _get_pk_lin_cpj_custom(cosmo_dict, kk, z, models_dir):
+    _cosmo = {key: array([cosmo_dict[key]])
+              for key in ["omega_b", "omega_cdm", "n_s", "ln10^{10}A_s", "m_ncdm"]}
+    _cosmo['H0'] = array([cosmo_dict['h'] * 100.])
+    _cosmo['z_pk_save_nonclass'] = array([z])
+
+    M_pk = _get_cpj_model('custom', _cpj_path(models_dir, 'mnu', 'PK', 'PKL_mnu_v1.npz'))
+
+    pk = M_pk.predict(_cosmo)
+
+    ndspl = 10
+    k_arr = np.geomspace(1e-4, 50., 5000)[::ndspl]
+    ls = np.arange(2, 5002)[::ndspl]
+    dls = ls * (ls + 1.) / (2. * np.pi)
+
+    pk = 10.**array(pk) / dls
+    pk = array(to_Mpc_per_h_jax(pk, k_arr, cosmo_dict['h']))
+
+    ipk = interp1d(log(k_arr), log(pk), kind='linear', fill_value='extrapolate')
+    return exp(ipk(log(kk)))
+
+def _get_growth_cpj_custom(cosmo_dict, z, models_dir):
+    _cosmo = {key: array([cosmo_dict[key]])
+              for key in ["omega_b", "omega_cdm", "n_s", "ln10^{10}A_s", "m_ncdm"]}
+    _cosmo['H0'] = array([cosmo_dict['h'] * 100.])
+
+    z_arr = linspace(0., 20., 5000)
+    dz = z_arr[-1] - z_arr[-2]
+    idx = abs(z_arr - z).argmin().astype(int) 
+    
+    M_H  = _get_cpj_model('custom_log', _cpj_path(models_dir, 'mnu', 'growth-and-distances', 'HZ_mnu_v1.npz'))
+    M_DA = _get_cpj_model('custom',     _cpj_path(models_dir, 'mnu', 'growth-and-distances', 'DAZ_mnu_v1.npz'))
+    M_S8 = _get_cpj_model('custom',     _cpj_path(models_dir, 'mnu', 'growth-and-distances', 'S8Z_mnu_v1.npz'))
+
+    Hz  = M_H.predict(_cosmo)
+    H   = Hz[idx] / Hz[0]
+
+    DAz = M_DA.predict(_cosmo)
+    DA  = DAz[idx] * Hz[0]
+
+    s8z  = M_S8.predict(_cosmo)
+    fs8z = -(s8z[idx + 1] - s8z[idx - 1]) / (2. * dz) * (1. + z)
+    f    = fs8z / s8z[idx]
+
+    return H, DA, f
+    
+# ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
 class Cosmo():
     """A Class to compute the linear power spectrum and growth factors from cosmological parameters.
@@ -26,7 +107,7 @@ class Cosmo():
     def _is(self, module, module_name): 
         return module.casefold() == module_name.casefold()
 
-    def set_cosmo(self, cosmo_dict, module='class', engine=None):
+    def set_cosmo(self, cosmo_dict, module='class', engine=None, models_dir=None):
         
         # Handle None cosmo_dict
         if cosmo_dict is None:
@@ -80,7 +161,7 @@ class Cosmo():
             if self.c["with_exact_time"] or self.c["with_quintessence"]:
                 cosmo["z"] = self.c["z"]
                 cosmo["Omega0_m"] = M.Omega0_m()
-            # if "w0_fld" in cosmo_dict:
+                # if "w0_fld" in cosmo_dict:
             #     cosmo["w0_fld"] = cosmo_dict["w0_fld"]
             if self.c["with_ap"]:
                 cosmo["H"], cosmo["DA"] = M.Hubble(self.c["z"]) / M.Hubble(0.), M.angular_distance(self.c["z"]) * M.Hubble(0.)
@@ -95,39 +176,38 @@ class Cosmo():
                 # starting deep inside matter domination and evolving to the total adiabatic linear power spectrum.
                 # This does not work in the general case, e.g. with massive neutrinos (okish for minimal mass though)
                 # This does not work for 'with_redshift_bin': True. # eventually to code up
-                zm = 5. # z in matter domination
+                zm = 5.
                 def scale_factor(z): return 1/(1.+z)
                 Omega0_m = cosmo["Omega0_m"]
                 w = cosmo["w0_fld"]
                 GF = GreenFunction(Omega0_m, w=w, quintessence=True)
                 Dq = GF.D(scale_factor(zfid)) / GF.D(scale_factor(zm))
                 Dm = M.scale_independent_growth_factor(self.c["z"]) / M.scale_independent_growth_factor(zm)
-                cosmo["pk_lin"] *= Dq**2 / Dm**2 * ( 1 + (1+w)/(1.-3*w) * (1-Omega0_m)/Omega0_m * (1+zm)**(3*w) )**2 # 1611.07966 eq. (4.15)
+                cosmo["pk_lin"] *= Dq**2 / Dm**2 * ( 1 + (1+w)/(1.-3*w) * (1-Omega0_m)/Omega0_m * (1+zm)**(3*w) )**2
                 cosmo["f"] = GF.fplus(1/(1.+self.c["z"]))
-
+            
             # wiggle-no-wiggle split # algo: 1003.3999; details: 2004.10607
-            def get_smooth_wiggle_resc(kk, pk, alpha_rs=1.): # k [h/Mpc], pk [(Mpc/h)**3]
-                kp = linspace(1.e-7, 7, 2**16)   # 1/Mpc
-                ilogpk = interp1d(log(kk * M.h()), log(pk / M.h()**3), fill_value="extrapolate") # Mpc**3
-                lnkpk = log(kp) + ilogpk(log(kp))
-                harmonics = dst(lnkpk, type=2, norm='ortho')
-                odd, even = harmonics[::2], harmonics[1::2]
-                nn = arange(0, odd.shape[0], 1)
-                nobao = delete(nn, arange(120, 240,1))
-                smooth_odd = interp1d(nn, odd, kind='cubic')(nobao)
-                smooth_even = interp1d(nn, even, kind='cubic')(nobao)
-                smooth_odd = interp1d(nobao, smooth_odd, kind='cubic')(nn)
-                smooth_even = interp1d(nobao, smooth_even, kind='cubic')(nn)
-                smooth_harmonics =  array([[o, e] for (o, e) in zip(smooth_odd, smooth_even)]).reshape(-1)
-                smooth_lnkpk = dst(smooth_harmonics, type=3, norm='ortho')
-                smooth_pk = exp(smooth_lnkpk) / kp
-                wiggle_pk = exp(ilogpk(log(kp))) - smooth_pk
-                spk = interp1d(kp, smooth_pk, bounds_error=False)(kk * M.h()) * M.h()**3 # (Mpc/h)**3
-                wpk_resc = interp1d(kp, wiggle_pk, bounds_error=False)(alpha_rs * kk * M.h()) * M.h()**3 # (Mpc/h)**3 # wiggle rescaling
-                kmask = where(kk < 1.02)[0]
-                return kk[kmask], spk[kmask], pk[kmask] #spk[kmask]+wpk_resc[kmask]
-
-            #if self.c["with_nnlo_counterterm"]: cosmo["kk"], cosmo["Psmooth"], cosmo["pk_lin"] = get_smooth_wiggle_resc(cosmo["kk"], cosmo["pk_lin"])
+#            def get_smooth_wiggle_resc(kk, pk, alpha_rs=1.): # k [h/Mpc], pk [(Mpc/h)**3]
+#                kp = linspace(1.e-7, 7, 2**16) # 1/Mpc
+#                ilogpk = interp1d(log(kk * M.h()), log(pk / M.h()**3), fill_value="extrapolate") # Mpc**3
+#                lnkpk = log(kp) + ilogpk(log(kp))
+#                harmonics = dst(lnkpk, type=2, norm='ortho')
+#                odd, even = harmonics[::2], harmonics[1::2]
+#                nn = arange(0, odd.shape[0], 1)
+#                nobao = delete(nn, arange(120, 240,1))
+#                smooth_odd = interp1d(nn, odd, kind='cubic')(nobao)
+#                smooth_even = interp1d(nn, even, kind='cubic')(nobao)
+#                smooth_odd = interp1d(nobao, smooth_odd, kind='cubic')(nn)
+#                smooth_even = interp1d(nobao, smooth_even, kind='cubic')(nn)
+#                smooth_harmonics =  array([[o, e] for (o, e) in zip(smooth_odd, smooth_even)]).reshape(-1)
+#                smooth_lnkpk = dst(smooth_harmonics, type=3, norm='ortho')
+#                smooth_pk = exp(smooth_lnkpk) / kp
+#                wiggle_pk = exp(ilogpk(log(kp))) - smooth_pk
+#                spk = interp1d(kp, smooth_pk, bounds_error=False)(kk * M.h()) * M.h()**3 # (Mpc/h)**3
+#                wpk_resc = interp1d(kp, wiggle_pk, bounds_error=False)(alpha_rs * kk * M.h()) * M.h()**3 # (Mpc/h)**3 # wiggle rescaling
+#                kmask = where(kk < 1.02)[0]
+#                return kk[kmask], spk[kmask], pk[kmask] #spk[kmask]+wpk_resc[kmask]
+            #if self.c["with_nnlo_counterterm"]: cosmo["kk"], cosmo["Psmooth"], cosmo["pk_lin"] = get_smooth_wiggle_resc(cosmo["kk"], cosmo["pk_lin"])                
 
             return cosmo
 
@@ -149,10 +229,6 @@ class Cosmo():
 
         elif self._is(module, 'CPJ'):
 
-            def to_Mpc_per_h_jax(_pk, _kk, h):
-                ilogpk_ = interp1d(log(_kk), log(_pk), fill_value='extrapolate')
-                return exp(ilogpk_(log(_kk*h))) * h**3
-
             if not engine:
                 from pybird.integrated_model_jax import IntegratedModel
                 from cosmopower_jax.cosmopower_jax import CosmoPowerJAX as CPJ
@@ -165,7 +241,7 @@ class Cosmo():
                 if self.c["with_bias"] and "bias" in cosmo_dict: del cosmo_dict_local["bias"] # remove to not pass it to classy that otherwise complains
                 # if not self.c["with_time"] and "A" in cosmo_dict: del cosmo_dict_local["A"] # same as above
                 # if self.c["with_redshift_bin"]: zmax = max(self.c["redshift_bin_zz"])
-                # else: zmax = self.c["z"]
+                # else: zmax = self.c["z"]           
                 zmax = self.c["z"]  
 
             else:
@@ -207,67 +283,26 @@ class Cosmo():
             # if not self.c["with_time"]: cosmo["D"] = D
             # if self.c["with_ap"]: cosmo["H"], cosmo["DA"] = H, DA
 
-            
         elif self._is(module, 'CPJ_custom'):
-
             # cd cosmopower_jax/cosmopower_jax/trained_models; git clone https://github.com/cosmopower-organization/mnu.git
             # might need to first: pip install tensorflow
-            # make sure that you have CPJ in editable mode: pip install -e .  
+            # make sure that you have CPJ in editable mode: pip install -e .
 
-            from cosmopower_jax.cosmopower_jax import CosmoPowerJAX as CPJ
-            
-            def to_Mpc_per_h_jax(_pk, _kk, h):
-                ilogpk_ = interp1d(log(_kk), log(_pk), fill_value='extrapolate')
-                return exp(ilogpk_(log(_kk*h))) * h**3
-
-            def get_pk_lin_from_cpj_custom(cosmo, kk, z):
-                _cosmo = {key: array([cosmo[key]]) for key in ["omega_b", "omega_cdm", "n_s", "ln10^{10}A_s", "m_ncdm"]}
-                _cosmo['H0'] = array([cosmo['h'] * 100.])
-                _cosmo['z_pk_save_nonclass'] = array([z])
-                
-                M = CPJ(probe='custom', filename=os.path.join('mnu', 'PK', 'PKL_mnu_v1.npz'))
-                pk = M.predict(_cosmo)
-                ndspl = 10
-                k_arr = np.geomspace(1e-4,50.,5000)[::ndspl]
-                ls = np.arange(2,5000+2)[::ndspl]
-                dls = ls*(ls+1.)/2./np.pi
-                pk = 10.**array(pk)
-                pk =  ((dls)**-1*pk)
-                pk = array(to_Mpc_per_h_jax(pk, k_arr, cosmo['h']))
-                ipk = interp1d(log(k_arr), log(pk), kind='linear', fill_value='extrapolate')
-                pk = exp(ipk(log(kk)))
-                return pk
-            
-            def get_growth(cosmo, z):
-                _cosmo = {key: array([cosmo[key]]) for key in ["omega_b", "omega_cdm", "n_s", "ln10^{10}A_s", "m_ncdm"]}
-                _cosmo['H0'] = array([cosmo['h'] * 100.])
-
-                z_arr = linspace(0., 20., 5000)
-                dz = z_arr[-1] - z_arr[-2]
-                idx = abs(z_arr - z).argmin()
-
-                M = CPJ(probe='custom_log', filename=os.path.join('mnu', 'growth-and-distances', 'HZ_mnu_v1.npz'))
-                Hz = M.predict(_cosmo)
-                H = Hz[idx] / Hz[0]
-                
-                M = CPJ(probe='custom', filename=os.path.join('mnu', 'growth-and-distances', 'DAZ_mnu_v1.pkl'))
-                DAz = M.predict(_cosmo)
-                DA = DAz[idx] * Hz[0]
-
-                M = CPJ(probe='custom', filename=os.path.join('mnu', 'growth-and-distances', 'S8Z_mnu_v1.npz'))
-                s8z = M.predict(_cosmo)
-                
-                fs8z = - (s8z[idx+1]-s8z[idx-1]) / (2.*dz) * (1.+z) # f sigma8 = d sigma8/d ln a = - (d sigma8/dz)*(1+z)
-                f = fs8z / s8z[idx]
-                
-                return H, DA, f
+            models_dir = os.environ.get("CPJ_TRAINED_MODELS_DIR", "")
+            if not os.path.isdir(models_dir):
+                models_dir = os.path.join(os.path.dirname(__file__), "trained_models")
+            if not os.path.isdir(models_dir):
+                raise Exception(
+                    f"Models directory not found via __file__ ('{models_dir}'). "
+                    f"Please set the correct path with: os.environ['CPJ_TRAINED_MODELS_DIR'] = '/path/to/trained_models'."
+                )
 
             cosmo['kk'] = geomspace(2e-4, 1, 500)
             kk, z = cosmo['kk'], self.c['z']
-            cosmo['pk_lin'] = get_pk_lin_from_cpj_custom(engine.cosmo, kk, z)
-            H, DA, f = get_growth(engine.cosmo, z)
-            cosmo["H"], cosmo["DA"], cosmo["f"] = H, DA, f
-        
+
+            cosmo['pk_lin'] = _get_pk_lin_cpj_custom(engine.cosmo, kk, z, models_dir)
+            cosmo['H'], cosmo['DA'], cosmo['f'] = _get_growth_cpj_custom(engine.cosmo, z, models_dir)
+
         elif module is None: 
             # no cosmo module -assume you have already input your required pk_lin 
             cosmo = cosmo_dict
